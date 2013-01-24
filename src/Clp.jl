@@ -2,6 +2,8 @@
 ### COIN-OR Clp API Wrapper
 ###
 
+include(joinpath(Pkg.dir(),"Clp","deps","ext.jl"))
+
 module Clp
 
 
@@ -243,7 +245,6 @@ end
 
 ## Shared library interface setup
 #{{{
-const _jl_libClp = "libClp"
 
 macro clp_ccall(func, args...)
     f = "Clp_$(func)"
