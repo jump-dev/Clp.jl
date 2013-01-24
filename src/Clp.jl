@@ -2,8 +2,6 @@
 ### COIN-OR Clp API Wrapper
 ###
 
-# By Miles Lubin and Carlo Baldassi
-
 # this doesn't quite work
 #include(joinpath(Pkg.dir(),"Clp","deps","ext.jl"))
 
