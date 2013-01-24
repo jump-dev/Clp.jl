@@ -4,10 +4,12 @@
 
 # By Miles Lubin and Carlo Baldassi
 
-include(joinpath(Pkg.dir(),"Clp","deps","ext.jl"))
+# this doesn't quite work
+#include(joinpath(Pkg.dir(),"Clp","deps","ext.jl"))
 
 module Clp
 
+const _jl_libClp = joinpath(Pkg.dir(),"Clp","deps","usr","lib","libClp.so")
 
 export
     # Types
