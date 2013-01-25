@@ -22,3 +22,14 @@ diff -ur Clp-1.14.7/Clp/src/Makefile.in Clp-1.14.7-new/Clp/src/Makefile.in
  am__libClp_la_SOURCES_DIST = ClpConfig.h ClpCholeskyBase.cpp \
  	ClpCholeskyBase.hpp ClpCholeskyDense.cpp ClpCholeskyDense.hpp \
  	ClpConstraint.cpp ClpConstraint.hpp ClpConstraintLinear.cpp \
+diff -ur Clp-1.14.7/CoinUtils/src/Makefile.in Clp-1.14.7-new/CoinUtils/src/Makefile.in
+--- Clp-1.14.7/CoinUtils/src/Makefile.in	2011-06-19 11:34:41.000000000 -0400
++++ Clp-1.14.7-new/CoinUtils/src/Makefile.in	2013-01-25 00:29:35.003799811 -0500
+@@ -412,6 +412,7 @@
+ 
+ # This is for libtool
+ libCoinUtils_la_LDFLAGS = $(LT_LDFLAGS)
++libCoinUtils_la_LIBADD = $(COINUTILSLIB_LIBS)
+ 
+ # Here list all include flags, relative to this "srcdir" directory.  This
+ # "cygpath" stuff is necessary to compile with native compilers on Windows
