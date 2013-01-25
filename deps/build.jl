@@ -8,7 +8,9 @@ if !isfile("$clpname.tgz")
     cd("$clpname")
     run(`cat ../Clp-makefile.patch` | `patch -p1`)
     run(`cat ../Clp-interface.patch` | `patch -p0`)
-    run(`./configure --prefix=$prefix --with-blas="-L$libdir -lopenblas" --with-lapack=`)
+    # We should use Julia's blas/lapack, but this seems to cause some crashes
+    #run(`./configure --prefix=$prefix --with-blas="-L$libdir -lopenblas" --with-lapack=`)
+    run(`./configure --prefix=$prefix`)
     run(`make install`)
 end
 
