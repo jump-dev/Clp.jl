@@ -1,5 +1,4 @@
 require("BinDeps")
-println("WARNING: This build script has not been extensively tested. Please report any issues.")
 @unix_only begin
 clpname = "Clp-1.14.8"
 prefix = joinpath(Pkg.dir(),"Clp","deps","usr")
