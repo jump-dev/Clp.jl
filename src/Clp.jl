@@ -2,12 +2,10 @@
 ### COIN-OR Clp API Wrapper
 ###
 
-# this doesn't quite work
-#include(joinpath(Pkg.dir(),"Clp","deps","ext.jl"))
 
 module Clp
 
-const _jl_libClp = joinpath(Pkg.dir(),"Clp","deps","usr","lib","libClp.so")
+include(joinpath(Pkg.dir(),"Clp","deps","ext.jl"))
 
 export
     # Types
