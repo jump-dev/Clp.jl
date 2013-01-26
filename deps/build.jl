@@ -1,9 +1,11 @@
+require("BinDeps")
 println("WARNING: This build script has not been extensively tested. Please report any issues.")
+@unix_only begin
 clpname = "Clp-1.14.8"
 prefix = joinpath(Pkg.dir(),"Clp","deps","usr")
 libdir = joinpath(JULIA_HOME,"..","lib")
 if !isfile("$clpname.tgz")
-    run(`wget http://www.coin-or.org/download/source/Clp/$clpname.tgz`)
+    run(download_cmd("http://www.coin-or.org/download/source/Clp/$clpname.tgz","$clpname.tgz"))
     run(`tar xvzf $clpname.tgz`)
     cd("$clpname")
     run(`cat ../Clp-makefile.patch` | `patch -p1`)
@@ -13,4 +15,15 @@ if !isfile("$clpname.tgz")
     run(`./configure --prefix=$prefix`)
     run(`make install`)
 end
+end # unix_only
+
+@windows_only begin
+    if !isfile("CoinMP_julia.tar.gz")
+        run(download_cmd("http://www.mit.edu/~mlubin/CoinMP_julia.tar.gz","CoinMP_julia.tar.gz"))
+    end
+    if !isfile("CoinMP.dll")
+        run(unpack_cmd("CoinMP_julia.tar.gz","."))
+    end
+end
+
 
