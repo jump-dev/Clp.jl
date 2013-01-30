@@ -189,7 +189,7 @@ import Base.pointer
 ## High-level interface
 #{{{
 
-# (z, x, flag) = linprog(f, A, rowlb, rowub, collb, colub)
+# (z, x, flag) = linprog(f, A, rowlb, rowub, lb, ub)
 # Solves: 
 #   z = min_{x} (f' * x)
 #
@@ -207,9 +207,9 @@ import Base.pointer
 # collb -- 0
 # colub -- Inf
 
-function linprog(f, A, rowlb, rowub, collb, colub)
+function linprog(f, A, rowlb, rowub, lb, ub)
     c = ClpModel()
-    load_problem(c,A,collb,colub,f,rowlb,rowub)
+    load_problem(c,A,lb,ub,f,rowlb,rowub)
     set_log_level(c,0)
     initial_solve(c)
     stat = status(c)
@@ -367,10 +367,13 @@ end
 
 # inspired by GLPK interface
 typealias VecOrNothing Union(Vector,Nothing)
-function vec_or_null{T}(::Type{T}, a::VecOrNothing)
+function vec_or_null{T}(::Type{T}, a::VecOrNothing, len::Integer)
     if isequal(a, nothing) || isa(a, Array{None})
         return C_NULL
     else # todo: helpful message if convert fails
+        if length(a) != len
+            error("Expected vector to have length $len")
+        end
         return convert(Vector{T},a)
     end
 end
@@ -396,7 +399,7 @@ function load_problem (model::ClpModel,  num_cols::Integer, num_rows::Integer,
         row_lb::VecOrNothing, row_ub::VecOrNothing)
     _jl__check_model(model)
     @clp_ccall loadProblem Void (Ptr{Void},Int32,Int32,Ptr{CoinBigIndex},Ptr{Int32},
-    Ptr{Float64},Ptr{Float64},Ptr{Float64},Ptr{Float64},Ptr{Float64},Ptr{Float64}) model.p num_cols num_rows start index value vec_or_null(Float64,col_lb) vec_or_null(Float64,col_ub) vec_or_null(Float64,obj) vec_or_null(Float64,row_lb) vec_or_null(Float64,row_ub)
+    Ptr{Float64},Ptr{Float64},Ptr{Float64},Ptr{Float64},Ptr{Float64},Ptr{Float64}) model.p num_cols num_rows start index value vec_or_null(Float64,col_lb,num_cols) vec_or_null(Float64,col_ub,num_cols) vec_or_null(Float64,obj,num_cols) vec_or_null(Float64,row_lb,num_rows) vec_or_null(Float64,row_ub,num_rows)
 end
 
 function load_problem (model::ClpModel,  constraint_matrix::AbstractMatrix{Float64}, 
