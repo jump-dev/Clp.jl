@@ -17,6 +17,7 @@ end
 end # unix_only
 
 @windows_only begin
+    # see CoinMP package for patches used to build this
     if !isfile("CoinMP_julia.tar.gz")
         run(download_cmd("http://www.mit.edu/~mlubin/CoinMP_julia.tar.gz","CoinMP_julia.tar.gz"))
     end
