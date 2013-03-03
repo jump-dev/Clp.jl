@@ -9,7 +9,7 @@ Interface to the **[Clp]** linear programming solver. Provides a basic ``linprog
 ## To do
 
 - Unified low-level interface to linear programming (like **[Osi]**)
-- Improved linprog interface, allow some solver paramters and return more solution info
+- Improved linprog interface, allow some solver parameters and return more solution info
 
 Contributions addressing any of these points (or others) are gladly accepted.
 
