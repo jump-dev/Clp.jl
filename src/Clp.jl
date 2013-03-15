@@ -402,7 +402,7 @@ function load_problem (model::ClpModel,  num_cols::Integer, num_rows::Integer,
     Ptr{Float64},Ptr{Float64},Ptr{Float64},Ptr{Float64},Ptr{Float64},Ptr{Float64}) model.p num_cols num_rows start index value vec_or_null(Float64,col_lb,num_cols) vec_or_null(Float64,col_ub,num_cols) vec_or_null(Float64,obj,num_cols) vec_or_null(Float64,row_lb,num_rows) vec_or_null(Float64,row_ub,num_rows)
 end
 
-function load_problem (model::ClpModel,  constraint_matrix::AbstractMatrix{Float64}, 
+function load_problem (model::ClpModel,  constraint_matrix::AbstractMatrix, 
     col_lb::VecOrNothing, col_ub::VecOrNothing, 
     obj::VecOrNothing, row_lb::VecOrNothing,
     row_ub::VecOrNothing)

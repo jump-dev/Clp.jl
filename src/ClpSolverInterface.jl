@@ -1,13 +1,36 @@
 
-importall LinprogSolverInterface
-
 export ClpSolver,
     model,
-    optimize,
     loadproblem,
-    getsolution
+    writeproblem,
+    getvarlb,
+    setvarlb,
+    getvarub,
+    setvarub,
+    getconstrlb,
+    setconstrlb,
+    getconstrub,
+    setconstrub,
+    getobj,
+    setobj,
+    addvar,
+    addconstr,
+    updatemodel,
+    setsense,
+    getsense,
+    numvar,
+    numconstr,
+    optimize,
+    status,
+    getobjval,
+    getsolution,
+    getconstrsolution,
+    getreducedcosts,
+    getconstrduals,
+    getrawsolver
 
-type ClpSolver <: LinprogSolver
+
+type ClpSolver
     inner::ClpModel
 end
 
@@ -34,22 +57,22 @@ loadproblem(m::ClpSolver, A, collb, colub, obj, rowlb, rowub) =
 
 #writeproblem(m, filename::String)
 
-getcollb(m::ClpSolver) = get_col_lower(m.inner)
-setcollb(m::ClpSolver, collb) = chg_column_lower(m.inner, collb)
+getvarlb(m::ClpSolver) = get_col_lower(m.inner)
+setvarlb(m::ClpSolver, collb) = chg_column_lower(m.inner, collb)
 
-getcolub(m::ClpSolver) = get_col_upper(m.inner)
-setcolub(m::ClpSolver, colub) = chg_column_upper(m.inner, colub)
+getvarub(m::ClpSolver) = get_col_upper(m.inner)
+setvarub(m::ClpSolver, colub) = chg_column_upper(m.inner, colub)
 
-getrowlb(m::ClpSolver) = get_row_lower(m.inner)
-setrowlb(m::ClpSolver, rowlb) = chg_row_lower(m.inner, rowlb)
+getvarlb(m::ClpSolver) = get_row_lower(m.inner)
+setvarlb(m::ClpSolver, rowlb) = chg_row_lower(m.inner, rowlb)
 
-getrowub(m::ClpSolver) = get_row_upper(m.inner)
-setrowub(m::ClpSolver, rowub) = chg_row_upper(m.inner, rowub)
+getvarub(m::ClpSolver) = get_row_upper(m.inner)
+setvarub(m::ClpSolver, rowub) = chg_row_upper(m.inner, rowub)
 
 getobj(m::ClpSolver) = get_obj_coefficients(m.inner)
 setobj(m::ClpSolver, obj) = chg_obj_coefficients(m.inner, obj)
 
-function addcol(m::ClpSolver, rowidx, rowcoef, collb, colub, objcoef)
+function addvar(m::ClpSolver, rowidx, rowcoef, collb, colub, objcoef)
     @assert length(rowidx) == length(rowcoef)
     colstarts = Int32[0, length(rowcoef)]
     rows = Int32[ i - 1 for i in rowidx ]
@@ -57,7 +80,7 @@ function addcol(m::ClpSolver, rowidx, rowcoef, collb, colub, objcoef)
        colstarts, rows, convert(Vector{Float64},rowcoef))
 end
 
-function addrow(m::ClpSolver, colidx, colcoef, rowlb, rowub)
+function addconstr(m::ClpSolver, colidx, colcoef, rowlb, rowub)
     @assert length(colidx) == length(colcoef)
     rowstarts = Int32[0, length(colcoef)]
     cols = Int32[ i - 1 for i in colidx ]
@@ -97,9 +120,9 @@ function status(m::ClpSolver)
    if s == 0
        return :Optimal
    elseif s == 1
-       return :PrimalInfeasible
+       return :Infeasible
    elseif s == 2
-       return :DualInfeasible
+       return :Unbounded
    elseif s == 3
        return :UserLimit
    elseif s == 4
@@ -112,11 +135,11 @@ end
 getobjval(m::ClpSolver) = objective_value(m.inner)
 
 getsolution(m::ClpSolver) = primal_column_solution(m.inner) 
-getrowsolution(m::ClpSolver) = primal_row_solution(m.inner)
+getconstrsolution(m::ClpSolver) = primal_row_solution(m.inner)
 getreducedcosts(m::ClpSolver) = dual_column_solution(m.inner)
 
 # TODO: check direction
-getrowduals(m::ClpSolver) = dual_row_solution(m.inner)
+getconstrduals(m::ClpSolver) = dual_row_solution(m.inner)
 
 
 getrawsolver(m::ClpSolver) = m.inner
