@@ -1459,4 +1459,7 @@ end
 @def_get_int_property substitution substitution
 @def_set_int_property set_substitution setSubstitution
 
+
+include("ClpSolverInterface.jl")
+
 end # module
