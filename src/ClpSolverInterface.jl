@@ -3,14 +3,14 @@ export ClpSolver,
     model,
     loadproblem,
     writeproblem,
-    getvarlb,
-    setvarlb,
-    getvarub,
-    setvarub,
-    getconstrlb,
-    setconstrlb,
-    getconstrub,
-    setconstrub,
+    getvarLB,
+    setvarLB,
+    getvarLB,
+    setvarLB,
+    getconstrLB,
+    setconstrLB,
+    getconstrUB,
+    setconstrUB,
     getobj,
     setobj,
     addvar,
@@ -57,17 +57,17 @@ loadproblem(m::ClpSolver, A, collb, colub, obj, rowlb, rowub) =
 
 #writeproblem(m, filename::String)
 
-getvarlb(m::ClpSolver) = get_col_lower(m.inner)
-setvarlb(m::ClpSolver, collb) = chg_column_lower(m.inner, collb)
+getvarLB(m::ClpSolver) = get_col_lower(m.inner)
+setvarLB(m::ClpSolver, collb) = chg_column_lower(m.inner, collb)
 
-getvarub(m::ClpSolver) = get_col_upper(m.inner)
-setvarub(m::ClpSolver, colub) = chg_column_upper(m.inner, colub)
+getvarUB(m::ClpSolver) = get_col_upper(m.inner)
+setvarUB(m::ClpSolver, colub) = chg_column_upper(m.inner, colub)
 
-getvarlb(m::ClpSolver) = get_row_lower(m.inner)
-setvarlb(m::ClpSolver, rowlb) = chg_row_lower(m.inner, rowlb)
+getconstrLB(m::ClpSolver) = get_row_lower(m.inner)
+setconstrLB(m::ClpSolver, rowlb) = chg_row_lower(m.inner, rowlb)
 
-getvarub(m::ClpSolver) = get_row_upper(m.inner)
-setvarub(m::ClpSolver, rowub) = chg_row_upper(m.inner, rowub)
+getconstrUB(m::ClpSolver) = get_row_upper(m.inner)
+setconstrUB(m::ClpSolver, rowub) = chg_row_upper(m.inner, rowub)
 
 getobj(m::ClpSolver) = get_obj_coefficients(m.inner)
 setobj(m::ClpSolver, obj) = chg_obj_coefficients(m.inner, obj)
