@@ -1318,17 +1318,15 @@ end
 #   1  - minimize
 #   -1 - maximize
 #   0  - ignore
-# XXX the return value is floating point, WTF???
-function get_obj_sense(model::ClpModel);
+function get_obj_sense(model::ClpModel)
     _jl__check_model(model)
     @clp_ccall getObjSense Float64 (Ptr{Void},) model.p
 end
 
 # Set the direction of optimization.
-# XXX the value is floating point, WTF???
-function set_obj_sense(model::ClpModel, objsen::Real);
+function set_obj_sense(model::ClpModel, objsen::Real)
     _jl__check_model(model)
-    if !(objset == -1 || objset == 0 || objsen == 1)
+    if !(objsen == -1 || objsen == 0 || objsen == 1)
         error("Invalid clp objsense $objsense (should be -1,0 or 1)")
     end
     @clp_ccall setObjSense Void (Ptr{Void}, Float64) model.p objsen
