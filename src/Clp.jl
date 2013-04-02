@@ -7,6 +7,9 @@ module Clp
 
 include(joinpath(Pkg.dir(),"Clp","deps","ext.jl"))
 
+include(joinpath(Pkg.dir("MathProgBase"),"src","LinprogSolverInterface.jl"))
+importall LinprogSolverInterface
+
 export
     # Types
     CoinBigIndex,

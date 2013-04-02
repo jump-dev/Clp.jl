@@ -30,7 +30,7 @@ export ClpSolver,
     getrawsolver
 
 
-type ClpSolver
+type ClpSolver <: LinprogSolver
     inner::ClpModel
 end
 
