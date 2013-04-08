@@ -1,4 +1,5 @@
-require("BinDeps")
+using BinDeps
+
 @unix_only begin
 clpname = "Clp-1.14.8"
 prefix = joinpath(Pkg.dir(),"Clp","deps","usr")
