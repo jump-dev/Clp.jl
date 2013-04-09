@@ -18,7 +18,6 @@ export
     ClpSolve,
 
     # Methods
-    linprog,
     load_problem,
     load_quadratic_objective,
     read_mps,
@@ -188,63 +187,6 @@ export
 
 import Base.pointer
 
-
-## High-level interface
-#{{{
-
-# (z, x, flag) = linprog(f, A, rowlb, rowub, lb, ub)
-# Solves: 
-#   z = min_{x} (f' * x)
-#
-# where the vector x is subject to these constraints:
-#
-#   rowlb <= A * x <= rowub
-#   lb <= x <= ub
-#
-# The return flag is 0 in case of success, and follows
-# the Clp library convention otherwise. (see Clp.status() function)
-# The following arguments may be nothing or [], in which case 
-# the default values are vectors of:
-# rowlb -- -Inf
-# rowub -- Inf
-# collb -- 0
-# colub -- Inf
-
-function linprog(f, A, rowlb, rowub, lb, ub)
-    c = ClpModel()
-    load_problem(c,A,lb,ub,f,rowlb,rowub)
-    set_log_level(c,0)
-    initial_solve(c)
-    stat = status(c)
-    if stat != 0
-        return (nothing, nothing, stat)
-    else
-        return (get_obj_value(c),get_col_solution(c),stat)
-    end
-end
-
-
-# (z, x, flag) = linprog(f, A, b, Aeq, beq, lb, ub)
-# Solves: 
-#   z = min_{x} (f' * x)
-#
-# where the vector x is subject to these constraints:
-#
-#   A * x <= b
-#   Aeq * x == beq
-#   lb <= x <= ub
-#
-# The return flag is 0 in case of success, and follows
-# the Clp library convention otherwise. (see Clp.status() function) 
-
-function linprog(f, A, b, Aeq, beq, lb, ub)
-    rowub = [b;beq]
-    rowlb = copy(rowub)
-    rowlb[1:length(b)] = -Inf
-    return linprog(f, [A;Aeq], rowlb, rowub,lb,ub)
-end
-
-#}}}
 
 ## Shared library interface setup
 #{{{
