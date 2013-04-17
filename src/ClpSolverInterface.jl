@@ -138,7 +138,6 @@ getsolution(m::ClpSolver) = primal_column_solution(m.inner)
 getconstrsolution(m::ClpSolver) = primal_row_solution(m.inner)
 getreducedcosts(m::ClpSolver) = dual_column_solution(m.inner)
 
-# TODO: check direction
 getconstrduals(m::ClpSolver) = dual_row_solution(m.inner)
 
 
