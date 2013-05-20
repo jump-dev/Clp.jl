@@ -104,7 +104,7 @@ function getsense(m::ClpSolver)
     if s == 1.0
         return :Min
     elseif s == -1.0
-        return :Min
+        return :Max
     else
         error("Internal library error")
     end
