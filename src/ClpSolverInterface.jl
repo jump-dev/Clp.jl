@@ -34,7 +34,10 @@ type ClpSolver <: LinprogSolver
     inner::ClpModel
 end
 
-function model()
+function model(;kwargs...)
+    if length(kwargs) != 0
+        warn("ClpSolverInterface does not yet support options")
+    end
     m = ClpSolver(ClpModel())
     set_log_level(m.inner,0)
     return m
