@@ -1,4 +1,10 @@
 
+module ClpSolverInterface
+using Clp
+
+require(joinpath(Pkg.dir("MathProgBase"),"src","LinprogSolverInterface.jl"))
+importall LinprogSolverInterface
+
 export ClpSolver,
     model,
     loadproblem,
@@ -119,7 +125,7 @@ numconstr(m::ClpSolver) = get_num_rows(m.inner)
 optimize(m::ClpSolver) = initial_solve(m.inner)
 
 function status(m::ClpSolver)
-   s = status(m.inner)
+   s = Clp.status(m.inner)
    if s == 0
        return :Optimal
    elseif s == 1
@@ -145,3 +151,5 @@ getconstrduals(m::ClpSolver) = dual_row_solution(m.inner)
 
 
 getrawsolver(m::ClpSolver) = m.inner
+
+end
