@@ -349,7 +349,7 @@ function load_problem (model::ClpModel,  constraint_matrix::AbstractMatrix,
     col_lb::VecOrNothing, col_ub::VecOrNothing, 
     obj::VecOrNothing, row_lb::VecOrNothing,
     row_ub::VecOrNothing)
-    mat = convert(SparseMatrixCSC{Float64,Int32},convert(SparseMatrixCSC,constraint_matrix))
+    mat = convert(SparseMatrixCSC{Float64,Int32},constraint_matrix)
     # We need to convert to zero-based, but
     # TODO: don't make extra copies of arrays
     # TODO: check dimensions match
