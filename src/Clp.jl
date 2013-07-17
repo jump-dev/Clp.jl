@@ -5,7 +5,8 @@
 
 module Clp
 
-include(joinpath(Pkg.dir(),"Clp","deps","ext.jl"))
+using BinDeps
+@BinDeps.load_dependencies
 
 
 export
@@ -192,14 +193,14 @@ import Base.pointer
 macro clp_ccall(func, args...)
     f = "Clp_$(func)"
     quote
-        ccall(($f,_jl_libClp), $(args...))
+        ccall(($f,libclp), $(args...))
     end
 end
 
 macro clpsolve_ccall(func, args...)
     f = "ClpSolve_$(func)"
     quote
-        ccall(($f,_jl_libClp), $(args...))
+        ccall(($f,libclp), $(args...))
     end
 end
 
