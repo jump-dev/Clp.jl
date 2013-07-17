@@ -3,6 +3,7 @@ using BinDeps
 @unix_only begin
 clpname = "Clp-1.14.8"
 prefix = joinpath(Pkg.dir(),"Clp","deps","usr")
+cd(joinpath(Pkg.dir(),"Clp","deps"))
 libdir = joinpath(JULIA_HOME,"..","lib")
 if !isfile("$clpname.tgz")
     run(download_cmd("http://www.coin-or.org/download/source/Clp/$clpname.tgz","$clpname.tgz"))
@@ -27,4 +28,5 @@ end # unix_only
     end
 end
 
+Pkg2.markworking("Clp")
 
