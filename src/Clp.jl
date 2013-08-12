@@ -5,9 +5,8 @@
 
 module Clp
 
-using BinDeps
-@BinDeps.load_dependencies
-
+# Load binary dependencies via CoinMP
+using CoinMP
 
 export
     # Types
@@ -193,14 +192,14 @@ import Base.pointer
 macro clp_ccall(func, args...)
     f = "Clp_$(func)"
     quote
-        ccall(($f,libclp), $(args...))
+        ccall(($f,CoinMP.libclp), $(args...))
     end
 end
 
 macro clpsolve_ccall(func, args...)
     f = "ClpSolve_$(func)"
     quote
-        ccall(($f,libclp), $(args...))
+        ccall(($f,CoinMP.libclp), $(args...))
     end
 end
 
