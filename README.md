@@ -1,8 +1,8 @@
 Clp
 =================
 
-Interface to the **[Clp]** linear programming solver. Provides a complete interface to the low-level C API, as well as an implementation of the solver-independent ``LinprogSolverInterface`` type. This package should work on Linux, OS X, and Windows, but it has not been widely tested. Binaries are provided for Windows (Vista-7-8). Windows users must install the Visual Studio **[redistributable]** package. OS X users will need a proper build environment. Please report any issues. The **[MathProgBase]** package provides a high-level ``linprog`` function.  
+Interface to the **[Clp]** linear programming solver. Provides a complete interface to the low-level C API, as well as an implementation of the solver-independent ``LinprogSolverInterface`` type. The **[Cbc]** julia package is used to provide the binary dependencies; see that package's README for supported platforms and installation instructions. For users interested in a simple high-level ``linprog`` function, see the **[MathProgBase]** package.  
 
 [Clp]: https://projects.coin-or.org/Clp
-[redistributable]: http://www.microsoft.com/en-us/download/details.aspx?id=30679
+[Cbc]: https://github.com/mlubin/Cbc.jl
 [MathProgBase]: https://github.com/mlubin/MathProgBase.jl
