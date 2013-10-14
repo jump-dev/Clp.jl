@@ -93,7 +93,7 @@ function addconstr(m::ClpSolver, colidx, colcoef, rowlb, rowub)
     @assert length(colidx) == length(colcoef)
     rowstarts = Int32[0, length(colcoef)]
     cols = Int32[ i - 1 for i in colidx ]
-    add_rows(m.inner, 1, Float64[rowlb], Float64[rowub], rowstarts, cols, convert(Vector{Float64}), colcoef)
+    add_rows(m.inner, 1, Float64[rowlb], Float64[rowub], rowstarts, cols, convert(Vector{Float64}, colcoef))
 end
 
 updatemodel(m::ClpSolver) = nothing
