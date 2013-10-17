@@ -6,7 +6,7 @@ require(joinpath(Pkg.dir("MathProgBase"),"src","MathProgSolverInterface.jl"))
 importall MathProgSolverInterface
 
 export ClpMathProgSolver,
-    ClpLPSolver,
+    ClpSolver,
     loadproblem,
     writeproblem,
     getvarLB,
@@ -40,10 +40,10 @@ type ClpMathProgSolver <: MathProgSolver
     inner::ClpModel
 end
 
-immutable ClpLPSolver <: SolverNameAndOptions
+immutable ClpSolver <: SolverNameAndOptions
     options 
 end
-ClpLPSolver(;kwargs...) = ClpLPSolver(kwargs)
+ClpSolver(;kwargs...) = ClpSolver(kwargs)
 
 function ClpMathProgSolver(;kwargs...)
     if length(kwargs) != 0
@@ -54,7 +54,7 @@ function ClpMathProgSolver(;kwargs...)
     return m
 end
 
-model(s::ClpLPSolver) = ClpMathProgSolver(;s.options...)
+model(s::ClpSolver) = ClpMathProgSolver(;s.options...)
 
 
 function loadproblem(m::ClpMathProgSolver, filename::String)

@@ -10,6 +10,6 @@ include("ClpCInterface.jl")
 include("ClpSolverInterface.jl")
 
 using Clp.ClpMathProgSolverInterface
-export ClpLPSolver
+export ClpSolver
 
 end # module
