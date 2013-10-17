@@ -6,7 +6,6 @@ require(joinpath(Pkg.dir("MathProgBase"),"src","LinprogSolverInterface.jl"))
 importall LinprogSolverInterface
 
 export ClpSolver,
-    model,
     loadproblem,
     writeproblem,
     getvarLB,
