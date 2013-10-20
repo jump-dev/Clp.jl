@@ -5,7 +5,7 @@ using Clp.ClpCInterface
 require(joinpath(Pkg.dir("MathProgBase"),"src","MathProgSolverInterface.jl"))
 importall MathProgSolverInterface
 
-export ClpMathProgSolver,
+export ClpMathProgModel,
     ClpSolver,
     loadproblem,
     writeproblem,
@@ -36,28 +36,28 @@ export ClpMathProgSolver,
     getrawsolver
 
 
-type ClpMathProgSolver <: MathProgSolver
+type ClpMathProgModel <: AbstractMathProgModel
     inner::ClpModel
 end
 
-immutable ClpSolver <: SolverNameAndOptions
+immutable ClpSolver <: AbstractMathProgSolver
     options 
 end
 ClpSolver(;kwargs...) = ClpSolver(kwargs)
 
-function ClpMathProgSolver(;kwargs...)
+function ClpMathProgModel(;kwargs...)
     if length(kwargs) != 0
-        warn("ClpMathProgSolverInterface does not yet support options")
+        warn("ClpMathProgModelInterface does not yet support options")
     end
-    m = ClpMathProgSolver(ClpModel())
+    m = ClpMathProgModel(ClpModel())
     set_log_level(m.inner,0)
     return m
 end
 
-model(s::ClpSolver) = ClpMathProgSolver(;s.options...)
+model(s::ClpSolver) = ClpMathProgModel(;s.options...)
 
 
-function loadproblem(m::ClpMathProgSolver, filename::String)
+function loadproblem(m::ClpMathProgModel, filename::String)
     if ends_with(filename,".mps") || ends_with(filename,".mps.gz")
        read_mps(m.inner,filename)
     else
@@ -66,29 +66,29 @@ function loadproblem(m::ClpMathProgSolver, filename::String)
 end   
 
 
-loadproblem(m::ClpMathProgSolver, A, collb, colub, obj, rowlb, rowub) = 
+loadproblem(m::ClpMathProgModel, A, collb, colub, obj, rowlb, rowub) = 
     load_problem(m.inner,A,collb,colub,obj,rowlb,rowub)
 
 
 
 #writeproblem(m, filename::String)
 
-getvarLB(m::ClpMathProgSolver) = get_col_lower(m.inner)
-setvarLB(m::ClpMathProgSolver, collb) = chg_column_lower(m.inner, collb)
+getvarLB(m::ClpMathProgModel) = get_col_lower(m.inner)
+setvarLB(m::ClpMathProgModel, collb) = chg_column_lower(m.inner, collb)
 
-getvarUB(m::ClpMathProgSolver) = get_col_upper(m.inner)
-setvarUB(m::ClpMathProgSolver, colub) = chg_column_upper(m.inner, colub)
+getvarUB(m::ClpMathProgModel) = get_col_upper(m.inner)
+setvarUB(m::ClpMathProgModel, colub) = chg_column_upper(m.inner, colub)
 
-getconstrLB(m::ClpMathProgSolver) = get_row_lower(m.inner)
-setconstrLB(m::ClpMathProgSolver, rowlb) = chg_row_lower(m.inner, rowlb)
+getconstrLB(m::ClpMathProgModel) = get_row_lower(m.inner)
+setconstrLB(m::ClpMathProgModel, rowlb) = chg_row_lower(m.inner, rowlb)
 
-getconstrUB(m::ClpMathProgSolver) = get_row_upper(m.inner)
-setconstrUB(m::ClpMathProgSolver, rowub) = chg_row_upper(m.inner, rowub)
+getconstrUB(m::ClpMathProgModel) = get_row_upper(m.inner)
+setconstrUB(m::ClpMathProgModel, rowub) = chg_row_upper(m.inner, rowub)
 
-getobj(m::ClpMathProgSolver) = get_obj_coefficients(m.inner)
-setobj(m::ClpMathProgSolver, obj) = chg_obj_coefficients(m.inner, obj)
+getobj(m::ClpMathProgModel) = get_obj_coefficients(m.inner)
+setobj(m::ClpMathProgModel, obj) = chg_obj_coefficients(m.inner, obj)
 
-function addvar(m::ClpMathProgSolver, rowidx, rowcoef, collb, colub, objcoef)
+function addvar(m::ClpMathProgModel, rowidx, rowcoef, collb, colub, objcoef)
     @assert length(rowidx) == length(rowcoef)
     colstarts = Int32[0, length(rowcoef)]
     rows = Int32[ i - 1 for i in rowidx ]
@@ -96,16 +96,16 @@ function addvar(m::ClpMathProgSolver, rowidx, rowcoef, collb, colub, objcoef)
        colstarts, rows, convert(Vector{Float64},rowcoef))
 end
 
-function addconstr(m::ClpMathProgSolver, colidx, colcoef, rowlb, rowub)
+function addconstr(m::ClpMathProgModel, colidx, colcoef, rowlb, rowub)
     @assert length(colidx) == length(colcoef)
     rowstarts = Int32[0, length(colcoef)]
     cols = Int32[ i - 1 for i in colidx ]
     add_rows(m.inner, 1, Float64[rowlb], Float64[rowub], rowstarts, cols, convert(Vector{Float64}, colcoef))
 end
 
-updatemodel(m::ClpMathProgSolver) = nothing
+updatemodel(m::ClpMathProgModel) = nothing
 
-function setsense(m::ClpMathProgSolver,sense)
+function setsense(m::ClpMathProgModel,sense)
     if sense == :Min
         set_obj_sense(m.inner, 1.0)
     elseif sense == :Max
@@ -115,7 +115,7 @@ function setsense(m::ClpMathProgSolver,sense)
     end
 end
 
-function getsense(m::ClpMathProgSolver)
+function getsense(m::ClpMathProgModel)
     s = get_obj_sense(m.inner)
     if s == 1.0
         return :Min
@@ -126,12 +126,12 @@ function getsense(m::ClpMathProgSolver)
     end
 end
 
-numvar(m::ClpMathProgSolver) = get_num_cols(m.inner) 
-numconstr(m::ClpMathProgSolver) = get_num_rows(m.inner)
+numvar(m::ClpMathProgModel) = get_num_cols(m.inner) 
+numconstr(m::ClpMathProgModel) = get_num_rows(m.inner)
 
-optimize(m::ClpMathProgSolver) = initial_solve(m.inner)
+optimize(m::ClpMathProgModel) = initial_solve(m.inner)
 
-function status(m::ClpMathProgSolver)
+function status(m::ClpMathProgModel)
    s = ClpCInterface.status(m.inner)
    if s == 0
        return :Optimal
@@ -148,15 +148,15 @@ function status(m::ClpMathProgSolver)
    end
 end
 
-getobjval(m::ClpMathProgSolver) = objective_value(m.inner)
+getobjval(m::ClpMathProgModel) = objective_value(m.inner)
 
-getsolution(m::ClpMathProgSolver) = primal_column_solution(m.inner) 
-getconstrsolution(m::ClpMathProgSolver) = primal_row_solution(m.inner)
-getreducedcosts(m::ClpMathProgSolver) = dual_column_solution(m.inner)
+getsolution(m::ClpMathProgModel) = primal_column_solution(m.inner) 
+getconstrsolution(m::ClpMathProgModel) = primal_row_solution(m.inner)
+getreducedcosts(m::ClpMathProgModel) = dual_column_solution(m.inner)
 
-getconstrduals(m::ClpMathProgSolver) = dual_row_solution(m.inner)
+getconstrduals(m::ClpMathProgModel) = dual_row_solution(m.inner)
 
 
-getrawsolver(m::ClpMathProgSolver) = m.inner
+getrawsolver(m::ClpMathProgModel) = m.inner
 
 end
