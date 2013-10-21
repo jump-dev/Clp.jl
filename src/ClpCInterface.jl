@@ -1098,20 +1098,20 @@ function dual_bound(model::ClpModel)
 end
 
 # Set dual bound.
-function set_dual_bound(model::ClpModel, value::Real);
+function set_dual_bound(model::ClpModel, value::Real)
     _jl__check_model(model)
     @clp_ccall setDualBound Void (Ptr{Void}, Float64) model.p value
     return
 end
 
 # Get infeasibility cost.
-function infeasibility_cost(model::ClpModel);
+function infeasibility_cost(model::ClpModel)
     _jl__check_model(model)
     @clp_ccall infeasibilityCost Float64 (Ptr{Void},) model.p
 end
 
 # Set infeasibility cost.
-function set_infeasibility_cost(model::ClpModel, value::Real);
+function set_infeasibility_cost(model::ClpModel, value::Real)
     _jl__check_model(model)
     @clp_ccall setInfeasibilityCost Void (Ptr{Void}, Float64) model.p value
     return
@@ -1123,13 +1123,13 @@ end
 #   101 - we are perturbed
 #   102 - don't try perturbing again
 # The default is 100; others are for playing.
-function perturbation(model::ClpModel);
+function perturbation(model::ClpModel)
     _jl__check_model(model)
     @clp_ccall perturbation Int32 (Ptr{Void},) model.p
 end
 
 # Set Perturbation.
-function set_perturbation(model::ClpModel, value::Integer);
+function set_perturbation(model::ClpModel, value::Integer)
     _jl__check_model(model)
     if !(value == 50 || value == 100 || value == 101 || value == 102)
         error("Invalid clp perturbation value: $value (must be one of 50,100,101,102)")
@@ -1139,13 +1139,13 @@ function set_perturbation(model::ClpModel, value::Integer);
 end
 
 # Get current (or last) algorithm.
-function algorithm(model::ClpModel);
+function algorithm(model::ClpModel)
     _jl__check_model(model)
     @clp_ccall algorithm Int32 (Ptr{Void},) model.p
 end
 
 # Set algorithm.
-function set_algorithm(model::ClpModel, value::Integer);
+function set_algorithm(model::ClpModel, value::Integer)
     _jl__check_model(model)
     # XXX which values of the algorithm are valid ???
     @clp_ccall setAlgorithm Void (Ptr{Void}, Int32) model.p value
@@ -1153,25 +1153,25 @@ function set_algorithm(model::ClpModel, value::Integer);
 end
 
 # Get the sum of dual infeasibilities.
-function sum_dual_infeasibilities(model::ClpModel);
+function sum_dual_infeasibilities(model::ClpModel)
     _jl__check_model(model)
     @clp_ccall sumDualInfeasibilities Float64 (Ptr{Void},) model.p
 end
 
 # Get the number of dual infeasibilities.
-function number_dual_infeasibilities(model::ClpModel);
+function number_dual_infeasibilities(model::ClpModel)
     _jl__check_model(model)
     @clp_ccall numberDualInfeasibilities Int32 (Ptr{Void},) model.p
 end
 
 # Get the sum of primal infeasibilities.
-function sum_primal_infeasibilities(model::ClpModel);
+function sum_primal_infeasibilities(model::ClpModel)
     _jl__check_model(model)
     @clp_ccall sumPrimalInfeasibilities Float64 (Ptr{Void},) model.p
 end
 
 # Get the number of primal infeasibilities.
-function number_primal_infeasibilities(model::ClpModel);
+function number_primal_infeasibilities(model::ClpModel)
     _jl__check_model(model)
     @clp_ccall numberPrimalInfeasibilities Int32 (Ptr{Void},) model.p
 end
@@ -1181,7 +1181,7 @@ end
 # It does not save any messaging information.
 # Does not save scaling values.
 # It does not know about all types of virtual functions.
-function save_model(model::ClpModel, file_name::ASCIIString);
+function save_model(model::ClpModel, file_name::ASCIIString)
     _jl__check_model(model)
     
     @clp_ccall saveModel Int32 (Ptr{Void},Ptr{Uint8}) model.p bytestring(file_name)
@@ -1315,7 +1315,7 @@ end
 
 macro def_set_int_property(fname,clpname)
     quote
-        function $(esc(fname))(model::ClpModel, val::Integer)
+        function $(esc(fname))(solve::ClpSolve, val::Integer)
             _jl__check_solve(solve)
             @clpsolve_ccall $clpname Void (Ptr{Void},Int32) solve.p val
         end

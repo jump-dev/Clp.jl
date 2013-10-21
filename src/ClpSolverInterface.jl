@@ -38,6 +38,7 @@ export ClpMathProgModel,
 
 type ClpMathProgModel <: AbstractMathProgModel
     inner::ClpModel
+    solveroptions::ClpSolve
 end
 
 immutable ClpSolver <: AbstractMathProgSolver
@@ -45,12 +46,45 @@ immutable ClpSolver <: AbstractMathProgSolver
 end
 ClpSolver(;kwargs...) = ClpSolver(kwargs)
 
-function ClpMathProgModel(;kwargs...)
-    if length(kwargs) != 0
-        warn("ClpMathProgModelInterface does not yet support options")
+### Options
+
+# map option name to C function
+const optionmap = [
+   :PrimalTolerance => set_primal_tolerance,
+   :DualTolerance => set_dual_tolerance,
+   :DualObjectiveLimit => set_dual_objective_limit,
+   :MaximumIterations => set_maximum_iterations,
+   :MaximumSeconds => set_maximum_seconds,
+   :LogLevel => set_log_level,
+   :Scaling => scaling,
+   :Perturbation => set_perturbation,
+   #:Algorithm => set_algorithm
+   ]
+# These options are set by using the ClpSolve object
+const solveoptionmap = [
+   :PresolveType => set_presolve_type,
+   :SolveType => set_solve_type,
+   :InfeasibleReturn => set_infeasible_return,
+   ]
+
+function setoption(m::ClpMathProgModel, name::Symbol, value)
+    if haskey(optionmap, name)
+        optionmap[name](m.inner,value)
+    elseif haskey(solveoptionmap, name)
+        solveoptionmap[name](m.solveroptions,value)
+    else
+        error("Unrecognized option: $name")
     end
-    m = ClpMathProgModel(ClpModel())
-    set_log_level(m.inner,0)
+end
+
+
+
+function ClpMathProgModel(;kwargs...)
+    m = ClpMathProgModel(ClpModel(),ClpSolve())
+    set_log_level(m.inner,0) # disable output by default
+    for (name, value) in kwargs
+        setoption(m, name, value)
+    end
     return m
 end
 
@@ -129,7 +163,7 @@ end
 numvar(m::ClpMathProgModel) = get_num_cols(m.inner) 
 numconstr(m::ClpMathProgModel) = get_num_rows(m.inner)
 
-optimize(m::ClpMathProgModel) = initial_solve(m.inner)
+optimize(m::ClpMathProgModel) = initial_solve_with_options(m.inner,m.solveroptions)
 
 function status(m::ClpMathProgModel)
    s = ClpCInterface.status(m.inner)
