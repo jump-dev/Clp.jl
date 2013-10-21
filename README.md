@@ -1,13 +1,13 @@
 Clp
 =================
 
-Interface to the **[Clp]** linear programming solver. Provides a complete interface to the low-level C API, as well as an implementation of the solver-independent ``MathProgSolverInterface`` type. The **[Cbc]** julia package is used to provide the binary dependencies; see that package's README for supported platforms and installation instructions. For users interested in a simple high-level ``linprog`` function, see the **[MathProgBase]** package. 
+Interface to the **[Clp]** linear programming solver. Provides a complete interface to the low-level C API, as well as an implementation of the solver-independent ``MathProgSolverInterface`` type. The **[Cbc]** julia package is used to provide the binary dependencies; see that package's README for supported platforms and installation instructions.  
 
 [Clp]: https://projects.coin-or.org/Clp
 [Cbc]: https://github.com/mlubin/Cbc.jl
-[MathProgBase]: https://github.com/JuliaOpt/MathProgBase.jl
 
-### Using with MathProgBase
+### Using with **[MathProgBase]**
+
 
 Clp provides a solver object that can be passed to ``linprog`` in MathProgBase (and used to create instances of the solver-independent ``AbstractMathProgModel`` type):
 
@@ -19,7 +19,9 @@ Clp provides a solver object that can be passed to ``linprog`` in MathProgBase (
 
 see the MathProgBase documentation for further information.
 
-Options are solver-dependent. The following options are the most useful:
+[MathProgBase]: https://github.com/JuliaOpt/MathProgBase.jl
+
+Options are solver-dependent. The following options are the most useful (and well documented):
 
 * ``PrimalTolerance`` - primal feasibility tolerance (default 1e-7)
 * ``DualTolerance`` - dual feasibility tolerance (default 1e-7)
@@ -28,7 +30,7 @@ Options are solver-dependent. The following options are the most useful:
 * ``MaximumSeconds`` - terminate after this many seconds have passed
 * ``LogLevel`` - set to 1, 2, 3, or 4 for increasing output (default 0)
 * ``PresolveType`` - set to 1 to disable presolve
-* ``SolveType`` - choose the solution method
+* ``SolveType`` - choose the solution method:
 
     - 0 - dual simplex
 	- 1 - primal simplex
