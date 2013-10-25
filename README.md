@@ -4,7 +4,7 @@ Clp
 Interface to the **[Clp]** linear programming solver. Provides a complete interface to the low-level C API, as well as an implementation of the solver-independent ``MathProgSolverInterface`` for efficiently solving sequences of linear programs. The **[Cbc]** julia package is used to provide the binary dependencies; see that package's README for supported platforms and installation instructions.  
 
 [Clp]: https://projects.coin-or.org/Clp
-[Cbc]: https://github.com/mlubin/Cbc.jl
+[Cbc]: https://github.com/JuliaOpt/Cbc.jl
 
 ### Using with **[MathProgBase]**
 
