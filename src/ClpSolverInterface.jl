@@ -192,6 +192,9 @@ getreducedcosts(m::ClpMathProgModel) = dual_column_solution(m.inner)
 
 getconstrduals(m::ClpMathProgModel) = dual_row_solution(m.inner)
 
+getinfeasibilityray(m::ClpMathProgModel) = infeasibility_ray(m.inner)
+getunboundedray(m::ClpMathProgModel) = unbounded_ray(m.inner)
+
 
 getrawsolver(m::ClpMathProgModel) = m.inner
 
