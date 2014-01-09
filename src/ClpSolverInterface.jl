@@ -19,6 +19,7 @@ export ClpMathProgModel,
     setconstrUB!,
     getobj,
     setobj!,
+    getconstrmatrix,
     addvar!,
     addconstr!,
     updatemodel!,
@@ -109,20 +110,36 @@ end
 
 #writeproblem(m, filename::String)
 
-getvarLB(m::ClpMathProgModel) = get_col_lower(m.inner)
+function replaceInf(x)
+    for i in 1:length(x)
+        if x[i] > 1e20
+            x[i] = Inf
+        elseif x[i] < -1e20
+            x[i] = -Inf
+        end
+    end
+    return x
+end
+
+getvarLB(m::ClpMathProgModel) = replaceInf(get_col_lower(m.inner))
 setvarLB!(m::ClpMathProgModel, collb) = chg_column_lower(m.inner, collb)
 
-getvarUB(m::ClpMathProgModel) = get_col_upper(m.inner)
+getvarUB(m::ClpMathProgModel) = replaceInf(get_col_upper(m.inner))
 setvarUB!(m::ClpMathProgModel, colub) = chg_column_upper(m.inner, colub)
 
-getconstrLB(m::ClpMathProgModel) = get_row_lower(m.inner)
+getconstrLB(m::ClpMathProgModel) = replaceInf(get_row_lower(m.inner))
 setconstrLB!(m::ClpMathProgModel, rowlb) = chg_row_lower(m.inner, rowlb)
 
-getconstrUB(m::ClpMathProgModel) = get_row_upper(m.inner)
+getconstrUB(m::ClpMathProgModel) = replaceInf(get_row_upper(m.inner))
 setconstrUB!(m::ClpMathProgModel, rowub) = chg_row_upper(m.inner, rowub)
 
 getobj(m::ClpMathProgModel) = get_obj_coefficients(m.inner)
 setobj!(m::ClpMathProgModel, obj) = chg_obj_coefficients(m.inner, obj)
+
+function getconstrmatrix(m::ClpMathProgModel)
+    A = get_constraint_matrix(m)
+    return convert(SparseMatrixCSC{Float64,Int},A)
+end
 
 function addvar!(m::ClpMathProgModel, rowidx, rowcoef, collb, colub, objcoef)
     @assert length(rowidx) == length(rowcoef)
