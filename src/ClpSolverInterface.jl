@@ -137,7 +137,7 @@ getobj(m::ClpMathProgModel) = get_obj_coefficients(m.inner)
 setobj!(m::ClpMathProgModel, obj) = chg_obj_coefficients(m.inner, obj)
 
 function getconstrmatrix(m::ClpMathProgModel)
-    A = get_constraint_matrix(m)
+    A = get_constraint_matrix(m.inner)
     return convert(SparseMatrixCSC{Float64,Int},A)
 end
 
