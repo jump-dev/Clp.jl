@@ -93,7 +93,7 @@ model(s::ClpSolver) = ClpMathProgModel(;s.options...)
 
 
 function loadproblem!(m::ClpMathProgModel, filename::String)
-    if ends_with(filename,".mps") || ends_with(filename,".mps.gz")
+    if endswith(filename,".mps") || endswith(filename,".mps.gz")
        read_mps(m.inner,filename)
     else
        error("unrecognized input format extension in $filename")
