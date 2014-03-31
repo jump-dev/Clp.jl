@@ -348,8 +348,8 @@ function load_problem (model::ClpModel,  constraint_matrix::AbstractMatrix,
     # We need to convert to zero-based, but
     # TODO: don't make extra copies of arrays
     # TODO: check dimensions match
-    load_problem(model,mat.n, mat.m,mat.colptr-int32(1),
-        mat.rowval-int32(1),mat.nzval,
+    load_problem(model,mat.n, mat.m,mat.colptr.-int32(1),
+        mat.rowval.-int32(1),mat.nzval,
         col_lb,col_ub,obj,row_lb,row_ub)
 end
 
@@ -363,7 +363,7 @@ end
 
 function load_quadratic_objective(model::ClpModel,
     hessian_matrix::SparseMatrixCSC{Float64,Int32})
-    load_quadratic_objective(model, hessian_matrix.n, hessian_matrix.colptr-int32(1), hessian_matrix.rowval-int32(1),hessian_matrix.nzval)
+    load_quadratic_objective(model, hessian_matrix.n, hessian_matrix.colptr.-int32(1), hessian_matrix.rowval.-int32(1),hessian_matrix.nzval)
 end
 
 # Read an mps file from the given filename.
