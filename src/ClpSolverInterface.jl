@@ -212,6 +212,11 @@ getconstrduals(m::ClpMathProgModel) = dual_row_solution(m.inner)
 getinfeasibilityray(m::ClpMathProgModel) = scale!(infeasibility_ray(m.inner),-1.0)
 getunboundedray(m::ClpMathProgModel) = unbounded_ray(m.inner)
 
+getvartype(m::ClpMathProgModel) = fill('C', get_num_cols(m.inner))
+function setvartype!(m::ClpMathProgModel, typ::Vector{Char})
+    all(x->isequal(x,'C'), typ) || error("Clp does not support integer variables")
+    return nothing
+end
 
 getrawsolver(m::ClpMathProgModel) = m.inner
 
