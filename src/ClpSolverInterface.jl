@@ -212,13 +212,13 @@ getconstrduals(m::ClpMathProgModel) = dual_row_solution(m.inner)
 getinfeasibilityray(m::ClpMathProgModel) = scale!(infeasibility_ray(m.inner),-1.0)
 getunboundedray(m::ClpMathProgModel) = unbounded_ray(m.inner)
 
-const statmap = Dict([0x00, 0x01, 0x02, 0x03, 0x04, 0x05],
-                     [   2,    0,    1,   -1,    2,    2])
+const statmap = Dict([ 0x00,  0x01, 0x02, 0x03,        0x04,   0x05],
+                     [:free,:basic,  :ub,  :lb, :superbasic, :fixed])
 function getbasis(m::ClpMathProgModel)
     num_cols = numvar(m)
     num_rows = numconstr(m)
-    cbasis = Array(Int,num_cols)
-    rbasis = Array(Int,num_rows)
+    cbasis = Array(Symbol,num_cols)
+    rbasis = Array(Symbol,num_rows)
     for i in 1:num_cols
         val = get_column_status(m.inner, i)
         cbasis[i] = statmap[val]
