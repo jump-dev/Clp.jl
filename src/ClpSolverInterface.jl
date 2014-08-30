@@ -1,9 +1,7 @@
-
 module ClpMathProgSolverInterface
 using Clp.ClpCInterface
 
-require(joinpath(Pkg.dir("MathProgBase"),"src","MathProgSolverInterface.jl"))
-importall MathProgSolverInterface
+importall MathProgBase.SolverInterface
 
 export ClpMathProgModel,
     ClpSolver,
