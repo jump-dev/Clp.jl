@@ -1,9 +1,7 @@
-
 module ClpMathProgSolverInterface
 using Clp.ClpCInterface
 
-require(joinpath(Pkg.dir("MathProgBase"),"src","MathProgSolverInterface.jl"))
-importall MathProgSolverInterface
+importall MathProgBase.SolverInterface
 
 export ClpMathProgModel,
     ClpSolver,
@@ -230,9 +228,9 @@ function getbasis(m::ClpMathProgModel)
     return cbasis,rbasis
 end
 
-getvartype(m::ClpMathProgModel) = fill('C', get_num_cols(m.inner))
-function setvartype!(m::ClpMathProgModel, typ::Vector{Char})
-    all(x->isequal(x,'C'), typ) || error("Clp does not support integer variables")
+getvartype(m::ClpMathProgModel) = fill(:Cont, get_num_cols(m.inner))
+function setvartype!(m::ClpMathProgModel, typ::Vector{Symbol})
+    all(x->isequal(x,:Cont), typ) || error("Clp does not support integer variables")
     return nothing
 end
 
