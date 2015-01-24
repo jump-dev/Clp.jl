@@ -1,6 +1,8 @@
 module ClpMathProgSolverInterface
 using Clp.ClpCInterface
 
+using Compat
+
 importall MathProgBase.SolverInterface
 
 export ClpMathProgModel,
@@ -48,7 +50,7 @@ ClpSolver(;kwargs...) = ClpSolver(kwargs)
 ### Options
 
 # map option name to C function
-const optionmap = [
+const optionmap = @compat Dict(
    :PrimalTolerance => set_primal_tolerance,
    :DualTolerance => set_dual_tolerance,
    :DualObjectiveLimit => set_dual_objective_limit,
@@ -58,13 +60,13 @@ const optionmap = [
    :Scaling => scaling,
    :Perturbation => set_perturbation,
    #:Algorithm => set_algorithm
-   ]
+   )
 # These options are set by using the ClpSolve object
-const solveoptionmap = [
+const solveoptionmap = @compat Dict(
    :PresolveType => set_presolve_type,
    :SolveType => set_solve_type,
    :InfeasibleReturn => set_infeasible_return,
-   ]
+   )
 
 function setoption(m::ClpMathProgModel, name::Symbol, value)
     if haskey(optionmap, name)
