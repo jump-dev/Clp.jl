@@ -348,8 +348,8 @@ function load_problem (model::ClpModel,  constraint_matrix::AbstractMatrix,
     # We need to convert to zero-based, but
     # TODO: don't make extra copies of arrays
     # TODO: check dimensions match
-    load_problem(model,mat.n, mat.m,mat.colptr.-int32(1),
-        mat.rowval.-int32(1),mat.nzval,
+    load_problem(model,mat.n, mat.m,mat.colptr-convert(Int32,1),
+        mat.rowval-convert(Int32,1),mat.nzval,
         col_lb,col_ub,obj,row_lb,row_ub)
 end
 
@@ -363,7 +363,7 @@ end
 
 function load_quadratic_objective(model::ClpModel,
     hessian_matrix::SparseMatrixCSC{Float64,Int32})
-    load_quadratic_objective(model, hessian_matrix.n, hessian_matrix.colptr.-int32(1), hessian_matrix.rowval.-int32(1),hessian_matrix.nzval)
+    load_quadratic_objective(model, hessian_matrix.n, hessian_matrix.colptr-convert(Int32,1), hessian_matrix.rowval-convert(Int32,1),hessian_matrix.nzval)
 end
 
 # Read an mps file from the given filename.
@@ -439,7 +439,7 @@ function add_columns(model::ClpModel, column_lower::Vector{Float64},
         objective::Vector{Float64},
         new_columns::SparseMatrixCSC{Float64,Int32})
 
-    add_columns(model, new_columns.n, column_lower, column_upper, objective, new_columns.colptr-int32(1), new_columns.rowval-int32(1), new_columns.nzval)
+    add_columns(model, new_columns.n, column_lower, column_upper, objective, new_columns.colptr-convert(Int32,1), new_columns.rowval-convert(Int32,1), new_columns.nzval)
 end
 
 
@@ -696,7 +696,7 @@ macro def_get_row_property(fname,clpname)
         function $(esc(fname))(model::ClpModel)
             _jl__check_model(model)
             row_property_p = @clp_ccall $clpname Ptr{Float64} (Ptr{Void},) model.p
-            num_rows = int(get_num_rows(model))
+            num_rows = convert(Int,get_num_rows(model))
             return copy(pointer_to_array(row_property_p,(num_rows,)))
         end
     end
@@ -707,7 +707,7 @@ macro def_get_col_property(fname,clpname)
         function $(esc(fname))(model::ClpModel)
             _jl__check_model(model)
             col_property_p = @clp_ccall $clpname Ptr{Float64} (Ptr{Void},) model.p
-            num_cols = int(get_num_cols(model))
+            num_cols = convert(Int,get_num_cols(model))
             return copy(pointer_to_array(col_property_p,(num_cols,)))
         end
     end
@@ -784,7 +784,7 @@ function get_constraint_matrix(model::ClpModel)
     # SparseMatrixCSC requires same integer type for colptr and rowval
     num_cols = convert(Int,get_num_cols(model))
     num_rows = convert(Int,get_num_rows(model))
-    colptr = get_vector_starts(model) + int32(1)
+    colptr = get_vector_starts(model) + convert(Int32,1)
     rowval = get_indices(model) + convert(CoinBigIndex,1)
     nzval = get_elements(model)
 
@@ -821,7 +821,7 @@ end
 function infeasibility_ray(model::ClpModel)
     _jl__check_model(model)
     infeas_ray_p = @clp_ccall infeasibilityRay Ptr{Float64} (Ptr{Void},) model.p
-    num_rows = int(get_num_rows(model))
+    num_rows = convert(Int,get_num_rows(model))
     local infeas_ray::Vector{Float64}
     if infeas_ray_p != C_NULL
         infeas_ray = copy(pointer_to_array(infeas_ray_p,(num_rows,)))
@@ -836,7 +836,7 @@ end
 function unbounded_ray(model::ClpModel)
     _jl__check_model(model)
     unbd_ray_p = @clp_ccall unboundedRay Ptr{Float64} (Ptr{Void},) model.p
-    num_cols = int(get_num_cols(model))
+    num_cols = convert(Int,get_num_cols(model))
     local unbd_ray::Vector{Float64}
     if unbd_ray_p != C_NULL 
         unbd_ray = copy(pointer_to_array(unbd_ray_p,(num_cols,)))
