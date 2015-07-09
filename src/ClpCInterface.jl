@@ -330,7 +330,7 @@ end
 
 # Just like the other load_problem() method except that the matrix is
 # given in a standard column major ordered format (without gaps).
-function load_problem (model::ClpModel,  num_cols::Integer, num_rows::Integer,
+function load_problem(model::ClpModel,  num_cols::Integer, num_rows::Integer,
         start::Vector{CoinBigIndex}, index::Vector{Int32},
         value::Vector{Float64},
         col_lb::VecOrNothing, col_ub::VecOrNothing,
@@ -341,7 +341,7 @@ function load_problem (model::ClpModel,  num_cols::Integer, num_rows::Integer,
     Ptr{Float64},Ptr{Float64},Ptr{Float64},Ptr{Float64},Ptr{Float64},Ptr{Float64}) model.p num_cols num_rows start index value vec_or_null(Float64,col_lb,num_cols) vec_or_null(Float64,col_ub,num_cols) vec_or_null(Float64,obj,num_cols) vec_or_null(Float64,row_lb,num_rows) vec_or_null(Float64,row_ub,num_rows)
 end
 
-function load_problem (model::ClpModel,  constraint_matrix::AbstractMatrix, 
+function load_problem(model::ClpModel,  constraint_matrix::AbstractMatrix, 
     col_lb::VecOrNothing, col_ub::VecOrNothing, 
     obj::VecOrNothing, row_lb::VecOrNothing,
     row_ub::VecOrNothing)
@@ -396,7 +396,7 @@ function delete_integer_information(model::ClpModel)
 end
 
 # Resize rim part of model.
-function resize (model::ClpModel, new_num_rows::Integer, new_num_cols::Integer)
+function resize(model::ClpModel, new_num_rows::Integer, new_num_cols::Integer)
     _jl__check_model(model)
     @clp_ccall resize Void (Ptr{Void},Int32,Int32) model.p new_num_rows new_num_cols
 end
