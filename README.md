@@ -1,9 +1,12 @@
 Clp
-=================
+===
 
 Interface to the **[Clp]** linear programming solver. Provides a complete interface to the low-level C API, as well as an implementation of the solver-independent ``MathProgSolverInterface`` for efficiently solving sequences of linear programs. The **[Cbc]** julia package is used to provide the binary dependencies; see that package's README for supported platforms and installation instructions.  
 
 [![Build Status](https://travis-ci.org/JuliaOpt/Clp.jl.svg?branch=master)](https://travis-ci.org/JuliaOpt/Clp.jl)
+
+[![Clp](http://pkg.julialang.org/badges/Clp_0.3.svg)](http://pkg.julialang.org/?pkg=Clp&ver=0.3)
+[![Clp](http://pkg.julialang.org/badges/Clp_0.4.svg)](http://pkg.julialang.org/?pkg=Clp&ver=0.4)
 
 [Clp]: https://projects.coin-or.org/Clp
 [Cbc]: https://github.com/JuliaOpt/Cbc.jl
@@ -14,9 +17,9 @@ Interface to the **[Clp]** linear programming solver. Provides a complete interf
 Clp provides a solver object that can be passed to ``linprog`` in MathProgBase (and used to create instances of the solver-independent ``AbstractMathProgModel`` type):
 
 ```julia
-    using Clp
-	using MathProgBase
-	linprog(..., ClpSolver(Option1=value1,Option2=value2,...))
+using Clp
+using MathProgBase
+linprog(..., ClpSolver(Option1=value1,Option2=value2,...))
 ```
 
 see the MathProgBase documentation for further information.
@@ -45,8 +48,8 @@ Options are solver-dependent. The following options are the most useful (and wel
 ### Using the C interface
 
 The low-level C interface is available in the ``ClpCInterface`` submodule:
-```
-    using Clp.ClpCInterface
+```julia
+using Clp.ClpCInterface
 ```
 
 Using this interface is only recommended for advanced users. The Julia API is essentially a thin wrapper around the interface exported by ``Clp/src/Clp_C_Interface.h``, which is documented in-line. 
