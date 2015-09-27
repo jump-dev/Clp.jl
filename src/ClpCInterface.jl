@@ -290,7 +290,7 @@ function _jl__check_col_is_valid(model::ClpModel, col::Integer)
     return true
 end
 
-function _jl__check_file_is_readable(filename::String)
+function _jl__check_file_is_readable(filename::AbstractString)
     try
         f = open(filename, "r")
         close(f)
@@ -305,9 +305,9 @@ end
 #{{{
 
 # inspired by GLPK interface
-typealias VecOrNothing Union(Vector,Nothing)
+@compat typealias VecOrNothing Union{Vector,Void}
 function vec_or_null{T}(::Type{T}, a::VecOrNothing, len::Integer)
-    if isequal(a, nothing) || isa(a, Array{None})
+    if isequal(a, nothing) || isa(a, Array{Void}) # on 0.3, [] is Array{Void}
         return C_NULL
     else # todo: helpful message if convert fails
         if length(a) != len
@@ -368,25 +368,25 @@ function load_quadratic_objective(model::ClpModel,
 end
 
 # Read an mps file from the given filename.
-function read_mps(model::ClpModel, mpsfile::String, keep_names::Bool, ignore_errors::Bool)
+function read_mps(model::ClpModel, mpsfile::AbstractString, keep_names::Bool, ignore_errors::Bool)
     _jl__check_model(model)
     _jl__check_file_is_readable(mpsfile)
 
-    status = @clp_ccall readMps Int32 (Ptr{Void}, Ptr{Uint8}, Int32, Int32) model.p bytestring(mpsfile) keep_names ignore_errors
+    status = @clp_ccall readMps Int32 (Ptr{Void}, Ptr{UInt8}, Int32, Int32) model.p bytestring(mpsfile) keep_names ignore_errors
     if status != 0
         error("read_mps: error reading file $mpsfile")
     end
     return true
 end
-read_mps(model::ClpModel, mpsfile::String) = read_mps(model, mpsfile, true, false)
+read_mps(model::ClpModel, mpsfile::AbstractString) = read_mps(model, mpsfile, true, false)
 
 # Copy in integer information.
-function copy_in_integer_information(model::ClpModel, information::Vector{Uint8})
+function copy_in_integer_information(model::ClpModel, information::Vector{UInt8})
     _jl__check_model(model)
     if length(information) != num_cols(model)
         error("Length of integer information must match number of columns")
     end
-    @clp_ccall copyInIntegerInformation Void (Ptr{Void},Ptr{Uint8}) model.p information
+    @clp_ccall copyInIntegerInformation Void (Ptr{Void},Ptr{UInt8}) model.p information
 end
 
 # Drop integer information.
@@ -503,8 +503,8 @@ end
 
 # Copy in names.
 # TODO: Need a nice way to accept a vector of Strings
-function copy_names(model::ClpModel, row_names::Vector{Vector{Uint8}},
-        columnNames::Vector{Vector{Uint8}})
+function copy_names(model::ClpModel, row_names::Vector{Vector{UInt8}},
+        columnNames::Vector{Vector{UInt8}})
     # TODO
     error("TODO")
     return
@@ -577,8 +577,8 @@ end
 # Fill in array with problem name.
 function problem_name(model::ClpModel)
     _jl__check_model(model)
-    problem_name_p = pointer(Array(Uint8, 1000))
-    @clp_ccall problemName Void (Ptr{Void}, Int32, Ptr{Uint8}) model.p 1000 problem_name_p
+    problem_name_p = pointer(Array(UInt8, 1000))
+    @clp_ccall problemName Void (Ptr{Void}, Int32, Ptr{UInt8}) model.p 1000 problem_name_p
     return bytestring(problem_name_p)
 end
 
@@ -586,7 +586,7 @@ end
 function set_problem_name(model::ClpModel, name::ASCIIString)
     _jl__check_model(model)
     
-    @clp_ccall setProblemName Void (Ptr{Void}, Int32, Ptr{Uint8}) model.p (length(name)+1) bytestring(name)
+    @clp_ccall setProblemName Void (Ptr{Void}, Int32, Ptr{UInt8}) model.p (length(name)+1) bytestring(name)
 end
 
 # Get number of iterations
@@ -873,7 +873,7 @@ end
 # Copy in the status vector
 # XXX copyin rather than copy_in, WTF?
 # XXX input vector of unsigned chars (?)
-function copyin_status(model::ClpModel, status_array::Vector{Uint8})
+function copyin_status(model::ClpModel, status_array::Vector{UInt8})
     # TODO
     error("TODO")
     return
@@ -962,8 +962,8 @@ function row_name(model::ClpModel, row::Integer)
     _jl__check_model(model)
     _jl__check_row_is_valid(model, row)
     size = @clp_ccall lengthNames Int32 (Ptr{Void},) model.p
-    row_name_p = pointer(Array(Uint8, size+1))
-    @clp_ccall rowName Void (Ptr{Void}, Int32, Ptr{Uint8}) model.p (row-1) row_name_p
+    row_name_p = pointer(Array(UInt8, size+1))
+    @clp_ccall rowName Void (Ptr{Void}, Int32, Ptr{UInt8}) model.p (row-1) row_name_p
     return bytestring(row_name_p)
 end
 
@@ -975,8 +975,8 @@ function column_name(model::ClpModel, col::Integer)
     _jl__check_model(model)
     _jl__check_col_is_valid(model, col)
     size = @clp_ccall lengthNames Int32 (Ptr{Void},) model.p
-    col_name_p = pointer(Array(Uint8,size+1))
-    @clp_ccall columnName Void (Ptr{Void}, Int32, Ptr{Uint8}) model.p (col-1) col_name_p
+    col_name_p = pointer(Array(UInt8,size+1))
+    @clp_ccall columnName Void (Ptr{Void}, Int32, Ptr{UInt8}) model.p (col-1) col_name_p
     return bytestring(col_name_p)
 end
 
@@ -1185,7 +1185,7 @@ end
 function save_model(model::ClpModel, file_name::ASCIIString)
     _jl__check_model(model)
     
-    @clp_ccall saveModel Int32 (Ptr{Void},Ptr{Uint8}) model.p bytestring(file_name)
+    @clp_ccall saveModel Int32 (Ptr{Void},Ptr{UInt8}) model.p bytestring(file_name)
 end
 
 # Restore model from file, returns 0 if success,
@@ -1193,7 +1193,7 @@ end
 function restore_model(model::ClpModel, file_name::ASCIIString)
     _jl__check_model(model)
 
-    @clp_ccall restoreModel Int32 (Ptr{Void},Ptr{Uint8}) model.p bytestring(file_name)
+    @clp_ccall restoreModel Int32 (Ptr{Void},Ptr{UInt8}) model.p bytestring(file_name)
 end
 
 # Just check solution (for external use) - sets sum of
@@ -1276,7 +1276,7 @@ end
 function print_model(model::ClpModel, prefix::ASCIIString)
     _jl__check_model(model)
 
-    @clp_ccall printModel Void (Ptr{Void},Ptr{Uint8}) model.p bytestring(prefix)
+    @clp_ccall printModel Void (Ptr{Void},Ptr{UInt8}) model.p bytestring(prefix)
 end
 
 function get_small_element_value(model::ClpModel)
