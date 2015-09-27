@@ -2,6 +2,7 @@
 ### COIN-OR Clp API Wrapper
 ###
 
+isdefined(Base, :__precompile__) && __precompile__()
 
 module Clp
 
