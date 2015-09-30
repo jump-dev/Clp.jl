@@ -92,7 +92,7 @@ end
 model(s::ClpSolver) = ClpMathProgModel(;s.options...)
 
 
-function loadproblem!(m::ClpMathProgModel, filename::String)
+function loadproblem!(m::ClpMathProgModel, filename::AbstractString)
     if endswith(filename,".mps") || endswith(filename,".mps.gz")
        read_mps(m.inner,filename)
     else
