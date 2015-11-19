@@ -2,7 +2,6 @@ module ClpCInterface
 
 # Load binary dependencies via Cbc package
 import Cbc
-using Compat
 
 export
     # Types
@@ -305,7 +304,7 @@ end
 #{{{
 
 # inspired by GLPK interface
-@compat typealias VecOrNothing Union{Vector,Void}
+typealias VecOrNothing Union{Vector,Void}
 function vec_or_null{T}(::Type{T}, a::VecOrNothing, len::Integer)
     if isequal(a, nothing) || isa(a, Array{Void}) # on 0.3, [] is Array{Void}
         return C_NULL
@@ -766,7 +765,7 @@ end
 function get_vector_starts(model::ClpModel)
     _jl__check_model(model)
     vec_starts_p = @clp_ccall getVectorStarts Ptr{CoinBigIndex} (Ptr{Void},) model.p
-    num_cols = @compat Int(get_num_cols(model))
+    num_cols = Int(get_num_cols(model))
     return copy(pointer_to_array(vec_starts_p, (num_cols+1,)))
 end
 
@@ -775,7 +774,7 @@ function get_indices(model::ClpModel)
     _jl__check_model(model)
     # getIndices returns an "int*", how do we know it's Int32??
     row_indices_p = @clp_ccall getIndices Ptr{Int32} (Ptr{Void},) model.p
-    num_elts = @compat Int(get_num_elements(model))
+    num_elts = Int(get_num_elements(model))
     return copy(pointer_to_array(row_indices_p,(num_elts,)))
 end
 
@@ -800,7 +799,7 @@ end
 function get_elements(model::ClpModel)
     _jl__check_model(model)
     elements_p = @clp_ccall getElements Ptr{Float64} (Ptr{Void},) model.p
-    num_elts = @compat Int(get_num_elements(model))
+    num_elts = Int(get_num_elements(model))
     return copy(pointer_to_array(elements_p,(num_elts,)))
 end
 
