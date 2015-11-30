@@ -89,6 +89,9 @@ end
 
 LinearQuadraticModel(s::ClpSolver) = ClpMathProgModel(;s.options...)
 
+ConicModel(s::ClpSolver) = LPQPtoConicBridge(LinearQuadraticModel(s))
+supportedcones(s::ClpSolver) = [:Free,:Zero,:NonNeg,:NonPos]
+
 
 function loadproblem!(m::ClpMathProgModel, filename::AbstractString)
     if endswith(filename,".mps") || endswith(filename,".mps.gz")
