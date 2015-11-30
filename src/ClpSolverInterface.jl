@@ -35,7 +35,7 @@ export ClpMathProgModel,
     getrawsolver
 
 
-type ClpMathProgModel <: AbstractMathProgModel
+type ClpMathProgModel <: AbstractLinearQuadraticModel
     inner::ClpModel
     solveroptions::ClpSolve
 end
@@ -87,7 +87,7 @@ function ClpMathProgModel(;kwargs...)
     return m
 end
 
-model(s::ClpSolver) = ClpMathProgModel(;s.options...)
+LinearQuadraticModel(s::ClpSolver) = ClpMathProgModel(;s.options...)
 
 
 function loadproblem!(m::ClpMathProgModel, filename::AbstractString)
