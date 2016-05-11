@@ -20,7 +20,6 @@ export ClpMathProgModel,
     getconstrmatrix,
     addvar!,
     addconstr!,
-    updatemodel!,
     setsense!,
     getsense,
     numvar,
@@ -156,8 +155,6 @@ function addconstr!(m::ClpMathProgModel, colidx, colcoef, rowlb, rowub)
     cols = Int32[ i - 1 for i in colidx ]
     add_rows(m.inner, 1, Float64[rowlb], Float64[rowub], rowstarts, cols, convert(Vector{Float64}, colcoef))
 end
-
-updatemodel!(m::ClpMathProgModel) = nothing
 
 function setsense!(m::ClpMathProgModel,sense)
     if sense == :Min
