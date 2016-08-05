@@ -1,5 +1,7 @@
 module ClpCInterface
 
+import Compat: String, unsafe_wrap
+
 # Load binary dependencies via Cbc package
 import Cbc
 
@@ -289,7 +291,7 @@ function _jl__check_col_is_valid(model::ClpModel, col::Integer)
     return true
 end
 
-function _jl__check_file_is_readable(filename::AbstractString)
+function _jl__check_file_is_readable(filename::String)
     try
         f = open(filename, "r")
         close(f)
@@ -582,8 +584,9 @@ function problem_name(model::ClpModel)
 end
 
 # Set problem name.  Must have \0 at end.
-function set_problem_name(model::ClpModel, name::ASCIIString)
+function set_problem_name(model::ClpModel, name::String)
     _jl__check_model(model)
+    @assert isascii(name)
     
     @clp_ccall setProblemName Void (Ptr{Void}, Int32, Ptr{UInt8}) model.p (length(name)+1) bytestring(name)
 end
@@ -697,7 +700,7 @@ macro def_get_row_property(fname,clpname)
             _jl__check_model(model)
             row_property_p = @clp_ccall $clpname Ptr{Float64} (Ptr{Void},) model.p
             num_rows = convert(Int,get_num_rows(model))
-            return copy(pointer_to_array(row_property_p,(num_rows,)))
+            return copy(unsafe_wrap(Array,row_property_p,(num_rows,)))
         end
     end
 end
@@ -708,7 +711,7 @@ macro def_get_col_property(fname,clpname)
             _jl__check_model(model)
             col_property_p = @clp_ccall $clpname Ptr{Float64} (Ptr{Void},) model.p
             num_cols = convert(Int,get_num_cols(model))
-            return copy(pointer_to_array(col_property_p,(num_cols,)))
+            return copy(unsafe_wrap(Array,col_property_p,(num_cols,)))
         end
     end
 end
@@ -766,7 +769,7 @@ function get_vector_starts(model::ClpModel)
     _jl__check_model(model)
     vec_starts_p = @clp_ccall getVectorStarts Ptr{CoinBigIndex} (Ptr{Void},) model.p
     num_cols = Int(get_num_cols(model))
-    return copy(pointer_to_array(vec_starts_p, (num_cols+1,)))
+    return copy(unsafe_wrap(Array,vec_starts_p, (num_cols+1,)))
 end
 
 # Get row indices in matrix.
@@ -775,7 +778,7 @@ function get_indices(model::ClpModel)
     # getIndices returns an "int*", how do we know it's Int32??
     row_indices_p = @clp_ccall getIndices Ptr{Int32} (Ptr{Void},) model.p
     num_elts = Int(get_num_elements(model))
-    return copy(pointer_to_array(row_indices_p,(num_elts,)))
+    return copy(unsafe_wrap(Array,row_indices_p,(num_elts,)))
 end
 
 function get_constraint_matrix(model::ClpModel)
@@ -800,7 +803,7 @@ function get_elements(model::ClpModel)
     _jl__check_model(model)
     elements_p = @clp_ccall getElements Ptr{Float64} (Ptr{Void},) model.p
     num_elts = Int(get_num_elements(model))
-    return copy(pointer_to_array(elements_p,(num_elts,)))
+    return copy(unsafe_wrap(Array,elements_p,(num_elts,)))
 end
 
 # Get objective value.
@@ -824,7 +827,7 @@ function infeasibility_ray(model::ClpModel)
     num_rows = convert(Int,get_num_rows(model))
     local infeas_ray::Vector{Float64}
     if infeas_ray_p != C_NULL
-        infeas_ray = copy(pointer_to_array(infeas_ray_p,(num_rows,)))
+        infeas_ray = copy(unsafe_wrap(Array,infeas_ray_p,(num_rows,)))
         ccall(:free,Void,(Ptr{Void},),infeas_ray_p)
     else
         infeas_ray = Array(Float64,0)
@@ -839,7 +842,7 @@ function unbounded_ray(model::ClpModel)
     num_cols = convert(Int,get_num_cols(model))
     local unbd_ray::Vector{Float64}
     if unbd_ray_p != C_NULL 
-        unbd_ray = copy(pointer_to_array(unbd_ray_p,(num_cols,)))
+        unbd_ray = copy(unsafe_wrap(Array,unbd_ray_p,(num_cols,)))
         ccall(:free,Void,(Ptr{Void},),unbd_ray_p)
     else
         unbd_ray = Array(Float64,0)
@@ -1181,16 +1184,18 @@ end
 # It does not save any messaging information.
 # Does not save scaling values.
 # It does not know about all types of virtual functions.
-function save_model(model::ClpModel, file_name::ASCIIString)
+function save_model(model::ClpModel, file_name::String)
     _jl__check_model(model)
+    @assert isascii(file_name)
     
     @clp_ccall saveModel Int32 (Ptr{Void},Ptr{UInt8}) model.p bytestring(file_name)
 end
 
 # Restore model from file, returns 0 if success,
 # deletes current model.
-function restore_model(model::ClpModel, file_name::ASCIIString)
+function restore_model(model::ClpModel, file_name::String)
     _jl__check_model(model)
+    @assert isascii(file_name)
 
     @clp_ccall restoreModel Int32 (Ptr{Void},Ptr{UInt8}) model.p bytestring(file_name)
 end
@@ -1272,8 +1277,9 @@ function set_obj_sense(model::ClpModel, objsen::Real)
 end
 
 # Print model for debugging purposes
-function print_model(model::ClpModel, prefix::ASCIIString)
+function print_model(model::ClpModel, prefix::String)
     _jl__check_model(model)
+    @assert isascii(prefix)
 
     @clp_ccall printModel Void (Ptr{Void},Ptr{UInt8}) model.p bytestring(prefix)
 end
