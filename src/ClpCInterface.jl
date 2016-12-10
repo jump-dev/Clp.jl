@@ -1,7 +1,5 @@
 module ClpCInterface
 
-import Compat: String, unsafe_wrap
-
 # Load binary dependencies via Cbc package
 import Cbc
 
@@ -187,6 +185,7 @@ import Base.pointer
 #{{{
 
 macro clp_ccall(func, args...)
+    args = [esc(ex) for ex in args]
     f = "Clp_$(func)"
     quote
         ccall(($f,Cbc.libclp), $(args...))
@@ -194,6 +193,7 @@ macro clp_ccall(func, args...)
 end
 
 macro clpsolve_ccall(func, args...)
+    args = [esc(ex) for ex in args]
     f = "ClpSolve_$(func)"
     quote
         ccall(($f,Cbc.libclp), $(args...))
@@ -698,7 +698,7 @@ macro def_get_row_property(fname,clpname)
     quote
         function $(esc(fname))(model::ClpModel)
             _jl__check_model(model)
-            row_property_p = @clp_ccall $clpname Ptr{Float64} (Ptr{Void},) model.p
+            row_property_p = @clp_ccall $(esc(clpname)) Ptr{Float64} (Ptr{Void},) model.p
             num_rows = convert(Int,get_num_rows(model))
             return copy(unsafe_wrap(Array,row_property_p,(num_rows,)))
         end
@@ -709,7 +709,7 @@ macro def_get_col_property(fname,clpname)
     quote
         function $(esc(fname))(model::ClpModel)
             _jl__check_model(model)
-            col_property_p = @clp_ccall $clpname Ptr{Float64} (Ptr{Void},) model.p
+            col_property_p = @clp_ccall $(esc(clpname)) Ptr{Float64} (Ptr{Void},) model.p
             num_cols = convert(Int,get_num_cols(model))
             return copy(unsafe_wrap(Array,col_property_p,(num_cols,)))
         end
