@@ -575,12 +575,15 @@ function set_objective_offset(model::ClpModel, value::Float64)
     return
 end
 
+#=
+These methods are untested. If you need them, open a PR to get them working
+and add new unit tests.
 # Fill in array with problem name.
 function problem_name(model::ClpModel)
     _jl__check_model(model)
-    problem_name_p = pointer(Array(UInt8, 1000))
-    @clp_ccall problemName Void (Ptr{Void}, Int32, Ptr{UInt8}) model.p 1000 problem_name_p
-    return bytestring(problem_name_p)
+    problem_name = Array{UInt8}(1000)
+    @clp_ccall problemName Void (Ptr{Void}, Int32, Ptr{UInt8}) model.p 1000 problem_name
+    return bytestring(problem_name)
 end
 
 # Set problem name.  Must have \0 at end.
@@ -590,6 +593,7 @@ function set_problem_name(model::ClpModel, name::String)
     
     @clp_ccall setProblemName Void (Ptr{Void}, Int32, Ptr{UInt8}) model.p (length(name)+1) bytestring(name)
 end
+=#
 
 # Get number of iterations
 function number_iterations(model::ClpModel)
@@ -830,7 +834,7 @@ function infeasibility_ray(model::ClpModel)
         infeas_ray = copy(unsafe_wrap(Array,infeas_ray_p,(num_rows,)))
         ccall(:free,Void,(Ptr{Void},),infeas_ray_p)
     else
-        infeas_ray = Array(Float64,0)
+        infeas_ray = Array{Float64}(0)
     end
     return infeas_ray
 end
@@ -845,7 +849,7 @@ function unbounded_ray(model::ClpModel)
         unbd_ray = copy(unsafe_wrap(Array,unbd_ray_p,(num_cols,)))
         ccall(:free,Void,(Ptr{Void},),unbd_ray_p)
     else
-        unbd_ray = Array(Float64,0)
+        unbd_ray = Array{Float64}(0)
     end
     return unbd_ray
 end
@@ -964,9 +968,9 @@ function row_name(model::ClpModel, row::Integer)
     _jl__check_model(model)
     _jl__check_row_is_valid(model, row)
     size = @clp_ccall lengthNames Int32 (Ptr{Void},) model.p
-    row_name_p = pointer(Array(UInt8, size+1))
-    @clp_ccall rowName Void (Ptr{Void}, Int32, Ptr{UInt8}) model.p (row-1) row_name_p
-    return bytestring(row_name_p)
+    row_name = Array{UInt8}(size+1)
+    @clp_ccall rowName Void (Ptr{Void}, Int32, Ptr{UInt8}) model.p (row-1) row_name
+    return bytestring(row_name)
 end
 
 # Return an array with a column name.
@@ -977,9 +981,9 @@ function column_name(model::ClpModel, col::Integer)
     _jl__check_model(model)
     _jl__check_col_is_valid(model, col)
     size = @clp_ccall lengthNames Int32 (Ptr{Void},) model.p
-    col_name_p = pointer(Array(UInt8,size+1))
-    @clp_ccall columnName Void (Ptr{Void}, Int32, Ptr{UInt8}) model.p (col-1) col_name_p
-    return bytestring(col_name_p)
+    col_name = Array{UInt8}(size+1)
+    @clp_ccall columnName Void (Ptr{Void}, Int32, Ptr{UInt8}) model.p (col-1) col_name
+    return bytestring(col_name)
 end
 
 # General solve algorithm which can do presolve.

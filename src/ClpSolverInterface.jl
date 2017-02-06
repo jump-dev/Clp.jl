@@ -215,8 +215,8 @@ const statmap = Dict(zip([ 0x00,  0x01,            0x02,            0x03,       
 function getbasis(m::ClpMathProgModel)
     num_cols = numvar(m)
     num_rows = numconstr(m)
-    cbasis = Array(Symbol,num_cols)
-    rbasis = Array(Symbol,num_rows)
+    cbasis = Array{Symbol}(num_cols)
+    rbasis = Array{Symbol}(num_rows)
     for i in 1:num_cols
         val = get_column_status(m.inner, i)
         cbasis[i] = statmap[val]
