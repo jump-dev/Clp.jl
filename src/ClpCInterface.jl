@@ -204,8 +204,8 @@ end
 # Note: we assume COIN_BIG_INDEX and COIN_BIG_DOUBLE
 # were not defined when compiling Clp (which is the
 # default)
-typealias CoinBigIndex Int32
-typealias CoinBigDouble Float64
+const CoinBigIndex  = Int32
+const CoinBigDouble = Float64
 
 #}}}
 
@@ -306,7 +306,7 @@ end
 #{{{
 
 # inspired by GLPK interface
-typealias VecOrNothing Union{Vector,Void}
+const VecOrNothing = Union{Vector,Void}
 function vec_or_null{T}(::Type{T}, a::VecOrNothing, len::Integer)
     if isequal(a, nothing) || isa(a, Array{Void}) # on 0.3, [] is Array{Void}
         return C_NULL
