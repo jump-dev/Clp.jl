@@ -237,3 +237,195 @@ end
 getrawsolver(m::ClpMathProgModel) = m.inner
 
 end
+
+module ClpMOISolverInterface
+using Clp.ClpCInterface
+
+# importall MathProgBase.SolverInterface
+
+using MathOptInterface
+const MOI = MathOptInterface
+
+export ClpMOISolver
+
+# Solver
+
+immutable ClpMOISolver <: MOI.AbstractSolver
+    options
+end
+ClpMOISolver(;kwargs...) = ClpMOISolver(kwargs)
+
+# Solver instance
+
+const VR = MOI.VariableReference
+const CR = MOI.ConstraintReference
+
+type ClpMOIModel <: MOI.AbstractSolverInstance
+    inner::ClpModel
+    solveroptions::ClpSolve
+    nvariables::UInt64
+    vartolbref::Vector{CR}
+    vartoubref::Vector{CR}
+    ubreftovar::Dict{CR, Int32}
+    lbreftovar::Dict{CR, Int32}
+    nconstraints::UInt64 # does take into account bounds
+    # constraints::Vector{CR}
+    nrows::UInt64 # does not take into account bounds
+    rowtorangeref::Vector{CR}
+    rangereftorow::Dict{CR, Int32}
+end
+function ClpMOIModel(;kwargs...)
+    m = ClpMOIModel(ClpModel(),ClpSolve(), 0, Vector{CR}(), Vector{CR}(), Dict{CR, Int32}(), Dict{CR, Int32}(),
+            0, 0, Vector{CR}(), Dict{CR, Int32}() )
+    set_log_level(m.inner,0) # disable output by default
+    for (name, value) in kwargs
+        setoption(m, name, value)
+    end
+    return m
+end
+
+col(m::ClpMOIModel,ref::VR) = ref.value - 1 # column index in solver
+row(m::ClpMOIModel,ref::CR) = rangereftorow[ref.value] - 1 # row index in solver
+
+MOI.SolverInstance(s::ClpMOISolver) = ClpMOIModel(;s.options...)
+
+# Variables
+MOI.getattribute(m::ClpMOIModel, ::MOI.NumberOfVariables) = m.nvariables
+
+function MOI.addvariable!(m::ClpMOIModel)
+    numberInColumn = 0
+    rows = Vector{Int32}()
+    elements = Vector{Float64}()
+    add_column(m.inner, numberInColumn,  rows, elements, -Inf, +Inf, 0.0)
+    m.nvariables += 1
+    m.nconstraints += 2
+    nv = m.nvariables
+    nc = m.nconstraints
+    vf = VR(nv)
+    lbref = CR{MOI.ScalarVariablewiseFunction, MOI.LessThan{Float64}}(nc - 1)
+    ubref = CR{MOI.ScalarVariablewiseFunction, MOI.GreaterThan{Float64}}(nc)
+    push!(m.vartolbref, lbref)
+    push!(m.vartoubref, ubref)
+    m.lbreftovar[lbref] = nv
+    m.ubreftovar[ubref] = nv
+    return vf
+end
+
+function MOI.addvariables!(m::ClpMOIModel, n::Integer)
+    return [MOI.addvariable!(m) for i in 1:n]
+end
+
+function MOI.delete!(m::ClpMOIModel, vr::VR)
+    which = Vector{Int32}()
+    push!(which, col(m,vr))
+    delete_columns(m.inner, which)
+end
+
+
+# Objective
+function MOI.setobjective!(m::ClpMOIModel, sense::MOI.OptimizationSense, f::MOI.ScalarAffineFunction{Float64})
+    obj_in = zeros(Float64, m.nvariables)
+    for i in 1:length(f.variables)
+        index = col(m,f.variables[i]) + 1
+        coeff = f.coefficients[i]
+        obj_in[index] = coeff
+    end
+    chg_obj_coefficients(m.inner, obj_in)
+    set_objective_offset(m.inner, f.constant)
+    if sense == MOI.MinSense
+        set_obj_sense(m.inner, 1.0)
+    elseif sense == MOI.MaxSense
+        set_obj_sense(m.inner, -1.0)
+    else
+        set_obj_sense(m.inner, 0.0)
+    end
+end
+
+# MOI.getattribute(m::ClpMOIModel, ::MOI.Sense)
+# MOI.getattribute(m::ClpMOIModel, ::MOI.ObjectiveFunction)
+# MOI.modifyobjective!(m::ClpMOIModel, change::MOI.AbstractFunctionModification)
+
+# Constraint
+function _addrangeref!(F,S,m::ClpMOIModel)
+    m.nconstraints += 1
+    m.nrows += 1
+    cf = CR{F,S}(m.nconstraints)
+    push!(m.rowtorangeref, cf)
+    m.rangereftorow[cf] = m.nrows
+    return cf
+end
+
+function _addrangeinsolver!(m::ClpMOIModel, f::MOI.ScalarAffineFunction{Float64}, lower::Float64, upper::Float64)
+    elements = Vector{Float64}()
+    columns = Vector{Int32}()
+    number_in_row = length(f.variables)
+    for i in 1:number_in_row
+        push!(columns, col(m,f.variables[i]))
+        push!(elements, f.coefficients[i])
+    end
+    add_row(m.inner, number_in_row, columns, elements, lower - f.constant, upper - f.constant)
+end
+
+function _addrange!(m::ClpMOIModel, f::MOI.ScalarAffineFunction{Float64}, lower::Float64, upper::Float64)
+    _addrangeinsolver!(m, f, lower, upper)
+    return _addrangeref!(MOI.ScalarAffineFunction{Float64},MOI.Interval{Float64},m)
+end
+
+function MOI.addconstraint!(m::ClpMOIModel, f::MOI.ScalarAffineFunction{Float64}, s::MOI.Interval{Float64})
+    return _addrange!(m, f, s.lower, s.upper)
+end
+
+function MOI.addconstraint!(m::ClpMOIModel, f::MOI.ScalarAffineFunction{Float64}, s::MOI.GreaterThan{Float64})
+    return _addrange!(m, f, s.lower, Inf)
+end
+
+function MOI.addconstraint!(m::ClpMOIModel, f::MOI.ScalarAffineFunction{Float64}, s::MOI.LessThan{Float64})
+    return _addrange!(m, f, -Inf, s.upper)
+end
+
+function replaceInf(x)
+    for i in 1:length(x)
+        if x[i] > 1e20
+            x[i] = Inf
+        elseif x[i] < -1e20
+            x[i] = -Inf
+        end
+    end
+    return x
+end
+
+function MOI.addconstraint!(m::ClpMOIModel, f::MOI.ScalarVariablewiseFunction, s::MOI.GreaterThan{<:Real})
+    lowerbounds = replaceInf(get_col_lower(m.inner))
+    lowerbounds[col(m, f.variable) + 1] = s.lower
+    chg_column_lower(m.inner, lowerbounds)
+    return m.vartolbref[col(m, f.variable) + 1]
+end
+
+function MOI.addconstraint!(m::ClpMOIModel, f::MOI.ScalarVariablewiseFunction, s::MOI.LessThan{<:Real})
+    upperbounds = replaceInf(get_col_upper(m.inner))
+    upperbounds[col(m, f.variable) + 1] = s.lower
+    chg_column_upper(m.inner, upperbounds)
+    return m.vartoubref[col(m, f.variable) + 1]
+end
+
+# MOI.delete!(m::ClpMOIModel, cr::CR)
+# MOI.modifyconstraint!(m::ClpMOIModel, cr::CR, change)
+
+# Optimization and additional attributes
+function MOI.optimize!(m::ClpMOIModel)
+    initial_solve(m.inner)
+end
+
+# MOI.getattribute(m::ClpMOIModel, noc::MOI.NumberOfConstraints)
+# MOI.getattribute(m::ClpMOIModel, loc::MOI.ListOfConstraints)
+# MOI.cangetattribute(m::ClpMOIModel, ::Union{MOI.NumberOfVariables,
+#                                                  MOI.NumberOfConstraints,
+#                                                  MOI.ListOfConstraints,
+#                                                  MOI.ObjectiveFunction,
+#                                                  MOI.Sense}) = true
+# MOI.cangetattribute(m::ClpMOIModel, ::Union{MOI.ConstraintFunction,
+#                                                  MOI.ConstraintSet}, ref) = true
+# MOI.getattribute(m::ClpMOIModel, ::MOI.ConstraintFunction, cr::CR)
+# MOI.getattribute(m::ClpMOIModel, ::MOI.ConstraintSet, cr::CR)
+
+end
