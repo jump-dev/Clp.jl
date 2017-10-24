@@ -40,7 +40,7 @@ type ClpMathProgModel <: AbstractLinearQuadraticModel
 end
 
 immutable ClpSolver <: AbstractMathProgSolver
-    options 
+    options
 end
 ClpSolver(;kwargs...) = ClpSolver(kwargs)
 
@@ -98,7 +98,7 @@ function loadproblem!(m::ClpMathProgModel, filename::AbstractString)
     else
        error("unrecognized input format extension in $filename")
     end
-end   
+end
 
 
 function loadproblem!(m::ClpMathProgModel, A, collb, colub, obj, rowlb, rowub, sense)
@@ -177,7 +177,7 @@ function getsense(m::ClpMathProgModel)
     end
 end
 
-numvar(m::ClpMathProgModel) = get_num_cols(m.inner) 
+numvar(m::ClpMathProgModel) = get_num_cols(m.inner)
 numconstr(m::ClpMathProgModel) = get_num_rows(m.inner)
 
 optimize!(m::ClpMathProgModel) = initial_solve_with_options(m.inner,m.solveroptions)
@@ -201,7 +201,7 @@ end
 
 getobjval(m::ClpMathProgModel) = objective_value(m.inner)
 
-getsolution(m::ClpMathProgModel) = primal_column_solution(m.inner) 
+getsolution(m::ClpMathProgModel) = primal_column_solution(m.inner)
 getconstrsolution(m::ClpMathProgModel) = primal_row_solution(m.inner)
 getreducedcosts(m::ClpMathProgModel) = dual_column_solution(m.inner)
 
@@ -272,12 +272,13 @@ function MOI.supportsproblem(s::ClpMOISolver, objective_type, constraint_types::
     return true
 end
 
-MOI.getattribute(s::ClpMOISolver, ::MOI.SupportsDuals) = true
+MOI.get(s::ClpMOISolver, ::MOI.SupportsDuals) = true
 
 # Solver instance
 
 const VR = MOI.VariableReference
 const CR = MOI.ConstraintReference
+const IGL = Union{MOI.Interval{Float64}, MOI.GreaterThan{Float64}, MOI.LessThan{Float64}} 
 
 type ClpMOIModel <: MOI.AbstractSolverInstance
     inner::ClpModel
@@ -297,15 +298,22 @@ type ClpMOIModel <: MOI.AbstractSolverInstance
     nrows::UInt64
     rowtorangeref::Vector{CR}
     rangereftorow::Dict{CR, Int32}
+    rangereftofunc::Dict{CR, MOI.ScalarAffineFunction{Float64}}
+    rangereftolb::Dict{CR, Float64}
+    rangereftoub::Dict{CR, Float64}    
     solution::Vector{Float64}
     rowsolution::Vector{Float64}
     dualcolsolution::Vector{Float64}
     dualrowsolution::Vector{Float64}
+    objfunc::Nullable{MOI.ScalarAffineFunction{Float64}}
 end
+
 function ClpMOIModel(;kwargs...)
     m = ClpMOIModel(ClpModel(),ClpSolve(), 0, Vector{CR}(), Vector{CR}(), Dict{CR, Int32}(), Dict{CR, Int32}(),
             0, 0, 0, 0, 0, 0, 0, Vector{CR}(), Dict{CR, Int32}(),
-            Vector{Float64}(), Vector{Float64}(), Vector{Float64}(), Vector{Float64}() )
+            Dict{CR, MOI.ScalarAffineFunction{Float64}}(), Dict{CR, Float64}(), Dict{CR, Float64}(),
+            Vector{Float64}(), Vector{Float64}(), Vector{Float64}(), Vector{Float64}(),
+            Nullable{MOI.ScalarAffineFunction{Float64}}())
     set_log_level(m.inner,0) # disable output by default
     for (name, value) in kwargs
         setoption(m, name, value)
@@ -319,7 +327,7 @@ row(m::ClpMOIModel,ref::CR) = m.rangereftorow[ref] - 1 # row index in solver
 MOI.SolverInstance(s::ClpMOISolver) = ClpMOIModel(;s.options...)
 
 # Variables
-MOI.getattribute(m::ClpMOIModel, ::MOI.NumberOfVariables) = m.nvariables
+MOI.get(m::ClpMOIModel, ::MOI.NumberOfVariables) = m.nvariables
 
 function MOI.addvariable!(m::ClpMOIModel)
     numberInColumn = 0
@@ -350,17 +358,20 @@ function MOI.delete!(m::ClpMOIModel, vr::VR)
     delete_columns(m.inner, which)
 end
 
-
-# Objective
-function MOI.setobjective!(m::ClpMOIModel, sense::MOI.OptimizationSense, f::MOI.ScalarAffineFunction{Float64})
+function MOI.set!(m::ClpMOIModel, ::MOI.ObjectiveFunction, f::MOI.ScalarAffineFunction{Float64})
     obj_in = zeros(Float64, m.nvariables)
     for i in 1:length(f.variables)
         index = col(m,f.variables[i]) + 1
         coeff = f.coefficients[i]
         obj_in[index] = coeff
     end
+    m.objfunc = Nullable{MOI.ScalarAffineFunction{Float64}}(
+            MOI.ScalarAffineFunction{Float64}(copy(f.variables),copy(f.coefficients), f.constant) )
     chg_obj_coefficients(m.inner, obj_in)
-    set_objective_offset(m.inner, f.constant)
+    set_objective_offset(m.inner, f.constant)    
+end
+
+function MOI.set!(m::ClpMOIModel, ::MOI.ObjectiveSense, sense::MOI.OptimizationSense)
     if sense == MOI.MinSense
         set_obj_sense(m.inner, 1.0)
     elseif sense == MOI.MaxSense
@@ -370,7 +381,7 @@ function MOI.setobjective!(m::ClpMOIModel, sense::MOI.OptimizationSense, f::MOI.
     end
 end
 
-function MOI.getattribute(m::ClpMOIModel, ::MOI.ObjectiveSense)
+function MOI.get(m::ClpMOIModel, ::MOI.ObjectiveSense)
     s = get_obj_sense(m.inner)
     if s == 1.0
         return MOI.MinSense
@@ -381,24 +392,56 @@ function MOI.getattribute(m::ClpMOIModel, ::MOI.ObjectiveSense)
     end
 end
 
-# MOI.getattribute(m::ClpMOIModel, ::MOI.ObjectiveFunction)
-# MOI.modifyobjective!(m::ClpMOIModel, change::MOI.AbstractFunctionModification)
+function MOI.modifyobjective!(m::ClpMOIModel, change::MOI.ScalarCoefficientChange{Float64})
+    @assert !isnull(m.objfunc)
+    f = get(m.objfunc)        
+    
+    # modify function              
+    varidx = findfirst(f.variables, change.variable)
+    if varidx != 0
+        f.coefficients[varidx] = change.new_coefficient
+    else        
+        push!(f.variables, change.variable)
+        push!(f.coefficients, change.new_coefficient)
+    end        
+    
+    # update instance in solver
+    MOI.set!(m, MOI.ObjectiveFunction(), f)
+end
+
+function MOI.modifyobjective!(m::ClpMOIModel, change::MOI.ScalarConstantChange{Float64})    
+    @assert !isnull(m.objfunc)
+    f = get(m.objfunc)        
+    
+    # modify function              
+    f.constant = change.new_constant    
+    
+    # update instance in solver
+    MOI.set!(m, MOI.ObjectiveFunction(), f)
+end
 
 # Constraint
-function _addrangeref!(F,S,m::ClpMOIModel, haslessthan::Bool, hasgreaterthan::Bool)
+function _addrangeref!(f::MOI.ScalarAffineFunction{Float64},m::ClpMOIModel, haslessthan::Bool, hasgreaterthan::Bool,
+        lower::Float64, upper::Float64)    
     @assert haslessthan || hasgreaterthan
+    S = MOI.Interval{Float64}
     m.nconstraints += 1
     m.nrows += 1
     if !haslessthan
         m.nrows_lessthan += 1
+        S = MOI.GreaterThan{Float64}
     elseif !hasgreaterthan
         m.nrows_greaterthan += 1
+        S = MOI.LessThan{Float64}
     else
         m.nrows_interval += 1
     end
-    cref = CR{F,S}(m.nconstraints)
+    cref = CR{MOI.ScalarAffineFunction{Float64},S}(m.nconstraints)
     push!(m.rowtorangeref, cref)
     m.rangereftorow[cref] = m.nrows
+    m.rangereftolb[cref] = lower
+    m.rangereftoub[cref] = upper
+    m.rangereftofunc[cref] = MOI.ScalarAffineFunction{Float64}(copy(f.variables), copy(f.coefficients), f.constant)
     return cref
 end
 
@@ -416,7 +459,7 @@ end
 function _addrange!(m::ClpMOIModel, f::MOI.ScalarAffineFunction{Float64}, lower::Float64, upper::Float64,
         haslower::Bool, hasupper::Bool)
     _addrangeinsolver!(m, f, lower, upper)
-    return _addrangeref!(MOI.ScalarAffineFunction{Float64},MOI.Interval{Float64},m, haslower, hasupper)
+    return _addrangeref!(f,m, haslower, hasupper, lower, upper)
 end
 
 function MOI.addconstraint!(m::ClpMOIModel, f::MOI.ScalarAffineFunction{Float64}, s::MOI.Interval{Float64})
@@ -442,7 +485,7 @@ function replaceInf(x)
     return x
 end
 
-function MOI.addconstraint!(m::ClpMOIModel, f::MOI.SingleVariable, s::MOI.GreaterThan{<:Real})
+function MOI.addconstraint!(m::ClpMOIModel, f::MOI.SingleVariable, s::MOI.GreaterThan{Float64})
     lowerbounds = replaceInf(get_col_lower(m.inner))
     lowerbounds[col(m, f.variable) + 1] = s.lower
     m.nlowerbounds += 1
@@ -450,7 +493,7 @@ function MOI.addconstraint!(m::ClpMOIModel, f::MOI.SingleVariable, s::MOI.Greate
     return m.vartolbref[col(m, f.variable) + 1]
 end
 
-function MOI.addconstraint!(m::ClpMOIModel, f::MOI.SingleVariable, s::MOI.LessThan{<:Real})
+function MOI.addconstraint!(m::ClpMOIModel, f::MOI.SingleVariable, s::MOI.LessThan{Float64})
     upperbounds = replaceInf(get_col_upper(m.inner))
     upperbounds[col(m, f.variable) + 1] = s.upper
     m.nupperbounds += 1
@@ -458,33 +501,147 @@ function MOI.addconstraint!(m::ClpMOIModel, f::MOI.SingleVariable, s::MOI.LessTh
     return m.vartoubref[col(m, f.variable) + 1]
 end
 
-function MOI.getattribute(m::ClpMOIModel,
+function _modifyconstraintinsolver(m::ClpMOIModel, 
+        cref::CR{MOI.ScalarAffineFunction{Float64}, S}  where S <: IGL, 
+        f::MOI.ScalarAffineFunction{Float64}, lower::Float64, upper::Float64)        
+    
+    # update instance in solver
+    r = row(m,cref)    
+    delete_rows(m.inner, Vector{Int32}([r]))               
+    _addrangeinsolver!(m, f::MOI.ScalarAffineFunction{Float64}, lower, upper)
+    
+    # update row <-> cref mapping.
+    deleteat!(m.rowtorangeref, findfirst(m.rowtorangeref, cref))
+    push!(m.rowtorangeref, cref)     
+    m.rangereftorow[cref] = m.nrows            
+end
+        
+
+function MOI.modifyconstraint!(m::ClpMOIModel, 
+        cref::CR{MOI.ScalarAffineFunction{Float64}, S}  where S <: IGL, 
+        change::MOI.ScalarCoefficientChange{Float64})
+        
+    lower = m.rangereftolb[cref]
+    upper = m.rangereftoub[cref]
+    f = m.rangereftofunc[cref]
+            
+    # modify function          
+    varidx = findfirst(f.variables, change.variable)
+    if varidx != 0
+        f.coefficients[varidx] = change.new_coefficient
+    else        
+        push!(f.variables, change.variable)
+        push!(f.coefficients, change.new_coefficient)
+    end 
+    
+    _modifyconstraintinsolver(m, cref, f, lower, upper)               
+end 
+
+function _updatedetailednrows(m::ClpMOIModel, 
+        cref::CR{MOI.ScalarAffineFunction{Float64},MOI.Interval{Float64}})
+    m.nrows_interval -= 1    
+end
+
+function _updatedetailednrows(m::ClpMOIModel, 
+        cref::CR{MOI.ScalarAffineFunction{Float64},MOI.GreaterThan{Float64}})
+    m.nrows_greaterthan -= 1    
+end
+
+function _updatedetailednrows(m::ClpMOIModel, 
+        cref::CR{MOI.ScalarAffineFunction{Float64},MOI.LessThan{Float64}})
+    m.nrows_lessthan -= 1    
+end
+
+function _modifyrangeboundsinsolver(m::ClpMOIModel, cref::CR{MOI.ScalarAffineFunction{Float64}, S} where S <: IGL)
+    lower = m.rangereftolb[cref]
+    upper = m.rangereftoub[cref]
+    
+    chg_row_lower(m.inner, lower)
+    chg_row_upper(m.inner, upper)
+end
+
+function MOI.modifyconstraint!(m::ClpMOIModel, 
+        cref::CR{MOI.ScalarAffineFunction{Float64}, S} where S <: IGL, 
+        s::MOI.GreaterThan{Float64})
+        
+    # modify bounds in interface  
+    _updatedetailednrows(m, cref)    
+    m.nrows_greaterthan += 1
+    m.rangereftolb[cref] = s.lower
+    m.rangereftoub[cref] = Inf 
+    
+    _modifyrangeboundsinsolver(m, cref)
+end
+
+function MOI.modifyconstraint!(m::ClpMOIModel, 
+        cref::CR{MOI.ScalarAffineFunction{Float64}, S} where S <: IGL, 
+        s::MOI.LessThan{Float64})
+        
+    # modify bounds in interface  
+    _updatedetailednrows(m, cref)    
+    m.nrows_lessthan += 1
+    m.rangereftolb[cref] = -Inf
+    m.rangereftoub[cref] = s.upper
+    
+    _modifyrangeboundsinsolver(m, cref)
+end
+
+function MOI.modifyconstraint!(m::ClpMOIModel, 
+        cref::CR{MOI.ScalarAffineFunction{Float64}, S} where S <: IGL, 
+        s::MOI.Interval{Float64})
+        
+    # modify bounds in interface  
+    _updatedetailednrows(m, cref)    
+    m.nrows_interval += 1
+    m.rangereftolb[cref] = s.lower
+    m.rangereftoub[cref] = s.upper
+    
+    _modifyrangeboundsinsolver(m, cref)
+end
+
+function MOI.delete!(m::ClpMOIModel, 
+        cref::CR{MOI.ScalarAffineFunction{Float64}, S} 
+        where S <: Union{MOI.Interval{Float64}, MOI.GreaterThan{Float64}, MOI.LessThan{Float64}})
+    
+    _updatedetailednrows(m,cref)
+    m.nrows -= 1
+    m.nconstraints -= 1
+     
+    deleteat!(m.rowtorangeref, findfirst(m.rowtorangeref, cref))
+    delete!(m.rangereftorow, cref)
+    delete!(m.rangereftolb, cref)
+    delete!(m.rangereftoub, cref)
+    delete!(m.rangereftofunc, cref)              
+    
+    r = row(m,cref)    
+    delete_rows(m.inner, Vector{Int32}([r]))        
+end
+
+
+function MOI.get(m::ClpMOIModel,
         ::MOI.NumberOfConstraints{MOI.SingleVariable, MOI.LessThan{Float64}})
     return m.nupperbounds
 end
 
-function MOI.getattribute(m::ClpMOIModel,
+function MOI.get(m::ClpMOIModel,
         ::MOI.NumberOfConstraints{MOI.SingleVariable, MOI.GreaterThan{Float64}})
     return m.nlowerbounds
 end
 
-function MOI.getattribute(m::ClpMOIModel,
+function MOI.get(m::ClpMOIModel,
         ::MOI.NumberOfConstraints{MOI.ScalarAffineFunction{Float64},MOI.LessThan{Float64}})
     return m.nrows_lessthan
 end
 
-function MOI.getattribute(m::ClpMOIModel,
+function MOI.get(m::ClpMOIModel,
         ::MOI.NumberOfConstraints{MOI.ScalarAffineFunction{Float64},MOI.GreaterThan{Float64}})
     return m.nrows_greaterthan
 end
 
-function MOI.getattribute(m::ClpMOIModel,
+function MOI.get(m::ClpMOIModel,
         ::MOI.NumberOfConstraints{MOI.ScalarAffineFunction{Float64},MOI.Interval{Float64}})
     return m.nrows_interval
 end
-
-# MOI.delete!(m::ClpMOIModel, cr::CR)
-# MOI.modifyconstraint!(m::ClpMOIModel, cr::CR, change)
 
 # Optimization and additional attributes
 function MOI.optimize!(m::ClpMOIModel)
@@ -495,7 +652,7 @@ function MOI.optimize!(m::ClpMOIModel)
     m.dualrowsolution = dual_row_solution(m.inner) .* get_obj_sense(m.inner)
 end
 
-function MOI.getattribute(m::ClpMOIModel, ::MOI.TerminationStatus)
+function MOI.get(m::ClpMOIModel, ::MOI.TerminationStatus)
     s = ClpCInterface.status(m.inner)
     if s == 0
         return MOI.Success
@@ -512,7 +669,7 @@ function MOI.getattribute(m::ClpMOIModel, ::MOI.TerminationStatus)
     end
 end
 
-function MOI.getattribute(m::ClpMOIModel, ::MOI.PrimalStatus)
+function MOI.get(m::ClpMOIModel, ::MOI.PrimalStatus)
     if primal_feasible(m.inner)
         return MOI.FeasiblePoint
     else
@@ -520,7 +677,7 @@ function MOI.getattribute(m::ClpMOIModel, ::MOI.PrimalStatus)
     end
 end
 
-function MOI.getattribute(m::ClpMOIModel, ::MOI.DualStatus)
+function MOI.get(m::ClpMOIModel, ::MOI.DualStatus)
     if dual_feasible(m.inner)
         return MOI.FeasiblePoint
     else
@@ -528,30 +685,30 @@ function MOI.getattribute(m::ClpMOIModel, ::MOI.DualStatus)
     end
 end
 
-MOI.getattribute(m::ClpMOIModel, ::MOI.ObjectiveValue) = objective_value(m.inner)
+MOI.get(m::ClpMOIModel, ::MOI.ObjectiveValue) = objective_value(m.inner)
 
-function MOI.getattribute(m::ClpMOIModel, ::MOI.VariablePrimal, vref::VR)
+function MOI.get(m::ClpMOIModel, ::MOI.VariablePrimal, vref::VR)
     return m.solution[col(m,vref)+1]
 end
 
-function MOI.getattribute(m::ClpMOIModel, ::MOI.VariablePrimal, vec::Vector{VR})
+function MOI.get(m::ClpMOIModel, ::MOI.VariablePrimal, vec::Vector{VR})
     return [m.solution[col(m,vref)+1] for vref in vec]
 end
 
-function MOI.getattribute(m::ClpMOIModel, ::MOI.ConstraintPrimal, cref::CR)
+function MOI.get(m::ClpMOIModel, ::MOI.ConstraintPrimal, cref::CR)
     return m.rowsolution[row(m,cref)+1]
 end
 
-function MOI.getattribute(m::ClpMOIModel, ::MOI.ConstraintPrimal, vec::Vector{CR})
+function MOI.get(m::ClpMOIModel, ::MOI.ConstraintPrimal, vec::Vector{CR})
     return [m.rowsolution[row(m,cref)+1] for cref in vec]
 end
 
-function MOI.getattribute(m::ClpMOIModel, ::MOI.ConstraintDual, cref::CR{MOI.ScalarAffineFunction{Float64},S}
+function MOI.get(m::ClpMOIModel, ::MOI.ConstraintDual, cref::CR{MOI.ScalarAffineFunction{Float64},S}
         where S <: Union{MOI.GreaterThan{Float64}, MOI.LessThan{Float64}, MOI.Interval{Float64}})
     return m.dualrowsolution[row(m,cref)+1]
 end
 
-function MOI.getattribute(m::ClpMOIModel, ::MOI.ConstraintDual,
+function MOI.get(m::ClpMOIModel, ::MOI.ConstraintDual,
         cref::CR{MOI.SingleVariable, MOI.GreaterThan{Float64}})
     var = m.lbreftovar[cref]
     if m.solution[var] == get_col_lower(m.inner)[var] #this wouold be more efficient to get from instance
@@ -561,7 +718,7 @@ function MOI.getattribute(m::ClpMOIModel, ::MOI.ConstraintDual,
     end
 end
 
-function MOI.getattribute(m::ClpMOIModel, ::MOI.ConstraintDual,
+function MOI.get(m::ClpMOIModel, ::MOI.ConstraintDual,
         cref::CR{MOI.SingleVariable, MOI.LessThan{Float64}})
     var = m.ubreftovar[cref]
     if m.solution[var] == get_col_upper(m.inner)[var] #this wouold be more efficient to get from instance
@@ -571,11 +728,11 @@ function MOI.getattribute(m::ClpMOIModel, ::MOI.ConstraintDual,
     end
 end
 
-function MOI.getattribute(m::ClpMOIModel, ::MOI.ConstraintDual, vec::Vector{CR})
-    return [MOI.getattribute(m, MOI.ConstraintDual(), cref) for cref in vec]
+function MOI.get(m::ClpMOIModel, ::MOI.ConstraintDual, vec::Vector{CR})
+    return [MOI.get(m, MOI.ConstraintDual(), cref) for cref in vec]
 end
 
-MOI.cangetattribute(m::ClpMOIModel, ::Union{MOI.TerminationStatus,
+MOI.canget(m::ClpMOIModel, ::Union{MOI.TerminationStatus,
                                     MOI.PrimalStatus,
                                     MOI.DualStatus,
                                     MOI.NumberOfVariables,
@@ -584,17 +741,37 @@ MOI.cangetattribute(m::ClpMOIModel, ::Union{MOI.TerminationStatus,
                                     MOI.ObjectiveValue
                                     }) = true
 
-MOI.cangetattribute(m::ClpMOIModel, ::Union{MOI.ConstraintPrimal, MOI.VariablePrimal, MOI.ConstraintDual},
+MOI.canget(m::ClpMOIModel, ::Union{MOI.ConstraintPrimal, MOI.VariablePrimal, MOI.ConstraintDual},
         ::Union{VR, CR}) = true
 
-MOI.cangetattribute(m::ClpMOIModel, ::Union{MOI.ConstraintPrimal, MOI.VariablePrimal},
+MOI.canget(m::ClpMOIModel, ::Union{MOI.ConstraintPrimal, MOI.VariablePrimal},
         ::Union{Vector{VR}, Vector{CR}}) = true
 
-MOI.cangetattribute(m::ClpMOIModel, ::MOI.ListOfConstraints) = false
-MOI.cangetattribute(m::ClpMOIModel, ::Union{MOI.ConstraintFunction,
+MOI.canget(m::ClpMOIModel, ::MOI.ListOfConstraints) = false
+MOI.canget(m::ClpMOIModel, ::Union{MOI.ConstraintFunction,
                                                  MOI.ConstraintSet}, ref::Union{VR, CR}) = false
-MOI.cangetattribute(m::ClpMOIModel, ::MOI.ObjectiveFunction) = false
+MOI.canget(m::ClpMOIModel, ::MOI.ObjectiveFunction) = false
 # MOI.getattribute(m::ClpMOIModel, ::MOI.ConstraintFunction, cr::CR)
 # MOI.getattribute(m::ClpMOIModel, ::MOI.ConstraintSet, cr::CR)
+
+MOI.canget(m::ClpMOIModel, ::MOI.ResultCount) = true
+
+MOI.get(m::ClpMOIModel, ::MOI.ResultCount) = 1
+
+MOI.get(solver::ClpMOISolver, ::Union{MOI.SupportsAddConstraintAfterSolve, MOI.SupportsAddVariableAfterSolve}) = true
+
+MOI.get(solver::ClpMOISolver, ::MOI.SupportsDeleteConstraint) = true
+
+MOI.canmodifyconstraint(m::ClpMOIModel, ::CR, ::MOI.ScalarCoefficientChange{Float64}) = true
+
+MOI.canmodifyconstraint(m::ClpMOIModel, ::CR, ::MOI.GreaterThan{Float64}) = true
+
+MOI.canmodifyconstraint(m::ClpMOIModel, ::CR, ::MOI.LessThan{Float64}) = true
+
+MOI.canmodifyconstraint(m::ClpMOIModel, ::CR, ::MOI.Interval{Float64}) = true
+
+MOI.canmodifyobjective(m::ClpMOIModel, change::MOI.ScalarCoefficientChange{Float64}) = true
+
+MOI.canmodifyobjective(m::ClpMOIModel, change::MOI.ScalarConstantChange{Float64}) = true
 
 end
