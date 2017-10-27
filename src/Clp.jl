@@ -11,6 +11,9 @@ include("ClpCInterface.jl")
 include("ClpSolverInterface.jl")
 
 using Clp.ClpMathProgSolverInterface
+using Clp.ClpMOISolverInterface
+
 export ClpSolver
+export ClpMOISolver
 
 end # module
