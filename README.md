@@ -5,7 +5,7 @@ Interface to the **[Clp]** linear programming solver. Provides a complete interf
 
 [![Build Status](https://travis-ci.org/JuliaOpt/Clp.jl.svg?branch=master)](https://travis-ci.org/JuliaOpt/Clp.jl)
 
-[![Clp](http://pkg.julialang.org/badges/Clp_0.5.svg)](http://pkg.julialang.org/?pkg=Clp&ver=0.5)
+[![Clp](http://pkg.julialang.org/badges/Clp_0.6.svg)](http://pkg.julialang.org/?pkg=Clp&ver=0.6)
 
 [Clp]: https://projects.coin-or.org/Clp
 [Cbc]: https://github.com/JuliaOpt/Cbc.jl
