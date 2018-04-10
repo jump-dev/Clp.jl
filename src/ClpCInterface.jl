@@ -342,8 +342,8 @@ function load_problem(model::ClpModel,  num_cols::Integer, num_rows::Integer,
     Ptr{Float64},Ptr{Float64},Ptr{Float64},Ptr{Float64},Ptr{Float64},Ptr{Float64}) model.p num_cols num_rows start index value vec_or_null(Float64,col_lb,num_cols) vec_or_null(Float64,col_ub,num_cols) vec_or_null(Float64,obj,num_cols) vec_or_null(Float64,row_lb,num_rows) vec_or_null(Float64,row_ub,num_rows)
 end
 
-function load_problem(model::ClpModel,  constraint_matrix::AbstractMatrix, 
-    col_lb::VecOrNothing, col_ub::VecOrNothing, 
+function load_problem(model::ClpModel,  constraint_matrix::AbstractMatrix,
+    col_lb::VecOrNothing, col_ub::VecOrNothing,
     obj::VecOrNothing, row_lb::VecOrNothing,
     row_ub::VecOrNothing)
     mat = convert(SparseMatrixCSC{Float64,Int32},constraint_matrix)
@@ -373,7 +373,7 @@ function read_mps(model::ClpModel, mpsfile::AbstractString, keep_names::Bool, ig
     _jl__check_model(model)
     _jl__check_file_is_readable(mpsfile)
 
-    status = @clp_ccall readMps Int32 (Ptr{Void}, Ptr{UInt8}, Int32, Int32) model.p bytestring(mpsfile) keep_names ignore_errors
+    status = @clp_ccall readMps Int32 (Ptr{Void}, Cstring, Int32, Int32) model.p mpsfile keep_names ignore_errors
     if status != 0
         error("read_mps: error reading file $mpsfile")
     end
@@ -433,7 +433,7 @@ function add_columns(model::ClpModel, number::Integer, column_lower::Vector{Floa
     _jl__check_model(model)
 
     @clp_ccall addColumns Void (Ptr{Void}, Int32, Ptr{Float64}, Ptr{Float64}, Ptr{Float64}, Ptr{Int32}, Ptr{Int32}, Ptr{Float64}) model.p number column_lower column_upper objective column_starts rows elements
-    
+
 end
 
 function add_columns(model::ClpModel, column_lower::Vector{Float64},
@@ -461,7 +461,7 @@ function chg_row_upper(model::ClpModel, row_upper::Vector{Float64})
     if length(row_upper) != get_num_rows(model)
         error("Array length must match number of rows in the model")
     end
-    
+
     @clp_ccall chgRowUpper Void (Ptr{Void}, Ptr{Float64}) model.p row_upper
 end
 
@@ -472,7 +472,7 @@ function chg_column_lower(model::ClpModel, column_lower::Vector{Float64})
         error("Array length must match number of columns in the model")
     end
 
-    @clp_ccall chgColumnLower Void (Ptr{Void}, Ptr{Float64}) model.p column_lower 
+    @clp_ccall chgColumnLower Void (Ptr{Void}, Ptr{Float64}) model.p column_lower
 end
 
 # Change column upper bounds.
@@ -482,7 +482,7 @@ function chg_column_upper(model::ClpModel, column_upper::Vector{Float64})
         error("Array length must match number of columns in the model")
     end
 
-    @clp_ccall chgColumnUpper Void (Ptr{Void}, Ptr{Float64}) model.p column_upper 
+    @clp_ccall chgColumnUpper Void (Ptr{Void}, Ptr{Float64}) model.p column_upper
 end
 
 # Change objective coefficients.
@@ -491,7 +491,7 @@ function chg_obj_coefficients(model::ClpModel, obj_in::Vector{Float64})
     if length(obj_in) != get_num_cols(model)
         error("Array length must match number of columns in the model")
     end
-    
+
     @clp_ccall chgObjCoefficients Void (Ptr{Void},Ptr{Float64}) model.p obj_in
 end
 
@@ -590,7 +590,7 @@ end
 function set_problem_name(model::ClpModel, name::String)
     _jl__check_model(model)
     @assert isascii(name)
-    
+
     @clp_ccall setProblemName Void (Ptr{Void}, Int32, Ptr{UInt8}) model.p (length(name)+1) bytestring(name)
 end
 =#
@@ -845,7 +845,7 @@ function unbounded_ray(model::ClpModel)
     unbd_ray_p = @clp_ccall unboundedRay Ptr{Float64} (Ptr{Void},) model.p
     num_cols = convert(Int,get_num_cols(model))
     local unbd_ray::Vector{Float64}
-    if unbd_ray_p != C_NULL 
+    if unbd_ray_p != C_NULL
         unbd_ray = copy(unsafe_wrap(Array,unbd_ray_p,(num_cols,)))
         ccall(:free,Void,(Ptr{Void},),unbd_ray_p)
     else
@@ -970,7 +970,7 @@ function row_name(model::ClpModel, row::Integer)
     size = @clp_ccall lengthNames Int32 (Ptr{Void},) model.p
     row_name = Array{UInt8}(size+1)
     @clp_ccall rowName Void (Ptr{Void}, Int32, Ptr{UInt8}) model.p (row-1) row_name
-    return bytestring(row_name)
+    return unsafe_string(row_name)
 end
 
 # Return an array with a column name.
@@ -983,7 +983,7 @@ function column_name(model::ClpModel, col::Integer)
     size = @clp_ccall lengthNames Int32 (Ptr{Void},) model.p
     col_name = Array{UInt8}(size+1)
     @clp_ccall columnName Void (Ptr{Void}, Int32, Ptr{UInt8}) model.p (col-1) col_name
-    return bytestring(col_name)
+    return unsafe_string(col_name)
 end
 
 # General solve algorithm which can do presolve.
@@ -1191,8 +1191,8 @@ end
 function save_model(model::ClpModel, file_name::String)
     _jl__check_model(model)
     @assert isascii(file_name)
-    
-    @clp_ccall saveModel Int32 (Ptr{Void},Ptr{UInt8}) model.p bytestring(file_name)
+
+    @clp_ccall saveModel Int32 (Ptr{Void}, Cstring) model.p file_name
 end
 
 # Restore model from file, returns 0 if success,
@@ -1201,7 +1201,7 @@ function restore_model(model::ClpModel, file_name::String)
     _jl__check_model(model)
     @assert isascii(file_name)
 
-    @clp_ccall restoreModel Int32 (Ptr{Void},Ptr{UInt8}) model.p bytestring(file_name)
+    @clp_ccall restoreModel Int32 (Ptr{Void}, Cstring) model.p file_name
 end
 
 # Just check solution (for external use) - sets sum of
@@ -1285,7 +1285,7 @@ function print_model(model::ClpModel, prefix::String)
     _jl__check_model(model)
     @assert isascii(prefix)
 
-    @clp_ccall printModel Void (Ptr{Void},Ptr{UInt8}) model.p bytestring(prefix)
+    @clp_ccall printModel Void (Ptr{Void}, Cstring) model.p prefix
 end
 
 function get_small_element_value(model::ClpModel)
