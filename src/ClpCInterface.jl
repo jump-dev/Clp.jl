@@ -699,23 +699,45 @@ end
 # TODO: do we actually want to make a copy of the result?
 # More efficient to not and let the sufficiently warned user do so if desired.
 macro def_get_row_property(fname,clpname)
-    quote
-        function $(esc(fname))(model::ClpModel)
-            _jl__check_model(model)
-            row_property_p = @clp_ccall $(esc(clpname)) Ptr{Float64} (Ptr{Void},) model.p
-            num_rows = convert(Int,get_num_rows(model))
-            return copy(unsafe_wrap(Array,row_property_p,(num_rows,)))
+    if VERSION >= v"0.7-"
+        return quote
+            function $(esc(fname))(model::ClpModel)
+                _jl__check_model(model)
+                row_property_p = @clp_ccall $clpname Ptr{Float64} (Ptr{Void},) model.p
+                num_rows = convert(Int,get_num_rows(model))
+                return copy(unsafe_wrap(Array,row_property_p,(num_rows,)))
+            end
+        end
+    else
+        return quote
+            function $(esc(fname))(model::ClpModel)
+                _jl__check_model(model)
+                row_property_p = @clp_ccall $(esc(clpname)) Ptr{Float64} (Ptr{Void},) model.p
+                num_rows = convert(Int,get_num_rows(model))
+                return copy(unsafe_wrap(Array,row_property_p,(num_rows,)))
+            end
         end
     end
 end
 
 macro def_get_col_property(fname,clpname)
-    quote
-        function $(esc(fname))(model::ClpModel)
-            _jl__check_model(model)
-            col_property_p = @clp_ccall $(esc(clpname)) Ptr{Float64} (Ptr{Void},) model.p
-            num_cols = convert(Int,get_num_cols(model))
-            return copy(unsafe_wrap(Array,col_property_p,(num_cols,)))
+    if VERSION >= v"0.7-"
+        return quote
+            function $(esc(fname))(model::ClpModel)
+                _jl__check_model(model)
+                col_property_p = @clp_ccall $clpname Ptr{Float64} (Ptr{Void},) model.p
+                num_cols = convert(Int,get_num_cols(model))
+                return copy(unsafe_wrap(Array,col_property_p,(num_cols,)))
+            end
+        end
+    else
+        return quote
+            function $(esc(fname))(model::ClpModel)
+                _jl__check_model(model)
+                col_property_p = @clp_ccall $(esc(clpname)) Ptr{Float64} (Ptr{Void},) model.p
+                num_cols = convert(Int,get_num_cols(model))
+                return copy(unsafe_wrap(Array,col_property_p,(num_cols,)))
+            end
         end
     end
 end
