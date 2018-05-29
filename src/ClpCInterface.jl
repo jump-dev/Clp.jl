@@ -19,7 +19,9 @@ export
     resize,
     delete_rows,
     add_rows,
+    add_row,
     delete_columns,
+    add_column,
     add_columns,
     chg_row_lower,
     chg_row_upper,
@@ -418,10 +420,34 @@ function add_rows(model::ClpModel, number::Integer, row_lower::Vector{Float64},
     @clp_ccall addRows Void (Ptr{Void}, Int32, Ptr{Float64}, Ptr{Float64}, Ptr{Int32}, Ptr{Int32}, Ptr{Float64}) model.p number row_lower row_upper row_starts columns elements
 end
 
+#This function exists in cpp but not c interface
+function add_row(model::ClpModel, number_in_row::Integer, columns::Vector{Int32}, elements::Vector{Float64},
+        row_lower::Float64, row_upper::Float64)
+        _row_starts = Vector{Int32}(2)
+        _row_starts[1] = 0
+        _row_starts[2] = number_in_row
+        _row_upper = [row_upper]
+        _row_lower = [row_lower]
+        add_rows(model, 1, _row_lower, _row_upper, _row_starts, columns, elements)
+end
+
 # Delete columns.
 function delete_columns(model::ClpModel, which::Vector{Int32})
     _jl__check_model(model)
     @clp_ccall deleteColumns Void (Ptr{Void},Int32,Ptr{Int32}) model.p length(which) which
+end
+
+#This function exists in cpp but not c interface
+function add_column(model::ClpModel, number_in_column::Integer,  rows::Vector{Int32},
+                elements::Vector{Float64}, column_lower::Float64,
+                column_upper::Float64, objective::Float64)
+    _column_starts = Vector{Int32}(2)
+    _column_starts[1] = 0
+    _column_starts[2] = number_in_column
+    _column_upper = [column_upper]
+    _column_lower = [column_lower]
+    _objective = [objective]
+    add_columns(model, 1, _column_lower, _column_upper, _objective, _column_starts, rows, elements)
 end
 
 # Add columns.
