@@ -31,10 +31,6 @@ const SUPPORTED_CONSTRAINTS = [
     (LQOI.SinVar, LQOI.IV),
     (LQOI.SinVar, MOI.ZeroOne),
     (LQOI.SinVar, MOI.Integer),
-    (LQOI.VecVar, LQOI.SOS1),
-    (LQOI.VecVar, LQOI.SOS2),
-    (LQOI.SinVar, MOI.Semicontinuous{Float64}),
-    (LQOI.SinVar, MOI.Semiinteger{Float64}),
     (LQOI.VecVar, MOI.Nonnegatives),
     (LQOI.VecVar, MOI.Nonpositives),
     (LQOI.VecVar, MOI.Zeros),
@@ -267,25 +263,34 @@ function LQOI.get_linear_constraint(instance::ClpOptimizer, row::Int)::Tuple{Vec
     return (Array{Int}(A_row.nzind) .- 1, A_row.nzval)
 end
  
-# """
-# change_coefficient!(m, row, col, coef)
-# 
-# Set the linear coefficient of the variable in column `col`, constraint `row` to
-# `coef`.
-# """
-# function LQOI.change_coefficient!(instance::ClpOptimizer, row, col, coef)
-# 
-# end
+"""
+change_coefficient!(m, row, col, coef)
+
+Set the linear coefficient of the variable in column `col`, constraint `row` to
+`coef`.
+"""
+function LQOI.change_coefficient!(instance::ClpOptimizer, row, col, coef)
+    if row == 0
+        objcoefs = get_obj_coefficients(instance.inner)
+        objcoefs[col] = coef
+        chg_obj_coefficients(instance.inner, objcoefs)
+    else
+        error("Constraint LHS modification is not supported by CLP.jl")
+    end
+end
  
-# """
-# delete_linear_constraints!(m, start_row::Int, end_row::Int)::Void
-# 
-# Delete the linear constraints `start_row`, `start_row+1`, ..., `end_row` from
-# the model `m`.
-# """
-# # function delete_linear_constraints! end
-# 
-# 
+"""
+delete_linear_constraints!(m, start_row::Int, end_row::Int)::Void
+
+Delete the linear constraints `start_row`, `start_row+1`, ..., `end_row` from
+the model `m`.
+"""
+function LQOI.delete_linear_constraints!(instance::ClpOptimizer, start_row::Int, end_row::Int)::Void    
+    which = [Int32(i-1) for i in start_row:end_row]
+    delete_rows(instance.inner, which)
+end
+
+
 # """
 # lqs_chgctype(m, cols::Vector{Int}, types):Void
 # 
@@ -588,13 +593,16 @@ function LQOI.add_variables!(instance::ClpOptimizer, n::Int)::Void
     end
 end
 
-# 
-# """
-# delete_variables!(m, start_col::Int, end_col::Int)::Void
-# 
-# Delete the columns `start_col`, `start_col+1`, ..., `end_col` from the model `m`.
-# """
-# # function delete_variables! end
+
+"""
+delete_variables!(m, start_col::Int, end_col::Int)::Void
+
+Delete the columns `start_col`, `start_col+1`, ..., `end_col` from the model `m`.
+"""
+function LQOI.delete_variables!(instance::ClpOptimizer, start_col::Int, end_col::Int)::Void
+    which = [Int32(i-1) for i in start_col:end_col]
+    delete_columns(instance.inner, which)
+end
 # 
 # """
 # add_mip_starts!(m, cols::Vector{Int}, x::Vector{Float64})::Void
