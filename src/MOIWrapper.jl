@@ -41,42 +41,41 @@ const SUPPORTED_CONSTRAINTS = [
 
 mutable struct ClpOptimizer <: LQOI.LinQuadOptimizer
     LQOI.@LinQuadOptimizerBase
-    # solveroptions::ClpSolve
     # env
-    params::Dict{String,Any}
+    params::Dict{Symbol,Any}
     ClpOptimizer(::Void) = new()
 end
 
 ### Options
 
 # map option name to C function
-# const optionmap = Dict(
-#    :PrimalTolerance => set_primal_tolerance,
-#    :DualTolerance => set_dual_tolerance,
-#    :DualObjectiveLimit => set_dual_objective_limit,
-#    :MaximumIterations => set_maximum_iterations,
-#    :MaximumSeconds => set_maximum_seconds,
-#    :LogLevel => set_log_level,
-#    :Scaling => scaling,
-#    :Perturbation => set_perturbation,
-#    #:Algorithm => set_algorithm
-#    )
-# # These options are set by using the ClpSolve object
-# const solveoptionmap = Dict(
-#    :PresolveType => set_presolve_type,
-#    :SolveType => set_solve_type,
-#    :InfeasibleReturn => set_infeasible_return,
-#    )
-# 
-# function setoption(m::ClpOptimizer, name::Symbol, value)
-#     if haskey(optionmap, name)
-#         optionmap[name](m.inner,value)
-#     elseif haskey(solveoptionmap, name)
-#         solveoptionmap[name](m.solveroptions,value)
-#     else
-#         error("Unrecognized option: $name")
-#     end
-# end
+const optionmap = Dict(
+   :PrimalTolerance => set_primal_tolerance,
+   :DualTolerance => set_dual_tolerance,
+   :DualObjectiveLimit => set_dual_objective_limit,
+   :MaximumIterations => set_maximum_iterations,
+   :MaximumSeconds => set_maximum_seconds,
+   :LogLevel => set_log_level,
+   :Scaling => scaling,
+   :Perturbation => set_perturbation,
+   #:Algorithm => set_algorithm
+   )
+# These options are set by using the ClpSolve object
+const solveoptionmap = Dict(
+   :PresolveType => set_presolve_type,
+   :SolveType => set_solve_type,
+   :InfeasibleReturn => set_infeasible_return,
+   )
+
+function setoption(m::ClpOptimizer, name::Symbol, value)
+    if haskey(optionmap, name)
+        optionmap[name](m.inner,value)
+    elseif haskey(solveoptionmap, name)
+        solveoptionmap[name](m.solveroptions,value)
+    else
+        error("Unrecognized option: $name")
+    end
+end
 
 function ClpOptimizer(;kwargs...)
     # env = Env()
@@ -85,8 +84,7 @@ function ClpOptimizer(;kwargs...)
     m.params = Dict{String,Any}()
     MOI.empty!(m)
     for (name,value) in kwargs
-        m.params[string(name)] = value
-        # setoption(m.inner, string(name), value)
+        m.params[Symbol(name)] = value
     end
     return m
 end
@@ -170,7 +168,7 @@ Ranged constraints (`set=MOI.Interval`) should be added via `add_ranged_constrai
 instead.
 """
 function LQOI.add_linear_constraints!(instance::ClpOptimizer, rows::Vector{Int}, cols::Vector{Int},
-    coefs::Vector{Float64}, sense::Vector{Cchar}, rhs::Vector{Float64})::Void
+        coefs::Vector{Float64}, sense::Vector{Cchar}, rhs::Vector{Float64})::Void
         
     nbrows = length(rhs)
     for row in 1:nbrows
@@ -190,10 +188,9 @@ function LQOI.add_linear_constraints!(instance::ClpOptimizer, rows::Vector{Int},
         end
         
         number_in_row = 0
-        for i in 1:length(cols)
-            if nbrows != 1 && rows[i] != row
-                continue
-            end
+        first = rows[row]
+        last = (row==length(sense)) ? length(cols) : rows[row+1]-1
+        for i in first:last
             number_in_row += 1
             push!(elements, coefs[i])
             push!(columns, cols[i] - 1)
@@ -202,6 +199,7 @@ function LQOI.add_linear_constraints!(instance::ClpOptimizer, rows::Vector{Int},
         add_row(instance.inner, Cint(number_in_row), columns, elements, lower, upper)
     end
 end
+
 # 
 # """
 # add_ranged_constraint!(m, rows::Vector{Int}, cols::Vector{Int},
@@ -262,22 +260,40 @@ function LQOI.get_linear_constraint(instance::ClpOptimizer, row::Int)::Tuple{Vec
     A_row = A[row,:]
     return (Array{Int}(A_row.nzind) .- 1, A_row.nzval)
 end
- 
-"""
-change_coefficient!(m, row, col, coef)
 
-Set the linear coefficient of the variable in column `col`, constraint `row` to
-`coef`.
 """
-function LQOI.change_coefficient!(instance::ClpOptimizer, row, col, coef)
-    if row == 0
-        objcoefs = get_obj_coefficients(instance.inner)
-        objcoefs[col] = coef
-        chg_obj_coefficients(instance.inner, objcoefs)
+change_objective_coefficient!(m, col, coef)
+
+Set the linear coefficient of the variable in column `col` to `coef` in the objective function.
+"""
+function LQOI.change_objective_coefficient!(instance::ClpOptimizer, col, coef)
+    objcoefs = get_obj_coefficients(instance.inner)
+    objcoefs[col] = coef
+    chg_obj_coefficients(instance.inner, objcoefs)
+end
+
+"""
+change_rhs_coefficient!(m, row, coef)
+
+Set the rhs of the constraint in row `row` to `coef`.
+"""
+function LQOI.change_rhs_coefficient!(instance::ClpOptimizer, row, coef)
+    lower = replaceInf(get_row_lower(instance.inner))
+    upper = replaceInf(get_row_upper(instance.inner))
+    lb = lower[row]
+    ub = upper[row]
+    
+    if lb > -Inf
+        lower[row] = coef
+        chg_row_lower(instance.inner, lower)
+    elseif ub < Inf
+        upper[row] = coef
+        chg_row_upper(instance.inner, upper)
     else
-        error("Constraint LHS modification is not supported by CLP.jl")
+        error("Either row_lower or row_upper must be of abs less than 1e20")
     end
 end
+
  
 """
 delete_linear_constraints!(m, start_row::Int, end_row::Int)::Void
@@ -291,46 +307,51 @@ function LQOI.delete_linear_constraints!(instance::ClpOptimizer, start_row::Int,
 end
 
 
-# """
-# lqs_chgctype(m, cols::Vector{Int}, types):Void
-# 
-# Change the variable types. Type is the output of one of:
-# - `backend_type(m, ::ZeroOne)`, for binary variables;
-# - `backend_type(m, ::Integer)`, for integer variables; and
-# - `backend_type(m, Val{:Continuous}())`, for continuous variables.
-# """
-# # function change_variable_types! end
-# 
-# """
-# change_linear_constraint_sense!(m, rows::Vector{Int}, sense::Vector{Symbol})::Void
-# 
-# Change the sense of the linear constraints in `rows` to `sense`.
-# 
-# `sense` is the output of `backend_type(m, set)`, where `set`
-# is the corresponding set for the row `rows[i]`.
-# 
-# `Interval` constraints require a call to `change_range_value!`.
-# """
-# # function change_linear_constraint_sense! end
-# 
-# """
-# make_problem_type_integer(m)::Void
-# 
-# If an explicit call is needed to change the problem type integer (e.g., CPLEX).
-# """
-# function make_problem_type_integer(m::LinQuadOptimizer)
-#     nothing  # default
-# end
-# 
-# """
-# make_problem_type_continuous(m)::Void
-# 
-# If an explicit call is needed to change the problem type continuous (e.g., CPLEX).
-# """
-# function make_problem_type_continuous(m::LinQuadOptimizer)
-#     nothing  # default
-# end
-# 
+"""
+change_linear_constraint_sense!(m, rows::Vector{Int}, sense::Vector{Cchar})::Void
+
+Change the sense of the linear constraints in `rows` to `sense`.
+
+`sense` is the output of `backend_type(m, set)`, where `set`
+is the corresponding set for the row `rows[i]`.
+
+"""
+function LQOI.change_linear_constraint_sense!(instance::ClpOptimizer, rows::Vector{Int}, sense::Vector{Cchar} )::Void
+    lower = replaceInf(get_row_lower(instance.inner))
+    upper = replaceInf(get_row_upper(instance.inner))
+        
+    for (i,row) in enumerate(rows)                
+        lb = lower[row]
+        ub = upper[row]
+        if lb > -Inf
+            rhs = lb
+        elseif ub < Inf
+            rhs = ub
+        else
+            error("Either row_lower or row_upper must be of abs less than 1e20")
+        end
+        
+        sense = sense[i]
+        if sense == Cchar('G')
+            lb = rhs
+            ub = Inf
+        elseif sense == Cchar('L')
+            lb = -Inf
+            ub = rhs
+        elseif sense == Cchar('E')    
+            lb = rhs
+            ub = rhs
+        end
+        
+        lower[row] = lb
+        upper[row] = ub                
+    end
+    
+    chg_row_upper(instance.inner, upper)
+    chg_row_lower(instance.inner, lower)
+end
+
+
 
 """
 set_linear_objective!(m, cols::Vector{Int}, coefs::Vector{Float64})::Void
@@ -381,14 +402,7 @@ end
 # Get the optimization sense of the model `m`.
 # """
 # # function get_objectivesense end
-# 
-# """
-# solve_mip_problem!(m)::Void
-# 
-# Solve a mixed-integer model `m`.
-# """
-# # function solve_mip_problem! end
-# 
+#
 
 """
 solve_linear_problem!(m)::Void
@@ -396,7 +410,19 @@ solve_linear_problem!(m)::Void
 Solve a linear program `m`.
 """
 function LQOI.solve_linear_problem!(instance::ClpOptimizer)::Void
-    initial_solve_with_options(instance.inner, ClpSolve())
+    solveroptions = ClpSolve()
+    model = instance.inner
+    for (name, value) in instance.params
+        if haskey(optionmap, name)
+            optionmap[name](model,value)
+        elseif haskey(solveoptionmap, name)
+            solveoptionmap[name](solveroptions,value)
+        else
+            error("Unrecognized option: $name")
+        end
+    end
+    
+    initial_solve_with_options(instance.inner, solveroptions)
     return
 end
 
@@ -593,7 +619,6 @@ function LQOI.add_variables!(instance::ClpOptimizer, n::Int)::Void
     end
 end
 
-
 """
 delete_variables!(m, start_col::Int, end_col::Int)::Void
 
@@ -603,10 +628,3 @@ function LQOI.delete_variables!(instance::ClpOptimizer, start_col::Int, end_col:
     which = [Int32(i-1) for i in start_col:end_col]
     delete_columns(instance.inner, which)
 end
-# 
-# """
-# add_mip_starts!(m, cols::Vector{Int}, x::Vector{Float64})::Void
-# 
-# Add the MIP start `x` for the variables in the columns `cols` of the model `m`.
-# """
-# # function add_mip_starts! end
