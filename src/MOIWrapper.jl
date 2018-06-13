@@ -150,26 +150,23 @@ function LQOI.get_number_linear_constraints(instance::ClpOptimizer)
 end
 
 """
-add_linear_constraints!(m, rows::Vector{Int}, cols::Vector{Int},
-    coefs::Vector{Float64},
-    sense::Vector{Cchar}, rhs::Vector{Float64})::Void
+    add_linear_constraints!(m, A::CSRMatrix{Float64}, sense::Vector{Cchar}, rhs::Vector{Float64})::Void
 
 Adds linear constraints of the form `Ax (sense) rhs` to the model `m`.
-
-The A matrix is given in triplet form `A[row(i), cols[i]] = coef[i]` for all
-`i` where `row(i)` is the largest element in `rows` that is smaller or equal 
-than `i`. `rows` is a list of integers sorted in increasing order. It contains 
-the starting index (of `cols`) for each row. `length(cols) == length(coefs)` 
-and `length(rows) == length(sense) == length(rhs)`.
-
+`sense` and `rhs` contain one element for each row in `A`.
 The `sense` is given by `backend_type(m, set)`.
-
-Ranged constraints (`set=MOI.Interval`) should be added via `add_ranged_constraint!`
-instead.
+Ranged constraints (`set=MOI.Interval`) should be added via `add_ranged_constraint!` instead.
+See also: `LinQuadOptInterface.CSRMatrix`.
 """
-function LQOI.add_linear_constraints!(instance::ClpOptimizer, rows::Vector{Int}, cols::Vector{Int},
-        coefs::Vector{Float64}, sense::Vector{Cchar}, rhs::Vector{Float64})::Void
-        
+# function LQOI.add_linear_constraints!(instance::ClpOptimizer, rows::Vector{Int}, cols::Vector{Int},
+#         coefs::Vector{Float64}, sense::Vector{Cchar}, rhs::Vector{Float64})::Void
+function LQOI.add_linear_constraints!(instance::ClpOptimizer, A::LQOI.CSRMatrix{Float64}, sense::Vector{Cchar}, 
+        rhs::Vector{Float64})::Void
+    
+    rows = A.row_pointers
+    cols = A.columns
+    coefs = A.coefficients
+           
     nbrows = length(rhs)
     for row in 1:nbrows
         elements = Vector{Float64}()
