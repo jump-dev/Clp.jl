@@ -255,7 +255,7 @@ the model `m`. Returns a tuple of `(cols, vals)`.
 function LQOI.get_linear_constraint(instance::ClpOptimizer, row::Int)::Tuple{Vector{Int}, Vector{Float64}}
     A = get_constraint_matrix(instance.inner)
     A_row = A[row,:]
-    return (Array{Int}(A_row.nzind) .- 1, A_row.nzval)
+    return (Array{Int}(A_row.nzind), A_row.nzval)
 end
 
 """
@@ -388,9 +388,7 @@ in `x`.
 """
 function LQOI.get_linear_objective!(instance::ClpOptimizer, x::Vector{Float64})
     obj = get_obj_coefficients(instance.inner)
-    for i in 1:length(obj)
-        x[i] = obj[i]
-    end
+    copy!(x, obj)
 end
 
 # """
