@@ -455,9 +455,7 @@ store in `x`. `x`must have one element for each variable.
 """
 function LQOI.get_variable_primal_solution!(instance::ClpOptimizer, x::Vector{Float64})
     solution = primal_column_solution(instance.inner)
-    for i in 1:length(solution)
-        x[i] = solution[i]
-    end
+    copy!(x,solution)
 end
 
 """
@@ -469,9 +467,7 @@ constraint primal `a'x` for each constraint, and store in `x`.
 """
 function LQOI.get_linear_primal_solution!(instance::ClpOptimizer, x::Vector{Float64})
     solution = primal_row_solution(instance.inner)
-    for i in 1:length(solution)
-        x[i] = solution[i]
-    end
+    copy!(x,solution)
 end
 
 """
@@ -482,9 +478,7 @@ store in `x`. `x`must have one element for each variable.
 """
 function LQOI.get_variable_dual_solution!(instance::ClpOptimizer, x::Vector{Float64})
     solution = dual_column_solution(instance.inner)
-    for i in 1:length(solution)
-        x[i] = solution[i]
-    end
+    copy!(x,solution)
 end
 
 """
