@@ -36,13 +36,9 @@ end
     config = MOIT.TestConfig()
     solver = ClpOptimizer(LogLevel = 0)
 
-    MOIT.basic_constraint_tests(solver, config, exclude = [
-        (MOI.SingleVariable, MOI.Integer),
-        (MOI.SingleVariable, MOI.ZeroOne)        
-    ])
+    MOIT.basic_constraint_tests(solver, config)
 
     MOIT.unittest(solver, config, [
-        "solve_affine_interval", 
         "solve_qcp_edge_cases",  
         "solve_qp_edge_cases"
     ])  

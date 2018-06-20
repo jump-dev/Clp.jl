@@ -29,8 +29,6 @@ const SUPPORTED_CONSTRAINTS = [
     (LQOI.SinVar, LQOI.LE),
     (LQOI.SinVar, LQOI.GE),
     (LQOI.SinVar, LQOI.IV),
-    (LQOI.SinVar, MOI.ZeroOne),
-    (LQOI.SinVar, MOI.Integer),
     (LQOI.VecVar, MOI.Nonnegatives),
     (LQOI.VecVar, MOI.Nonpositives),
     (LQOI.VecVar, MOI.Zeros),
@@ -149,6 +147,22 @@ function LQOI.get_number_linear_constraints(instance::ClpOptimizer)
     return get_num_rows(instance.inner)
 end
 
+function addrow(row, lower, upper, instance, rows, cols, coefs)
+    elements = Float64[]
+    columns = Int32[]
+    
+    number_in_row = 0
+    first = rows[row]
+    last = (row==length(rows)) ? length(cols) : rows[row+1]-1
+    for i in first:last
+        number_in_row += 1
+        push!(elements, coefs[i])
+        push!(columns, cols[i] - 1)
+    end  
+    
+    add_row(instance.inner, Cint(number_in_row), columns, elements, lower, upper)
+end
+
 """
     add_linear_constraints!(m, A::CSRMatrix{Float64}, sense::Vector{Cchar}, rhs::Vector{Float64})::Void
 
@@ -158,8 +172,6 @@ The `sense` is given by `backend_type(m, set)`.
 Ranged constraints (`set=MOI.Interval`) should be added via `add_ranged_constraint!` instead.
 See also: `LinQuadOptInterface.CSRMatrix`.
 """
-# function LQOI.add_linear_constraints!(instance::ClpOptimizer, rows::Vector{Int}, cols::Vector{Int},
-#         coefs::Vector{Float64}, sense::Vector{Cchar}, rhs::Vector{Float64})::Void
 function LQOI.add_linear_constraints!(instance::ClpOptimizer, A::LQOI.CSRMatrix{Float64}, sense::Vector{Cchar}, 
         rhs::Vector{Float64})::Void
     
@@ -168,9 +180,7 @@ function LQOI.add_linear_constraints!(instance::ClpOptimizer, A::LQOI.CSRMatrix{
     coefs = A.coefficients
            
     nbrows = length(rhs)
-    for row in 1:nbrows
-        elements = Vector{Float64}()
-        columns = Vector{Int32}()
+    for row in 1:nbrows        
         lower = -Inf
         upper = Inf
         
@@ -184,16 +194,32 @@ function LQOI.add_linear_constraints!(instance::ClpOptimizer, A::LQOI.CSRMatrix{
             error("sense must be Cchar(x) where x is in ['L','G',E']")
         end
         
-        number_in_row = 0
-        first = rows[row]
-        last = (row==length(sense)) ? length(cols) : rows[row+1]-1
-        for i in first:last
-            number_in_row += 1
-            push!(elements, coefs[i])
-            push!(columns, cols[i] - 1)
-        end  
-        
-        add_row(instance.inner, Cint(number_in_row), columns, elements, lower, upper)
+        addrow(row, lower, upper, instance, rows, cols, coefs)
+    end
+end
+
+"""
+    add_ranged_constraints!(m, A::CSRMatrix{Float64}, lb::Vector{Float64}, ub::Vector{Float64})::Void
+
+Adds linear constraints of the form `Ax (sense) rhs` to the model `m`.
+`sense` and `rhs` contain one element for each row in `A`.
+The `sense` is given by `backend_type(m, set)`.
+Ranged constraints (`set=MOI.Interval`) should be added via `add_ranged_constraint!` instead.
+See also: `LinQuadOptInterface.CSRMatrix`.
+"""
+function LQOI.add_ranged_constraints!(instance::Clp.ClpOptimizer, A::LinQuadOptInterface.CSRMatrix{Float64}, 
+        lb::Vector{Float64}, ub::Vector{Float64})
+
+    rows = A.row_pointers
+    cols = A.columns
+    coefs = A.coefficients
+           
+    nbrows = length(lb)
+    for row in 1:nbrows
+        lower = lb[row]
+        upper = ub[row]
+    
+        addrow(row, lower, upper, instance, rows, cols, coefs)                
     end
 end
 
@@ -608,8 +634,8 @@ Add `n` new variables to the model `m`.
 function LQOI.add_variables!(instance::ClpOptimizer, n::Int)::Void
     for i in 1:n
         numberInColumn = 0
-        rows = Vector{Int32}()
-        elements = Vector{Float64}()
+        rows = Int32[]
+        elements = Float64[]
         add_column(instance.inner, numberInColumn,  rows, elements, -Inf, +Inf, 0.0)
     end
 end
