@@ -1,4 +1,4 @@
 julia 0.6
 Cbc
 MathProgBase 0.5 0.8
-LinQuadOptInterface
+LinQuadOptInterface 0.1 0.2

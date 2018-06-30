@@ -14,6 +14,14 @@ function replaceInf(x)
     return x
 end
 
+function replaceInf(x, index)
+    if x[index] > 1e20
+        x[index] = Inf
+    elseif x[index] < -1e20
+        x[index] = -Inf
+    end
+end
+
 const LQOI = LinQuadOptInterface
 const MOI  = LQOI.MOI
 
@@ -93,9 +101,7 @@ LQOI.supported_constraints(s::ClpOptimizer) = SUPPORTED_CONSTRAINTS
 LQOI.supported_objectives(s::ClpOptimizer) = SUPPORTED_OBJECTIVES
 
 """
-Change the bounds of the variable. The sense of the upperbound
-is given by `backend_type(m, Val{:Upperbound}())`. The sense
-of the lowerbound is given by `backend_type(m, Val{:Lowerbound}())`
+Change the bounds of the variable.
 """
 function LQOI.change_variable_bounds!(instance::ClpOptimizer, cols::Vector{Int}, values::Vector{Float64}, 
         senses::Vector)
@@ -124,8 +130,9 @@ get_variable_lowerbound(m, col::Int)::Float64
 Get the lower bound of the variable in 1-indexed column `col` of the model `m`.
 """
 function LQOI.get_variable_lowerbound(instance::ClpOptimizer, col::Int)::Float64
-    lower = replaceInf(get_col_lower(instance.inner))
-    return lower[col];  
+    lower = get_col_lower(instance.inner)
+    replaceInf(lower, col)
+    return lower[col]  
 end
 
 """
@@ -134,8 +141,9 @@ get_variable_upperbound(m, col::Int)::Float64
 Get the upper bound of the variable in 1-indexed column `col` of the model `m`.
 """
 function LQOI.get_variable_upperbound(instance::ClpOptimizer, col::Int)::Float64
-    upper = replaceInf(get_col_upper(instance.inner))
-    return upper[col];  
+    upper = get_col_upper(instance.inner)
+    replaceInf(upper, col)
+    return upper[col]  
 end
 
 """
@@ -147,7 +155,13 @@ function LQOI.get_number_linear_constraints(instance::ClpOptimizer)
     return get_num_rows(instance.inner)
 end
 
-function addrow(row, lower, upper, instance, rows, cols, coefs)
+"""
+Helper function for adding a row. it adds the row in the components 
+that build the LQOI sparse matrix, and it adds the row in the solver.
+"""
+function addrow(row::Int, lower::Float64, upper::Float64, instance::ClpOptimizer, 
+                rows::Vector{Int}, cols::Vector{Int}, coefs::Vector{Float64})
+                
     elements = Float64[]
     columns = Int32[]
     
@@ -168,22 +182,24 @@ end
 
 Adds linear constraints of the form `Ax (sense) rhs` to the model `m`.
 `sense` and `rhs` contain one element for each row in `A`.
-The `sense` is given by `backend_type(m, set)`.
-Ranged constraints (`set=MOI.Interval`) should be added via `add_ranged_constraint!` instead.
-See also: `LinQuadOptInterface.CSRMatrix`.
 """
 function LQOI.add_linear_constraints!(instance::ClpOptimizer, A::LQOI.CSRMatrix{Float64}, sense::Vector{Cchar}, 
         rhs::Vector{Float64})::Void
-    
+                        
     rows = A.row_pointers
     cols = A.columns
     coefs = A.coefficients
            
     nbrows = length(rhs)
     for row in 1:nbrows        
-        lower = -Inf
-        upper = Inf
+        if (rhs[row] > 1e20)
+            error("rhs must always be less than 1e20")
+        elseif (rhs[row] < -1e20)
+            error("rhs must always be greater than -1e20")
+        end
         
+        lower = -Inf
+        upper = Inf                        
         if sense[row] == Cchar('L')
             upper = rhs[row]
         elseif sense[row] == Cchar('G')
@@ -203,9 +219,6 @@ end
 
 Adds linear constraints of the form `Ax (sense) rhs` to the model `m`.
 `sense` and `rhs` contain one element for each row in `A`.
-The `sense` is given by `backend_type(m, set)`.
-Ranged constraints (`set=MOI.Interval`) should be added via `add_ranged_constraint!` instead.
-See also: `LinQuadOptInterface.CSRMatrix`.
 """
 function LQOI.add_ranged_constraints!(instance::Clp.ClpOptimizer, A::LinQuadOptInterface.CSRMatrix{Float64}, 
         lb::Vector{Float64}, ub::Vector{Float64})
@@ -307,10 +320,6 @@ end
 change_linear_constraint_sense!(m, rows::Vector{Int}, sense::Vector{Cchar})::Void
 
 Change the sense of the linear constraints in `rows` to `sense`.
-
-`sense` is the output of `backend_type(m, set)`, where `set`
-is the corresponding set for the row `rows[i]`.
-
 """
 function LQOI.change_linear_constraint_sense!(instance::ClpOptimizer, rows::Vector{Int}, sense::Vector{Cchar} )::Void
     lower = replaceInf(get_row_lower(instance.inner))
@@ -356,9 +365,7 @@ Set the linear component of the objective.
 """
 function LQOI.set_linear_objective!(instance::ClpOptimizer, cols::Vector{Int}, coefs::Vector{Float64})::Void
     obj_in = zeros(Float64, get_num_cols(instance.inner))
-    for i in 1:length(cols)
-        obj_in[cols[i]] = coefs[i]
-    end
+    obj_in[cols] .= coefs
     chg_obj_coefficients(instance.inner, obj_in) 
 end
 
@@ -390,13 +397,6 @@ function LQOI.get_linear_objective!(instance::ClpOptimizer, x::Vector{Float64})
     copy!(x, obj)
 end
 
-# """
-# get_objectivesense(m)::MOI.OptimizationSense
-# 
-# Get the optimization sense of the model `m`.
-# """
-# # function get_objectivesense end
-#
 
 """
 solve_linear_problem!(m)::Void
