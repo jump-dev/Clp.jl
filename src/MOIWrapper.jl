@@ -223,33 +223,6 @@ function LQOI.add_ranged_constraints!(instance::Clp.ClpOptimizer, A::LinQuadOptI
     end
 end
 
-# 
-# """
-# add_ranged_constraint!(m, rows::Vector{Int}, cols::Vector{Int},
-#     coefs::Vector{Float64}, lowerbound::Vector{Float64}, upperbound::Vector{Float64})
-# 
-# Adds linear constraints of the form `lowerbound <= Ax <= upperbound` to the
-# model `m`.
-# 
-# The A matrix is given in triplet form `A[rows[i], cols[i]] = coef[i]` for all
-# `i`,
-# 
-# This is a special case compared to standard `add_linear_constraints!` since it
-# is often implemented via multiple API calls.
-# """
-# # function add_ranged_constraints! end
-# 
-# """
-# modify_ranged_constraint!(m, rows::Vector{Int}, lowerbound::Vector{Float64}, upperbound::Vector{Float64})
-# 
-# Modify the lower and upperbounds of a ranged constraint in the model `m`.
-# 
-# This is a special case compared to standard the `change_coefficient!` since it
-# is often implemented via multiple API calls.
-# """
-# # function modify_ranged_constraints! end
-# 
-# 
 
 """
 get_rhs(m, row::Int)::Float64
@@ -489,9 +462,7 @@ store in `x`. `x`must have one element for each linear constraint.
 """
 function LQOI.get_linear_dual_solution!(instance::ClpOptimizer, x::Vector{Float64})
     solution = dual_row_solution(instance.inner)
-    for i in 1:length(solution)
-        x[i] = solution[i]
-    end
+    copy!(x,solution)
 end
 
 """
@@ -502,64 +473,6 @@ Get the objective value of the solved model `m`.
 function LQOI.get_objective_value(instance::ClpOptimizer)
     return objective_value(instance.inner)
 end
-
-# 
-# """
-# get_objective_bound(m)
-# 
-# Get the objective bound of the model `m`.
-# """
-# # function get_objective_bound end
-# 
-# """
-# get_relative_mip_gap(m)
-# 
-# Get the relative MIP gap of the solved model `m`.
-# """
-# # function get_relative_mip_gap end
-# 
-# """
-# get_iteration_count(m)
-# 
-# Get the number of simplex iterations performed during the most recent
-# optimization of the model `m`.
-# """
-# # function get_iteration_count end
-# 
-# """
-# get_barrier_iterations(m)
-# 
-# Get the number of barrier iterations performed during the most recent
-# optimization of the model `m`.
-# """
-# # function get_barrier_iterations end
-# 
-# """
-# get_node_count(m)
-# 
-# Get the number of branch-and-cut nodes expolored during the most recent
-# optimization of the model `m`.
-# """
-# # function get_node_count end
-# 
-# """
-# get_farkas_dual!(m, x::Vector{Float64})
-# 
-# Get the farkas dual (certificate of primal infeasiblility) for the linear
-# constraints in the model `m`, and store in `x`. `x`must have one element for
-# each linear constraint.
-# """
-# # function get_farkas_dual! end
-# 
-# """
-# get_unbounded_ray!(m, x::Vector{Float64})
-# 
-# Get the unbounded ray (certificate of dual infeasiblility) for the linear
-# constraints in the model `m`, and store in `x`. `x`must have one element for
-# each variable.
-# """
-# # function get_unbounded_ray! end
-# 
 
 """
 get_termination_status(m)
