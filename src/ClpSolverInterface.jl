@@ -1,7 +1,7 @@
 module ClpMathProgSolverInterface
 using Clp.ClpCInterface
 
-importall MathProgBase.SolverInterface
+using MathProgBase.SolverInterface
 
 export ClpMathProgModel,
     ClpSolver,
@@ -34,13 +34,13 @@ export ClpMathProgModel,
     getrawsolver
 
 
-type ClpMathProgModel <: AbstractLinearQuadraticModel
+mutable struct ClpMathProgModel <: AbstractLinearQuadraticModel
     inner::ClpModel
     solveroptions::ClpSolve
 end
 
-immutable ClpSolver <: AbstractMathProgSolver
-    options 
+struct ClpSolver <: AbstractMathProgSolver
+    options
 end
 ClpSolver(;kwargs...) = ClpSolver(kwargs)
 
@@ -98,7 +98,7 @@ function loadproblem!(m::ClpMathProgModel, filename::AbstractString)
     else
        error("unrecognized input format extension in $filename")
     end
-end   
+end
 
 
 function loadproblem!(m::ClpMathProgModel, A, collb, colub, obj, rowlb, rowub, sense)
@@ -177,7 +177,7 @@ function getsense(m::ClpMathProgModel)
     end
 end
 
-numvar(m::ClpMathProgModel) = get_num_cols(m.inner) 
+numvar(m::ClpMathProgModel) = get_num_cols(m.inner)
 numconstr(m::ClpMathProgModel) = get_num_rows(m.inner)
 
 optimize!(m::ClpMathProgModel) = initial_solve_with_options(m.inner,m.solveroptions)
@@ -201,7 +201,7 @@ end
 
 getobjval(m::ClpMathProgModel) = objective_value(m.inner)
 
-getsolution(m::ClpMathProgModel) = primal_column_solution(m.inner) 
+getsolution(m::ClpMathProgModel) = primal_column_solution(m.inner)
 getconstrsolution(m::ClpMathProgModel) = primal_row_solution(m.inner)
 getreducedcosts(m::ClpMathProgModel) = dual_column_solution(m.inner)
 
