@@ -3,7 +3,7 @@ export ClpOptimizer
 using LinQuadOptInterface
 using Clp.ClpCInterface
 
-function replaceInf(x)
+function replace_inf(x)
     for i in 1:length(x)
         if x[i] > 1e20
             x[i] = Inf
@@ -14,7 +14,7 @@ function replaceInf(x)
     return x
 end
 
-function replaceInf(x, index)
+function replace_inf(x, index)
     if x[index] > 1e20
         x[index] = Inf
     elseif x[index] < -1e20
@@ -47,7 +47,6 @@ const SUPPORTED_CONSTRAINTS = [
 
 mutable struct ClpOptimizer <: LQOI.LinQuadOptimizer
     LQOI.@LinQuadOptimizerBase
-    # env
     params::Dict{Symbol,Any}
     ClpOptimizer(::Void) = new()
 end
@@ -64,7 +63,6 @@ const optionmap = Dict(
    :LogLevel => set_log_level,
    :Scaling => scaling,
    :Perturbation => set_perturbation,
-   #:Algorithm => set_algorithm
    )
 # These options are set by using the ClpSolve object
 const solveoptionmap = Dict(
@@ -84,9 +82,7 @@ function setoption(m::ClpOptimizer, name::Symbol, value)
 end
 
 function ClpOptimizer(;kwargs...)
-    # env = Env()
     m = ClpOptimizer(nothing)
-    # m.env = env
     m.params = Dict{String,Any}()
     MOI.empty!(m)
     for (name,value) in kwargs
@@ -101,13 +97,16 @@ LQOI.supported_constraints(s::ClpOptimizer) = SUPPORTED_CONSTRAINTS
 LQOI.supported_objectives(s::ClpOptimizer) = SUPPORTED_OBJECTIVES
 
 """
+    change_variable_bounds!(instance, cols::Vector{Int}, 
+        values::Vector{Float64}, senses::Vector)
+        
 Change the bounds of the variable.
 """
-function LQOI.change_variable_bounds!(instance::ClpOptimizer, cols::Vector{Int}, values::Vector{Float64}, 
-        senses::Vector)
+function LQOI.change_variable_bounds!(instance::ClpOptimizer, cols::Vector{Int}, 
+        values::Vector{Float64}, senses::Vector)
     
-    upperbounds = replaceInf(get_col_upper(instance.inner))    
-    lowerbounds = replaceInf(get_col_lower(instance.inner))    
+    upperbounds = replace_inf(get_col_upper(instance.inner))    
+    lowerbounds = replace_inf(get_col_lower(instance.inner))    
     
     for i in 1:length(senses)
         if senses[i] == Cchar('U')
@@ -125,29 +124,29 @@ function LQOI.change_variable_bounds!(instance::ClpOptimizer, cols::Vector{Int},
 end
 
 """
-get_variable_lowerbound(m, col::Int)::Float64
+    get_variable_lowerbound(instance, col::Int)::Float64
 
 Get the lower bound of the variable in 1-indexed column `col` of the model `m`.
 """
 function LQOI.get_variable_lowerbound(instance::ClpOptimizer, col::Int)::Float64
     lower = get_col_lower(instance.inner)
-    replaceInf(lower, col)
+    replace_inf(lower, col)
     return lower[col]  
 end
 
 """
-get_variable_upperbound(m, col::Int)::Float64
+    get_variable_upperbound(instance, col::Int)::Float64
 
 Get the upper bound of the variable in 1-indexed column `col` of the model `m`.
 """
 function LQOI.get_variable_upperbound(instance::ClpOptimizer, col::Int)::Float64
     upper = get_col_upper(instance.inner)
-    replaceInf(upper, col)
+    replace_inf(upper, col)
     return upper[col]  
 end
 
 """
-get_number_linear_constraints(m)::Int
+    get_number_linear_constraints(instance)::Int
 
 Get the number of linear constraints in the model `m`.
 """
@@ -156,10 +155,13 @@ function LQOI.get_number_linear_constraints(instance::ClpOptimizer)
 end
 
 """
+    append_row(row::Int, lower::Float64, upper::Float64, instance::ClpOptimizer, 
+                rows::Vector{Int}, cols::Vector{Int}, coefs::Vector{Float64})
+
 Helper function for adding a row. it adds the row in the components 
 that build the LQOI sparse matrix, and it adds the row in the solver.
 """
-function addrow(row::Int, lower::Float64, upper::Float64, instance::ClpOptimizer, 
+function append_row(row::Int, lower::Float64, upper::Float64, instance::ClpOptimizer, 
                 rows::Vector{Int}, cols::Vector{Int}, coefs::Vector{Float64})
                 
     elements = Float64[]
@@ -178,20 +180,21 @@ function addrow(row::Int, lower::Float64, upper::Float64, instance::ClpOptimizer
 end
 
 """
-    add_linear_constraints!(m, A::CSRMatrix{Float64}, sense::Vector{Cchar}, rhs::Vector{Float64})::Void
+    add_linear_constraints!(instance, A::CSRMatrix{Float64}, sense::Vector{Cchar}, 
+        rhs::Vector{Float64})::Void
 
 Adds linear constraints of the form `Ax (sense) rhs` to the model `m`.
 `sense` and `rhs` contain one element for each row in `A`.
 """
-function LQOI.add_linear_constraints!(instance::ClpOptimizer, A::LQOI.CSRMatrix{Float64}, sense::Vector{Cchar}, 
-        rhs::Vector{Float64})::Void
+function LQOI.add_linear_constraints!(instance::ClpOptimizer, A::LQOI.CSRMatrix{Float64}, 
+        sense::Vector{Cchar}, rhs::Vector{Float64})::Void
                         
     rows = A.row_pointers
     cols = A.columns
     coefs = A.coefficients
            
-    nbrows = length(rhs)
-    for row in 1:nbrows        
+    num_rows = length(rhs)
+    for row in 1:num_rows        
         if (rhs[row] > 1e20)
             error("rhs must always be less than 1e20")
         elseif (rhs[row] < -1e20)
@@ -210,42 +213,44 @@ function LQOI.add_linear_constraints!(instance::ClpOptimizer, A::LQOI.CSRMatrix{
             error("sense must be Cchar(x) where x is in ['L','G',E']")
         end
         
-        addrow(row, lower, upper, instance, rows, cols, coefs)
+        append_row(row, lower, upper, instance, rows, cols, coefs)
     end
 end
 
 """
-    add_ranged_constraints!(m, A::CSRMatrix{Float64}, lb::Vector{Float64}, ub::Vector{Float64})::Void
+    add_ranged_constraints!(instance, A::CSRMatrix{Float64}, lb::Vector{Float64}, 
+        ub::Vector{Float64})::Void
 
 Adds linear constraints of the form `Ax (sense) rhs` to the model `m`.
 `sense` and `rhs` contain one element for each row in `A`.
 """
-function LQOI.add_ranged_constraints!(instance::Clp.ClpOptimizer, A::LinQuadOptInterface.CSRMatrix{Float64}, 
+function LQOI.add_ranged_constraints!(instance::Clp.ClpOptimizer, 
+        A::LinQuadOptInterface.CSRMatrix{Float64}, 
         lb::Vector{Float64}, ub::Vector{Float64})
 
     rows = A.row_pointers
     cols = A.columns
     coefs = A.coefficients
            
-    nbrows = length(lb)
-    for row in 1:nbrows
+    num_rows = length(lb)
+    for row in 1:num_rows
         lower = lb[row]
         upper = ub[row]
     
-        addrow(row, lower, upper, instance, rows, cols, coefs)                
+        append_row(row, lower, upper, instance, rows, cols, coefs)                
     end
 end
 
 
 """
-get_rhs(m, row::Int)::Float64
+    get_rhs(instance, row::Int)::Float64
 
 Get the right-hand side of the linear constraint in the 1-indexed row `row` in
 the model `m`.
 """
 function LQOI.get_rhs(instance::ClpOptimizer, row::Int)::Float64
-    lower = replaceInf(get_row_lower(instance.inner))
-    upper = replaceInf(get_row_upper(instance.inner))
+    lower = replace_inf(get_row_lower(instance.inner))
+    upper = replace_inf(get_row_upper(instance.inner))
     lb = lower[row]
     ub = upper[row]
     
@@ -259,7 +264,7 @@ function LQOI.get_rhs(instance::ClpOptimizer, row::Int)::Float64
 end
 
 """
-get_linear_constraint(m, row::Int)::Tuple{Vector{Int}, Vector{Float64}}
+    get_linear_constraint(instance, row::Int)::Tuple{Vector{Int}, Vector{Float64}}
 
 Get the linear component of the constraint in the 1-indexed row `row` in
 the model `m`. Returns a tuple of `(cols, vals)`.
@@ -271,7 +276,7 @@ function LQOI.get_linear_constraint(instance::ClpOptimizer, row::Int)::Tuple{Vec
 end
 
 """
-change_objective_coefficient!(m, col, coef)
+    change_objective_coefficient!(instance, col, coef)
 
 Set the linear coefficient of the variable in column `col` to `coef` in the objective function.
 """
@@ -282,13 +287,13 @@ function LQOI.change_objective_coefficient!(instance::ClpOptimizer, col, coef)
 end
 
 """
-change_rhs_coefficient!(m, row, coef)
+    change_rhs_coefficient!(instance, row, coef)
 
 Set the rhs of the constraint in row `row` to `coef`.
 """
 function LQOI.change_rhs_coefficient!(instance::ClpOptimizer, row, coef)
-    lower = replaceInf(get_row_lower(instance.inner))
-    upper = replaceInf(get_row_upper(instance.inner))
+    lower = replace_inf(get_row_lower(instance.inner))
+    upper = replace_inf(get_row_upper(instance.inner))
     lb = lower[row]
     ub = upper[row]
     
@@ -305,7 +310,7 @@ end
 
  
 """
-delete_linear_constraints!(m, start_row::Int, end_row::Int)::Void
+    delete_linear_constraints!(instance, start_row::Int, end_row::Int)::Void
 
 Delete the linear constraints `start_row`, `start_row+1`, ..., `end_row` from
 the model `m`.
@@ -317,13 +322,13 @@ end
 
 
 """
-change_linear_constraint_sense!(m, rows::Vector{Int}, sense::Vector{Cchar})::Void
+    change_linear_constraint_sense!(instance, rows::Vector{Int}, sense::Vector{Cchar})::Void
 
 Change the sense of the linear constraints in `rows` to `sense`.
 """
 function LQOI.change_linear_constraint_sense!(instance::ClpOptimizer, rows::Vector{Int}, sense::Vector{Cchar} )::Void
-    lower = replaceInf(get_row_lower(instance.inner))
-    upper = replaceInf(get_row_upper(instance.inner))
+    lower = replace_inf(get_row_lower(instance.inner))
+    upper = replace_inf(get_row_upper(instance.inner))
         
     for (i,row) in enumerate(rows)                
         lb = lower[row]
@@ -359,7 +364,7 @@ end
 
 
 """
-set_linear_objective!(m, cols::Vector{Int}, coefs::Vector{Float64})::Void
+    set_linear_objective!(instance, cols::Vector{Int}, coefs::Vector{Float64})::Void
 
 Set the linear component of the objective.
 """
@@ -370,7 +375,7 @@ function LQOI.set_linear_objective!(instance::ClpOptimizer, cols::Vector{Int}, c
 end
 
 """
-change_objective_sense!(m, sense::Symbol)::Void
+    change_objective_sense!(instance, sense::Symbol)::Void
 
 Change the optimization sense of the model `m` to `sense`. `sense` must be
 `:min` or `:max`.
@@ -387,7 +392,7 @@ end
 
 
 """
-get_linear_objective!(m, x::Vector{Float64})
+    get_linear_objective!(instance, x::Vector{Float64})
 
 Change the linear coefficients of the objective and store
 in `x`.
@@ -399,7 +404,7 @@ end
 
 
 """
-solve_linear_problem!(m)::Void
+    solve_linear_problem!(instance)::Void
 
 Solve a linear program `m`.
 """
@@ -408,7 +413,7 @@ function LQOI.solve_linear_problem!(instance::ClpOptimizer)::Void
     model = instance.inner
     for (name, value) in instance.params
         if haskey(optionmap, name)
-            optionmap[name](model,value)
+            optionmap[name](model, value)
         elseif haskey(solveoptionmap, name)
             solveoptionmap[name](solveroptions,value)
         else
@@ -421,7 +426,7 @@ function LQOI.solve_linear_problem!(instance::ClpOptimizer)::Void
 end
 
 """
-get_variable_primal_solution!(m, x::Vector{Float64})
+    get_variable_primal_solution!(instance, x::Vector{Float64})
 
 Get the primal solution for the variables in the model `m`, and
 store in `x`. `x`must have one element for each variable.
@@ -432,7 +437,7 @@ function LQOI.get_variable_primal_solution!(instance::ClpOptimizer, x::Vector{Fl
 end
 
 """
-get_linear_primal_solution!(m, x::Vector{Float64})
+    get_linear_primal_solution!(instance, x::Vector{Float64})
 
 Given a set of linear constraints `l <= a'x <= b` in the model `m`, get the
 constraint primal `a'x` for each constraint, and store in `x`.
@@ -444,7 +449,7 @@ function LQOI.get_linear_primal_solution!(instance::ClpOptimizer, x::Vector{Floa
 end
 
 """
-get_variable_dual_solution!(m, x::Vector{Float64})
+    get_variable_dual_solution!(instance, x::Vector{Float64})
 
 Get the dual solution (reduced-costs) for the variables in the model `m`, and
 store in `x`. `x`must have one element for each variable.
@@ -455,7 +460,7 @@ function LQOI.get_variable_dual_solution!(instance::ClpOptimizer, x::Vector{Floa
 end
 
 """
-get_linear_dual_solution!(m, x::Vector{Float64})
+    get_linear_dual_solution!(instance, x::Vector{Float64})
 
 Get the dual solution for the linear constraints in the model `m`, and
 store in `x`. `x`must have one element for each linear constraint.
@@ -466,7 +471,7 @@ function LQOI.get_linear_dual_solution!(instance::ClpOptimizer, x::Vector{Float6
 end
 
 """
-get_objective_value(m)
+    get_objective_value(instance)
 
 Get the objective value of the solved model `m`.
 """
@@ -475,7 +480,7 @@ function LQOI.get_objective_value(instance::ClpOptimizer)
 end
 
 """
-get_termination_status(m)
+    get_termination_status(instance)
 
 Get the termination status of the model `m`.
 """
@@ -487,8 +492,6 @@ function LQOI.get_termination_status(instance::ClpOptimizer)
         return MOI.InfeasibleNoResult
     elseif s == 2
         return MOI.UnboundedNoResult
-    # if s in [0, 1, 2] 
-    #     return MOI.Success
     elseif s == 3
         return MOI.OtherLimit
     elseif s == 4
@@ -499,7 +502,7 @@ function LQOI.get_termination_status(instance::ClpOptimizer)
 end
 
 """
-get_primal_status(m)
+    get_primal_status(instance)
 
 Get the primal status of the model `m`.
 """
@@ -512,7 +515,7 @@ function LQOI.get_primal_status(instance::ClpOptimizer)
 end
 
 """
-get_dual_status(m)
+    get_dual_status(instance)
 
 Get the dual status of the model `m`.
 """
@@ -525,7 +528,7 @@ function LQOI.get_dual_status(instance::ClpOptimizer)
 end
 
 """
-get_number_variables(m)::Int
+    get_number_variables(instance)::Int
 
 Get the number of variables in the model `m`.
 """
@@ -534,7 +537,7 @@ function LQOI.get_number_variables(instance::ClpOptimizer)
 end
 
 """
-add_variables!(m, n::Int)::Void
+    add_variables!(instance, n::Int)::Void
 
 Add `n` new variables to the model `m`.
 """
@@ -548,7 +551,7 @@ function LQOI.add_variables!(instance::ClpOptimizer, n::Int)::Void
 end
 
 """
-delete_variables!(m, start_col::Int, end_col::Int)::Void
+    delete_variables!(instance, start_col::Int, end_col::Int)::Void
 
 Delete the columns `start_col`, `start_col+1`, ..., `end_col` from the model `m`.
 """

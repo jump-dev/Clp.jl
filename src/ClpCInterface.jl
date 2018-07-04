@@ -423,12 +423,12 @@ end
 #This function exists in cpp but not c interface
 function add_row(model::ClpModel, number_in_row::Integer, columns::Vector{Int32}, elements::Vector{Float64},
         row_lower::Float64, row_upper::Float64)
-        _row_starts = Vector{Int32}(2)
-        _row_starts[1] = 0
-        _row_starts[2] = number_in_row
-        _row_upper = [row_upper]
-        _row_lower = [row_lower]
-        add_rows(model, 1, _row_lower, _row_upper, _row_starts, columns, elements)
+        row_starts_vector = Vector{Int32}(2)
+        row_starts_vector[1] = 0
+        row_starts_vector[2] = number_in_row
+        row_upper_vector = [row_upper]
+        row_lower_vector = [row_lower]
+        add_rows(model, 1, row_lower_vector, row_upper_vector, row_starts_vector, columns, elements)
 end
 
 # Delete columns.
