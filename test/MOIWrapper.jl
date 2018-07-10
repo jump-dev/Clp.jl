@@ -9,7 +9,8 @@ const MOIT = MathOptInterface.Test
         solver = ClpOptimizer(LogLevel = 0)
         # linear1 test is disabled due to the following bug.
         # https://projects.coin-or.org/Clp/ticket/84
-        MOIT.contlineartest(solver, linconfig, ["linear1", "linear10","linear12","linear8a","linear8b","linear8c"])
+        MOIT.contlineartest(solver, linconfig, ["linear1", "linear10","linear11",
+            "linear12","linear8a","linear8b","linear8c"])
     end
 end
 
