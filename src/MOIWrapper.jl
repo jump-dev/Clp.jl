@@ -119,7 +119,8 @@ function LQOI.change_variable_bounds!(instance::ClpOptimizer, cols::Vector{Int},
         elseif senses[i] == Cchar('L')
             lowerbounds[cols[i]] = values[i]
         else
-            error("sense is $(senses[i]), but only 'U' and 'L' are supported")
+            error("sense is Cchar('$(Char(senses[i]))'), but only Cchar('U') " *
+                  "Cchar('L') are supported.")
         end
     end
     chg_column_upper(instance.inner, upperbounds)
