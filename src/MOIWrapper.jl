@@ -52,30 +52,30 @@ const solveoptionmap = Dict(
    :InfeasibleReturn => set_infeasible_return,
    )
 
-function setoption(m::ClpOptimizer, name::Symbol, value)
+function setoption(optimizer::ClpOptimizer, name::Symbol, value)
     if haskey(optionmap, name)
-        optionmap[name](m.inner,value)
+        optionmap[name](optimizer.inner,value)
     elseif haskey(solveoptionmap, name)
-        solveoptionmap[name](m.solveroptions,value)
+        solveoptionmap[name](optimizer.solveroptions,value)
     else
         error("Unrecognized option: $name")
     end
 end
 
 function ClpOptimizer(;kwargs...)
-    m = ClpOptimizer(nothing)
-    m.params = Dict{String,Any}()
-    MOI.empty!(m)
+    optimizer = ClpOptimizer(nothing)
+    optimizer.params = Dict{String,Any}()
+    MOI.empty!(optimizer)
     for (name,value) in kwargs
-        m.params[Symbol(name)] = value
+        optimizer.params[Symbol(name)] = value
     end
-    return m
+    return optimizer
 end
 
 LQOI.LinearQuadraticModel(::Type{ClpOptimizer},env) = ClpModel()
 
-LQOI.supported_constraints(s::ClpOptimizer) = SUPPORTED_CONSTRAINTS
-LQOI.supported_objectives(s::ClpOptimizer) = SUPPORTED_OBJECTIVES
+LQOI.supported_constraints(optimizer::ClpOptimizer) = SUPPORTED_CONSTRAINTS
+LQOI.supported_objectives(optimizer::ClpOptimizer) = SUPPORTED_OBJECTIVES
 
 """
     replace_inf(x::Vector{<:Real})
@@ -295,8 +295,7 @@ function LQOI.change_objective_sense!(instance::ClpOptimizer, sense::Symbol)
 end
 
 function LQOI.get_linear_objective!(instance::ClpOptimizer, x::Vector{Float64})
-    obj = get_obj_coefficients(instance.inner)
-    copy!(x, obj)
+    copy!(x, get_obj_coefficients(instance.inner))
 end
 
 function LQOI.solve_linear_problem!(instance::ClpOptimizer)
@@ -315,27 +314,32 @@ function LQOI.solve_linear_problem!(instance::ClpOptimizer)
 end
 
 function LQOI.get_variable_primal_solution!(instance::ClpOptimizer, x::Vector{Float64})
-    solution = primal_column_solution(instance.inner)
-    copy!(x,solution)
+    copy!(x, primal_column_solution(instance.inner))
 end
 
 function LQOI.get_linear_primal_solution!(instance::ClpOptimizer, x::Vector{Float64})
-    solution = primal_row_solution(instance.inner)
-    copy!(x,solution)
+    copy!(x, primal_row_solution(instance.inner))
 end
 
 function LQOI.get_variable_dual_solution!(instance::ClpOptimizer, x::Vector{Float64})
-    solution = dual_column_solution(instance.inner)
-    copy!(x,solution)
+    copy!(x, dual_column_solution(instance.inner))
 end
 
 function LQOI.get_linear_dual_solution!(instance::ClpOptimizer, x::Vector{Float64})
-    solution = dual_row_solution(instance.inner)
-    copy!(x,solution)
+    copy!(x, dual_row_solution(instance.inner))
 end
 
 function LQOI.get_objective_value(instance::ClpOptimizer)
     return objective_value(instance.inner)
+end
+
+function LQOI.get_farkas_dual!(instance::ClpOptimizer, result::Vector{Float64})
+    copy!(result, infeasibility_ray(instance.inner))
+    scale!(result, -1.0)
+end
+
+function LQOI.get_unbounded_ray!(instance::ClpOptimizer, result::Vector{Float64})
+    copy!(result, unbounded_ray(instance.inner))
 end
 
 function LQOI.get_termination_status(instance::ClpOptimizer)
@@ -343,9 +347,17 @@ function LQOI.get_termination_status(instance::ClpOptimizer)
     if status == 0
         return MOI.Success
     elseif status == 1
-        return MOI.InfeasibleNoResult
+        if is_proven_primal_infeasible(instance.inner)
+            return MOI.Success
+        else
+            return MOI.InfeasibleNoResult
+        end
     elseif status == 2
-        return MOI.UnboundedNoResult
+        if is_proven_dual_infeasible(instance.inner)
+            return MOI.Success
+        else
+            return MOI.UnboundedNoResult
+        end
     elseif status == 3
         return MOI.OtherLimit
     elseif status == 4
@@ -356,7 +368,9 @@ function LQOI.get_termination_status(instance::ClpOptimizer)
 end
 
 function LQOI.get_primal_status(instance::ClpOptimizer)
-    if primal_feasible(instance.inner)
+    if is_proven_dual_infeasible(instance.inner)
+        return MOI.InfeasibilityCertificate
+    elseif primal_feasible(instance.inner)
         return MOI.FeasiblePoint
     else
         return MOI.UnknownResultStatus
@@ -364,7 +378,9 @@ function LQOI.get_primal_status(instance::ClpOptimizer)
 end
 
 function LQOI.get_dual_status(instance::ClpOptimizer)
-    if dual_feasible(instance.inner)
+    if is_proven_primal_infeasible(instance.inner)
+        return MOI.InfeasibilityCertificate
+    elseif dual_feasible(instance.inner)
         return MOI.FeasiblePoint
     else
         return MOI.UnknownResultStatus
