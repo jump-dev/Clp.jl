@@ -52,16 +52,6 @@ const solveoptionmap = Dict(
    :InfeasibleReturn => set_infeasible_return,
    )
 
-function setoption(optimizer::ClpOptimizer, name::Symbol, value)
-    if haskey(optionmap, name)
-        optionmap[name](optimizer.inner,value)
-    elseif haskey(solveoptionmap, name)
-        solveoptionmap[name](optimizer.solveroptions,value)
-    else
-        error("Unrecognized option: $name")
-    end
-end
-
 function ClpOptimizer(;kwargs...)
     optimizer = ClpOptimizer(nothing)
     optimizer.params = Dict{String,Any}()
@@ -76,23 +66,6 @@ LQOI.LinearQuadraticModel(::Type{ClpOptimizer},env) = ClpModel()
 
 LQOI.supported_constraints(optimizer::ClpOptimizer) = SUPPORTED_CONSTRAINTS
 LQOI.supported_objectives(optimizer::ClpOptimizer) = SUPPORTED_OBJECTIVES
-
-"""
-    replace_inf(x::Vector{<:Real})
-
-Replaces any occurances of an element `x[i]>1e20` with `Inf` and `x[i]<-1e20`
-with `-Inf`.
-"""
-function replace_inf(x::Vector{<:Real})
-    for i in 1:length(x)
-        if x[i] > 1e20
-            x[i] = Inf
-        elseif x[i] < -1e20
-            x[i] = -Inf
-        end
-    end
-    return x
-end
 
 """
     replace_inf(x::Real)
@@ -111,15 +84,15 @@ end
 
 function LQOI.change_variable_bounds!(instance::ClpOptimizer, cols::Vector{Int},
         values::Vector{Float64}, senses::Vector)
-    upperbounds = replace_inf(get_col_upper(instance.inner))
-    lowerbounds = replace_inf(get_col_lower(instance.inner))
-    for i in 1:length(senses)
-        if senses[i] == Cchar('U')
-            upperbounds[cols[i]] = values[i]
-        elseif senses[i] == Cchar('L')
-            lowerbounds[cols[i]] = values[i]
+    upperbounds = get_col_upper(instance.inner)
+    lowerbounds = get_col_lower(instance.inner)
+    for (col, value, sense) in zip(cols, values, senses)
+        if sense == Cchar('U')
+            upperbounds[col] = value
+        elseif sense == Cchar('L')
+            lowerbounds[col] = value
         else
-            error("sense is Cchar('$(Char(senses[i]))'), but only Cchar('U') " *
+            error("sense is Cchar('$(Char(sense))'), but only Cchar('U') " *
                   "Cchar('L') are supported.")
         end
     end
@@ -151,16 +124,13 @@ with upper bound `upper` and lower bound  `lower` to the instance `instance`.
 function append_row(instance::ClpOptimizer, row::Int, lower::Float64,
                     upper::Float64, rows::Vector{Int}, cols::Vector{Int},
                     coefs::Vector{Float64})
-    row_variables = Int32[]
-    row_coefficients = Float64[]
-    first = rows[row]
-    last = (row==length(rows)) ? length(cols) : rows[row+1]-1
-    for i in first:last
-        push!(row_coefficients, coefs[i])
-        push!(row_variables, cols[i] - 1)
+    indices = if row == length(rows)
+        rows[row]:length(cols)
+    else
+        rows[row]:(rows[row+1]-1)
     end
-    add_row(instance.inner, Cint(length(row_variables)), row_variables,
-            row_coefficients, lower, upper)
+    add_row(instance.inner, Cint(length(indices)), Cint.(cols[indices]-1),
+            coefs[indices], lower, upper)
 end
 
 function LQOI.add_linear_constraints!(instance::ClpOptimizer, A::LQOI.CSRMatrix{Float64},
@@ -169,9 +139,9 @@ function LQOI.add_linear_constraints!(instance::ClpOptimizer, A::LQOI.CSRMatrix{
     cols = A.columns
     coefs = A.coefficients
     for (row, (rhs, sense)) in enumerate(zip(right_hand_sides, senses))
-        if (rhs > 1e20)
+        if rhs > 1e20
             error("rhs must always be less than 1e20")
-        elseif (rhs < -1e20)
+        elseif rhs < -1e20
             error("rhs must always be greater than -1e20")
         end
         lower = -Inf
@@ -217,7 +187,7 @@ end
 function LQOI.get_linear_constraint(instance::ClpOptimizer, row::Int)::Tuple{Vector{Int}, Vector{Float64}}
     A = get_constraint_matrix(instance.inner)
     A_row = A[row,:]
-    return (Array{Int}(A_row.nzind), A_row.nzval)
+    return Array{Int}(A_row.nzind), A_row.nzval
 end
 
 function LQOI.change_objective_coefficient!(instance::ClpOptimizer, col, coef)
@@ -243,13 +213,12 @@ function LQOI.change_rhs_coefficient!(instance::ClpOptimizer, row, coef)
 end
 
 function LQOI.delete_linear_constraints!(instance::ClpOptimizer, start_row::Int, end_row::Int)
-    rows = [Cint(i-1) for i in start_row:end_row]
-    delete_rows(instance.inner, rows)
+    delete_rows(instance.inner, [Cint(i-1) for i in start_row:end_row])
 end
 
 function LQOI.change_linear_constraint_sense!(instance::ClpOptimizer, rows::Vector{Int}, senses::Vector{Cchar})
-    lower = replace_inf(get_row_lower(instance.inner))
-    upper = replace_inf(get_row_upper(instance.inner))
+    lower = replace_inf.(get_row_lower(instance.inner))
+    upper = replace_inf.(get_row_upper(instance.inner))
     for (sense, row) in zip(senses, rows)
         lb = lower[row]
         ub = upper[row]
@@ -261,17 +230,15 @@ function LQOI.change_linear_constraint_sense!(instance::ClpOptimizer, rows::Vect
             error("Either row_lower or row_upper must be of abs less than 1e20")
         end
         if sense == Cchar('G')
-            lb = rhs
-            ub = Inf
+            lower[row] = rhs
+            upper[row] = Inf
         elseif sense == Cchar('L')
-            lb = -Inf
-            ub = rhs
+            lower[row] = -Inf
+            upper[row] = rhs
         elseif sense == Cchar('E')
-            lb = rhs
-            ub = rhs
+            lower[row] = rhs
+            upper[row] = rhs
         end
-        lower[row] = lb
-        upper[row] = ub
     end
     chg_row_upper(instance.inner, upper)
     chg_row_lower(instance.inner, lower)
@@ -392,13 +359,12 @@ function LQOI.get_number_variables(instance::ClpOptimizer)
     return get_num_cols(instance.inner)
 end
 
-function LQOI.add_variables!(instance::ClpOptimizer, n::Int)
-    for i in 1:n
+function LQOI.add_variables!(instance::ClpOptimizer, number_of_variables::Int)
+    for i in 1:number_of_variables
         add_column(instance.inner, Cint(0), Int32[], Float64[], -Inf, Inf, 0.0)
     end
 end
 
 function LQOI.delete_variables!(instance::ClpOptimizer, start_col::Int, end_col::Int)
-    columns = [Cint(i-1) for i in start_col:end_col]
-    delete_columns(instance.inner, columns)
+    delete_columns(instance.inner, [Cint(i-1) for i in start_col:end_col])
 end
