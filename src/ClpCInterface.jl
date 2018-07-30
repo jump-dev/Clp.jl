@@ -211,7 +211,7 @@ const CoinBigDouble = Float64
 
 ## Main types definitions
 #{{{
-type ClpModel
+mutable struct ClpModel
     p::Ptr{Void}
     function ClpModel()
         p = @clp_ccall newModel Ptr{Void} ()
@@ -230,7 +230,7 @@ function delete_model(model::ClpModel)
     return
 end
 
-type ClpSolve
+mutable struct ClpSolve
     p::Ptr{Void}
     function ClpSolve()
         p = @clpsolve_ccall new Ptr{Void} ()
@@ -307,7 +307,7 @@ end
 
 # inspired by GLPK interface
 const VecOrNothing = Union{Vector,Void}
-function vec_or_null{T}(::Type{T}, a::VecOrNothing, len::Integer)
+function vec_or_null(::Type{T}, a::VecOrNothing, len::Integer) where T
     if isequal(a, nothing) || isa(a, Array{Void}) # on 0.3, [] is Array{Void}
         return C_NULL
     else # todo: helpful message if convert fails

@@ -34,12 +34,12 @@ export ClpMathProgModel,
     getrawsolver
 
 
-type ClpMathProgModel <: AbstractLinearQuadraticModel
+mutable struct ClpMathProgModel <: AbstractLinearQuadraticModel
     inner::ClpModel
     solveroptions::ClpSolve
 end
 
-immutable ClpSolver <: AbstractMathProgSolver
+struct ClpSolver <: AbstractMathProgSolver
     options 
 end
 ClpSolver(;kwargs...) = ClpSolver(kwargs)
