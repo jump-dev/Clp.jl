@@ -1,7 +1,50 @@
 module ClpMathProgSolverInterface
 using Clp.ClpCInterface
 
-importall MathProgBase.SolverInterface
+using LinearAlgebra: rmul!
+using SparseArrays: SparseMatrixCSC
+
+import MathProgBase.SolverInterface:
+    AbstractLinearQuadraticModel,
+    AbstractMathProgSolver,
+    LinearQuadraticModel,
+    ConicModel,
+    LPQPtoConicBridge,
+    loadproblem!,
+    writeproblem,
+    getvarLB,
+    setvarLB!,
+    getvarUB,
+    setvarUB!,
+    getconstrLB,
+    setconstrLB!,
+    getconstrUB,
+    setconstrUB!,
+    getobj,
+    setobj!,
+    getconstrmatrix,
+    getunboundedray,
+    getinfeasibilityray,
+    addvar!,
+    addconstr!,
+    setsense!,
+    getsense,
+    getbasis,
+    numvar,
+    numconstr,
+    getvartype,
+    optimize!,
+    status,
+    supportedcones,
+    getobjval,
+    getsolution,
+    getconstrsolution,
+    getreducedcosts,
+    getconstrduals,
+    getrawsolver,
+    getvartype,
+    setvartype!
+
 
 export ClpMathProgModel,
     ClpSolver,
@@ -34,12 +77,12 @@ export ClpMathProgModel,
     getrawsolver
 
 
-type ClpMathProgModel <: AbstractLinearQuadraticModel
+mutable struct ClpMathProgModel <: AbstractLinearQuadraticModel
     inner::ClpModel
     solveroptions::ClpSolve
 end
 
-immutable ClpSolver <: AbstractMathProgSolver
+struct ClpSolver <: AbstractMathProgSolver
     options 
 end
 ClpSolver(;kwargs...) = ClpSolver(kwargs)
@@ -207,7 +250,7 @@ getreducedcosts(m::ClpMathProgModel) = dual_column_solution(m.inner)
 
 getconstrduals(m::ClpMathProgModel) = dual_row_solution(m.inner)
 
-getinfeasibilityray(m::ClpMathProgModel) = scale!(infeasibility_ray(m.inner),-1.0)
+getinfeasibilityray(m::ClpMathProgModel) = rmul!(infeasibility_ray(m.inner),-1.0)
 getunboundedray(m::ClpMathProgModel) = unbounded_ray(m.inner)
 
 const statmap = Dict(zip([ 0x00,  0x01,            0x02,            0x03,       0x04,  0x05],
