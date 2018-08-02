@@ -1,6 +1,9 @@
 module ClpMathProgSolverInterface
 using Clp.ClpCInterface
 
+using LinearAlgebra: scale!
+using SparseArrays: SparseMatrixCSC
+
 importall MathProgBase.SolverInterface
 
 export ClpMathProgModel,
@@ -207,7 +210,7 @@ getreducedcosts(m::ClpMathProgModel) = dual_column_solution(m.inner)
 
 getconstrduals(m::ClpMathProgModel) = dual_row_solution(m.inner)
 
-getinfeasibilityray(m::ClpMathProgModel) = scale!(infeasibility_ray(m.inner),-1.0)
+getinfeasibilityray(m::ClpMathProgModel) = rmul!(infeasibility_ray(m.inner),-1.0)
 getunboundedray(m::ClpMathProgModel) = unbounded_ray(m.inner)
 
 const statmap = Dict(zip([ 0x00,  0x01,            0x02,            0x03,       0x04,  0x05],

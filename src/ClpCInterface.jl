@@ -3,6 +3,8 @@ module ClpCInterface
 # Load binary dependencies via Cbc package
 import Cbc
 
+using SparseArrays: SparseMatrixCSC
+
 export
     # Types
     CoinBigIndex,
@@ -212,9 +214,9 @@ const CoinBigDouble = Float64
 ## Main types definitions
 #{{{
 mutable struct ClpModel
-    p::Ptr{Void}
+    p::Ptr{Cvoid}
     function ClpModel()
-        p = @clp_ccall newModel Ptr{Void} ()
+        p = @clp_ccall newModel Ptr{Cvoid} ()
         prob = new(p)
         finalizer(prob, delete_model)
         return prob
@@ -225,15 +227,15 @@ function delete_model(model::ClpModel)
     if model.p == C_NULL
         return
     end
-    @clp_ccall deleteModel Void (Ptr{Void},) model.p
+    @clp_ccall deleteModel Cvoid (Ptr{Cvoid},) model.p
     model.p = C_NULL
     return
 end
 
 mutable struct ClpSolve
-    p::Ptr{Void}
+    p::Ptr{Cvoid}
     function ClpSolve()
-        p = @clpsolve_ccall new Ptr{Void} ()
+        p = @clpsolve_ccall new Ptr{Cvoid} ()
         prob = new(p)
         finalizer(prob, delete_solve)
         return prob
@@ -244,7 +246,7 @@ function delete_solve(solve::ClpSolve)
     if solve.p == C_NULL
         return
     end
-    @clpsolve_ccall delete Void (Ptr{Void},) solve.p
+    @clpsolve_ccall delete Cvoid (Ptr{Cvoid},) solve.p
     solve.p = C_NULL
     return
 end
@@ -276,7 +278,7 @@ function _jl__check_solve(solve::ClpSolve)
 end
 
 function _jl__check_row_is_valid(model::ClpModel, row::Integer)
-    num_rows = @clp_ccall getNumRows Int32 (Ptr{Void},) model.p
+    num_rows = @clp_ccall getNumRows Int32 (Ptr{Cvoid},) model.p
     if !(1 <= row <= num_rows)
         error("Invalid row $row (must be 1 <= row <= $num_rows)")
     end
@@ -284,7 +286,7 @@ function _jl__check_row_is_valid(model::ClpModel, row::Integer)
 end
 
 function _jl__check_col_is_valid(model::ClpModel, col::Integer)
-    num_cols = @clp_ccall getNumCols Int32 (Ptr{Void},) model.p
+    num_cols = @clp_ccall getNumCols Int32 (Ptr{Cvoid},) model.p
     if !(1 <= col <= num_cols)
         error("Invalid col $col (must be 1 <= col <= $num_cols)")
     end
@@ -306,9 +308,9 @@ end
 #{{{
 
 # inspired by GLPK interface
-const VecOrNothing = Union{Vector,Void}
+const VecOrNothing = Union{Vector,Cvoid}
 function vec_or_null(::Type{T}, a::VecOrNothing, len::Integer) where T
-    if isequal(a, nothing) || isa(a, Array{Void}) # on 0.3, [] is Array{Void}
+    if a == nothing || isa(a, Array{Cvoid}) # on 0.3, [] is Array{Cvoid}
         return C_NULL
     else # todo: helpful message if convert fails
         if length(a) != len
@@ -338,7 +340,7 @@ function load_problem(model::ClpModel,  num_cols::Integer, num_rows::Integer,
         obj::VecOrNothing,
         row_lb::VecOrNothing, row_ub::VecOrNothing)
     _jl__check_model(model)
-    @clp_ccall loadProblem Void (Ptr{Void},Int32,Int32,Ptr{CoinBigIndex},Ptr{Int32},
+    @clp_ccall loadProblem Cvoid (Ptr{Cvoid},Int32,Int32,Ptr{CoinBigIndex},Ptr{Int32},
     Ptr{Float64},Ptr{Float64},Ptr{Float64},Ptr{Float64},Ptr{Float64},Ptr{Float64}) model.p num_cols num_rows start index value vec_or_null(Float64,col_lb,num_cols) vec_or_null(Float64,col_ub,num_cols) vec_or_null(Float64,obj,num_cols) vec_or_null(Float64,row_lb,num_rows) vec_or_null(Float64,row_ub,num_rows)
 end
 
@@ -350,8 +352,8 @@ function load_problem(model::ClpModel,  constraint_matrix::AbstractMatrix,
     # We need to convert to zero-based, but
     # TODO: don't make extra copies of arrays
     # TODO: check dimensions match
-    load_problem(model,mat.n, mat.m,mat.colptr-convert(Int32,1),
-        mat.rowval-convert(Int32,1),mat.nzval,
+    load_problem(model,mat.n, mat.m,mat.colptr.-convert(Int32,1),
+        mat.rowval.-convert(Int32,1),mat.nzval,
         col_lb,col_ub,obj,row_lb,row_ub)
 end
 
@@ -360,12 +362,12 @@ function load_quadratic_objective(model::ClpModel,
         num_cols::Integer, start::Vector{CoinBigIndex},
         col::Vector{Int32}, element::Vector{Float64})
     _jl__check_model(model)
-    @clp_ccall loadQuadraticObjective Void (Ptr{Void},Int32,Ptr{CoinBigIndex},Ptr{Int32},Ptr{Float64}) model.p num_cols start column element
+    @clp_ccall loadQuadraticObjective Cvoid (Ptr{Cvoid},Int32,Ptr{CoinBigIndex},Ptr{Int32},Ptr{Float64}) model.p num_cols start column element
 end
 
 function load_quadratic_objective(model::ClpModel,
     hessian_matrix::SparseMatrixCSC{Float64,Int32})
-    load_quadratic_objective(model, hessian_matrix.n, hessian_matrix.colptr-convert(Int32,1), hessian_matrix.rowval-convert(Int32,1),hessian_matrix.nzval)
+    load_quadratic_objective(model, hessian_matrix.n, hessian_matrix.colptr.-convert(Int32,1), hessian_matrix.rowval.-convert(Int32,1),hessian_matrix.nzval)
 end
 
 # Read an mps file from the given filename.
@@ -373,7 +375,7 @@ function read_mps(model::ClpModel, mpsfile::AbstractString, keep_names::Bool, ig
     _jl__check_model(model)
     _jl__check_file_is_readable(mpsfile)
 
-    status = @clp_ccall readMps Int32 (Ptr{Void}, Cstring, Int32, Int32) model.p mpsfile keep_names ignore_errors
+    status = @clp_ccall readMps Int32 (Ptr{Cvoid}, Cstring, Int32, Int32) model.p mpsfile keep_names ignore_errors
     if status != 0
         error("read_mps: error reading file $mpsfile")
     end
@@ -387,25 +389,25 @@ function copy_in_integer_information(model::ClpModel, information::Vector{UInt8}
     if length(information) != num_cols(model)
         error("Length of integer information must match number of columns")
     end
-    @clp_ccall copyInIntegerInformation Void (Ptr{Void},Ptr{UInt8}) model.p information
+    @clp_ccall copyInIntegerInformation Cvoid (Ptr{Cvoid},Ptr{UInt8}) model.p information
 end
 
 # Drop integer information.
 function delete_integer_information(model::ClpModel)
     _jl__check_model(model)
-    @clp_ccall deleteIntegerInformation Void (Ptr{Void},) model.p
+    @clp_ccall deleteIntegerInformation Cvoid (Ptr{Cvoid},) model.p
 end
 
 # Resize rim part of model.
 function resize(model::ClpModel, new_num_rows::Integer, new_num_cols::Integer)
     _jl__check_model(model)
-    @clp_ccall resize Void (Ptr{Void},Int32,Int32) model.p new_num_rows new_num_cols
+    @clp_ccall resize Cvoid (Ptr{Cvoid},Int32,Int32) model.p new_num_rows new_num_cols
 end
 
 # Delete rows.
 function delete_rows(model::ClpModel, which::Vector{Int32})
     _jl__check_model(model)
-    @clp_ccall deleteRows Void (Ptr{Void},Int32,Ptr{Int32}) model.p length(which) which
+    @clp_ccall deleteRows Cvoid (Ptr{Cvoid},Int32,Ptr{Int32}) model.p length(which) which
 end
 
 # Add rows.
@@ -415,13 +417,13 @@ function add_rows(model::ClpModel, number::Integer, row_lower::Vector{Float64},
         elements::Vector{Float64})
     _jl__check_model(model)
 
-    @clp_ccall addRows Void (Ptr{Void}, Int32, Ptr{Float64}, Ptr{Float64}, Ptr{Int32}, Ptr{Int32}, Ptr{Float64}) model.p number row_lower row_upper row_starts columns elements
+    @clp_ccall addRows Cvoid (Ptr{Cvoid}, Int32, Ptr{Float64}, Ptr{Float64}, Ptr{Int32}, Ptr{Int32}, Ptr{Float64}) model.p number row_lower row_upper row_starts columns elements
 end
 
 # Delete columns.
 function delete_columns(model::ClpModel, which::Vector{Int32})
     _jl__check_model(model)
-    @clp_ccall deleteColumns Void (Ptr{Void},Int32,Ptr{Int32}) model.p length(which) which
+    @clp_ccall deleteColumns Cvoid (Ptr{Cvoid},Int32,Ptr{Int32}) model.p length(which) which
 end
 
 # Add columns.
@@ -432,7 +434,7 @@ function add_columns(model::ClpModel, number::Integer, column_lower::Vector{Floa
         elements::Vector{Float64})
     _jl__check_model(model)
 
-    @clp_ccall addColumns Void (Ptr{Void}, Int32, Ptr{Float64}, Ptr{Float64}, Ptr{Float64}, Ptr{Int32}, Ptr{Int32}, Ptr{Float64}) model.p number column_lower column_upper objective column_starts rows elements
+    @clp_ccall addColumns Cvoid (Ptr{Cvoid}, Int32, Ptr{Float64}, Ptr{Float64}, Ptr{Float64}, Ptr{Int32}, Ptr{Int32}, Ptr{Float64}) model.p number column_lower column_upper objective column_starts rows elements
 
 end
 
@@ -452,7 +454,7 @@ function chg_row_lower(model::ClpModel, row_lower::Vector{Float64})
         error("Array length must match number of rows in the model")
     end
 
-    @clp_ccall chgRowLower Void (Ptr{Void}, Ptr{Float64}) model.p row_lower
+    @clp_ccall chgRowLower Cvoid (Ptr{Cvoid}, Ptr{Float64}) model.p row_lower
 end
 
 # Change row upper bounds.
@@ -462,7 +464,7 @@ function chg_row_upper(model::ClpModel, row_upper::Vector{Float64})
         error("Array length must match number of rows in the model")
     end
 
-    @clp_ccall chgRowUpper Void (Ptr{Void}, Ptr{Float64}) model.p row_upper
+    @clp_ccall chgRowUpper Cvoid (Ptr{Cvoid}, Ptr{Float64}) model.p row_upper
 end
 
 # Change column lower bounds.
@@ -472,7 +474,7 @@ function chg_column_lower(model::ClpModel, column_lower::Vector{Float64})
         error("Array length must match number of columns in the model")
     end
 
-    @clp_ccall chgColumnLower Void (Ptr{Void}, Ptr{Float64}) model.p column_lower
+    @clp_ccall chgColumnLower Cvoid (Ptr{Cvoid}, Ptr{Float64}) model.p column_lower
 end
 
 # Change column upper bounds.
@@ -482,7 +484,7 @@ function chg_column_upper(model::ClpModel, column_upper::Vector{Float64})
         error("Array length must match number of columns in the model")
     end
 
-    @clp_ccall chgColumnUpper Void (Ptr{Void}, Ptr{Float64}) model.p column_upper
+    @clp_ccall chgColumnUpper Cvoid (Ptr{Cvoid}, Ptr{Float64}) model.p column_upper
 end
 
 # Change objective coefficients.
@@ -492,14 +494,14 @@ function chg_obj_coefficients(model::ClpModel, obj_in::Vector{Float64})
         error("Array length must match number of columns in the model")
     end
 
-    @clp_ccall chgObjCoefficients Void (Ptr{Void},Ptr{Float64}) model.p obj_in
+    @clp_ccall chgObjCoefficients Cvoid (Ptr{Cvoid},Ptr{Float64}) model.p obj_in
 end
 
 # Drops names - makes lengthnames 0 and names empty.
 function drop_names(model::ClpModel)
     _jl__check_model(model)
 
-    @clp_ccall dropNames Void (Ptr{Void},) model.p
+    @clp_ccall dropNames Cvoid (Ptr{Cvoid},) model.p
 end
 
 # Copy in names.
@@ -514,64 +516,64 @@ end
 # Number of rows.
 function get_num_rows(model::ClpModel)
     _jl__check_model(model)
-    @clp_ccall getNumRows Int32 (Ptr{Void},) model.p
+    @clp_ccall getNumRows Int32 (Ptr{Cvoid},) model.p
 end
 number_rows = get_num_rows
 
 # Number of columns.
 function get_num_cols(model::ClpModel)
     _jl__check_model(model)
-    @clp_ccall getNumCols Int32 (Ptr{Void},) model.p
+    @clp_ccall getNumCols Int32 (Ptr{Cvoid},) model.p
 end
 number_cols = get_num_cols
 
 # Get primal tolerance.
 function primal_tolerance(model::ClpModel)
     _jl__check_model(model)
-    @clp_ccall primalTolerance Float64 (Ptr{Void},) model.p
+    @clp_ccall primalTolerance Float64 (Ptr{Cvoid},) model.p
 end
 
 # Set primal tolerance to use.
 function set_primal_tolerance(model::ClpModel, value::Float64)
     _jl__check_model(model)
-    @clp_ccall setPrimalTolerance Void (Ptr{Void}, Float64) model.p value
+    @clp_ccall setPrimalTolerance Cvoid (Ptr{Cvoid}, Float64) model.p value
     return
 end
 
 # Get dual tolerance.
 function dual_tolerance(model::ClpModel)
     _jl__check_model(model)
-    @clp_ccall dualTolerance Float64 (Ptr{Void},) model.p
+    @clp_ccall dualTolerance Float64 (Ptr{Cvoid},) model.p
 end
 
 # Set dual tolerance to use.
 function set_dual_tolerance(model::ClpModel, value::Float64)
     _jl__check_model(model)
-    @clp_ccall setDualTolerance Void (Ptr{Void}, Float64) model.p value
+    @clp_ccall setDualTolerance Cvoid (Ptr{Cvoid}, Float64) model.p value
     return
 end
 
 # Get dual objective limit.
 function dual_objective_limit(model::ClpModel)
     _jl__check_model(model)
-    @clp_ccall dualObjectiveLimit Float64 (Ptr{Void},) model.p
+    @clp_ccall dualObjectiveLimit Float64 (Ptr{Cvoid},) model.p
 end
 
 # Set dual objective limit.
 function set_dual_objective_limit(model::ClpModel, value::Float64)
-    @clp_ccall setDualObjectiveLimit Void (Ptr{Void}, Float64) model.p value
+    @clp_ccall setDualObjectiveLimit Cvoid (Ptr{Cvoid}, Float64) model.p value
     return
 end
 
 # Get objective offset.
 function objective_offset(model::ClpModel)
     _jl__check_model(model)
-    @clp_ccall dualObjectiveLimit Float64 (Ptr{Void},) model.p
+    @clp_ccall dualObjectiveLimit Float64 (Ptr{Cvoid},) model.p
 end
 
 # Set objective offset.
 function set_objective_offset(model::ClpModel, value::Float64)
-    @clp_ccall setObjectiveOffset Void (Ptr{Void}, Float64) model.p value
+    @clp_ccall setObjectiveOffset Cvoid (Ptr{Cvoid}, Float64) model.p value
     return
 end
 
@@ -582,7 +584,7 @@ and add new unit tests.
 function problem_name(model::ClpModel)
     _jl__check_model(model)
     problem_name = Array{UInt8}(1000)
-    @clp_ccall problemName Void (Ptr{Void}, Int32, Ptr{UInt8}) model.p 1000 problem_name
+    @clp_ccall problemName Cvoid (Ptr{Cvoid}, Int32, Ptr{UInt8}) model.p 1000 problem_name
     return bytestring(problem_name)
 end
 
@@ -591,54 +593,54 @@ function set_problem_name(model::ClpModel, name::String)
     _jl__check_model(model)
     @assert isascii(name)
 
-    @clp_ccall setProblemName Void (Ptr{Void}, Int32, Ptr{UInt8}) model.p (length(name)+1) bytestring(name)
+    @clp_ccall setProblemName Cvoid (Ptr{Cvoid}, Int32, Ptr{UInt8}) model.p (length(name)+1) bytestring(name)
 end
 =#
 
 # Get number of iterations
 function number_iterations(model::ClpModel)
     _jl__check_model(model)
-    @clp_ccall numberIterations Int32 (Ptr{Void},) model.p
+    @clp_ccall numberIterations Int32 (Ptr{Cvoid},) model.p
 end
 get_iteration_count = number_iterations
 
 # Set number of iterations
 function set_number_iterations(model::ClpModel, iters::Integer)
     _jl__check_model(model)
-    @clp_ccall setNumberIterations Void (Ptr{Void}, Int32) model.p iters
+    @clp_ccall setNumberIterations Cvoid (Ptr{Cvoid}, Int32) model.p iters
     return
 end
 
 # Get maximum number of iterations
 function maximum_iterations(model::ClpModel)
     _jl__check_model(model)
-    @clp_ccall maximumIterations Int32 (Ptr{Void},) model.p
+    @clp_ccall maximumIterations Int32 (Ptr{Cvoid},) model.p
 end
 
 # Set maximum number of iterations
 function set_maximum_iterations(model::ClpModel, max_iters::Integer)
     _jl__check_model(model)
-    @clp_ccall setMaximumIterations Void (Ptr{Void}, Int32) model.p max_iters
+    @clp_ccall setMaximumIterations Cvoid (Ptr{Cvoid}, Int32) model.p max_iters
     return
 end
 
 # Get maximum time in seconds (from when set is called)
 function maximum_seconds(model::ClpModel)
     _jl__check_model(model)
-    @clp_ccall maximumSeconds Float64 (Ptr{Void},) model.p
+    @clp_ccall maximumSeconds Float64 (Ptr{Cvoid},) model.p
 end
 
 # Set maximum time in seconds (from when set is called)
 function set_maximum_seconds(model::ClpModel, max_secs::Real)
     _jl__check_model(model)
-    @clp_ccall setMaximumSeconds Void (Ptr{Void}, Float64) model.p max_secs
+    @clp_ccall setMaximumSeconds Cvoid (Ptr{Cvoid}, Float64) model.p max_secs
     return
 end
 
 # Query whether maximum iterations or time were hit
 function hit_maximum_iterations(model::ClpModel)
     _jl__check_model(model)
-    ret = @clp_ccall hitMaximumIterations Int32 (Ptr{Void},) model.p
+    ret = @clp_ccall hitMaximumIterations Int32 (Ptr{Cvoid},) model.p
     return ret != 0
 end
 
@@ -650,13 +652,13 @@ end
 #   4 - stopped due to errors
 function status(model::ClpModel)
     _jl__check_model(model)
-    @clp_ccall status Int32 (Ptr{Void},) model.p
+    @clp_ccall status Int32 (Ptr{Cvoid},) model.p
 end
 
 # Set the status of the problem.
 function set_problem_status(model::ClpModel, status::Integer)
     _jl__check_model(model)
-    @clp_ccall setProblemStatus Void (Ptr{Void}, Int32) model.p status
+    @clp_ccall setProblemStatus Cvoid (Ptr{Cvoid}, Int32) model.p status
     return
 end
 
@@ -668,13 +670,13 @@ end
 #   4 - scaled problem optimal - unscaled has both dual and primal infeasibilities
 function secondary_status(model::ClpModel)
     _jl__check_model(model)
-    @clp_ccall secondaryStatus Int32 (Ptr{Void},) model.p
+    @clp_ccall secondaryStatus Int32 (Ptr{Cvoid},) model.p
 end
 
 # Set the secondary status of the problem.
 function set_secondary_status(model::ClpModel, status::Integer)
     _jl__check_model(model)
-    @clp_ccall setSecondaryStatus Void (Ptr{Void}, Int32) model.p status
+    @clp_ccall setSecondaryStatus Cvoid (Ptr{Cvoid}, Int32) model.p status
     return
 end
 
@@ -685,14 +687,14 @@ end
 # XXX: for some reason this returns a floating point (???)
 function optimization_direction(model::ClpModel)
     _jl__check_model(model)
-    @clp_ccall optimizationDirection Float64 (Ptr{Void},) model.p
+    @clp_ccall optimizationDirection Float64 (Ptr{Cvoid},) model.p
 end
 
 # Set the direction of optimization.
 # XXX: for some reason this takes a floating point argument (???)
 function set_optimization_direction(model::ClpModel, value::Real)
     _jl__check_model(model)
-    @clp_ccall setOptimizationDirection Void (Ptr{Void}, Float64) model.p value
+    @clp_ccall setOptimizationDirection Cvoid (Ptr{Cvoid}, Float64) model.p value
     return
 end
 
@@ -703,7 +705,7 @@ macro def_get_row_property(fname,clpname)
         return quote
             function $(esc(fname))(model::ClpModel)
                 _jl__check_model(model)
-                row_property_p = @clp_ccall $clpname Ptr{Float64} (Ptr{Void},) model.p
+                row_property_p = @clp_ccall $clpname Ptr{Float64} (Ptr{Cvoid},) model.p
                 num_rows = convert(Int,get_num_rows(model))
                 return copy(unsafe_wrap(Array,row_property_p,(num_rows,)))
             end
@@ -712,7 +714,7 @@ macro def_get_row_property(fname,clpname)
         return quote
             function $(esc(fname))(model::ClpModel)
                 _jl__check_model(model)
-                row_property_p = @clp_ccall $(esc(clpname)) Ptr{Float64} (Ptr{Void},) model.p
+                row_property_p = @clp_ccall $(esc(clpname)) Ptr{Float64} (Ptr{Cvoid},) model.p
                 num_rows = convert(Int,get_num_rows(model))
                 return copy(unsafe_wrap(Array,row_property_p,(num_rows,)))
             end
@@ -725,7 +727,7 @@ macro def_get_col_property(fname,clpname)
         return quote
             function $(esc(fname))(model::ClpModel)
                 _jl__check_model(model)
-                col_property_p = @clp_ccall $clpname Ptr{Float64} (Ptr{Void},) model.p
+                col_property_p = @clp_ccall $clpname Ptr{Float64} (Ptr{Cvoid},) model.p
                 num_cols = convert(Int,get_num_cols(model))
                 return copy(unsafe_wrap(Array,col_property_p,(num_cols,)))
             end
@@ -734,7 +736,7 @@ macro def_get_col_property(fname,clpname)
         return quote
             function $(esc(fname))(model::ClpModel)
                 _jl__check_model(model)
-                col_property_p = @clp_ccall $(esc(clpname)) Ptr{Float64} (Ptr{Void},) model.p
+                col_property_p = @clp_ccall $(esc(clpname)) Ptr{Float64} (Ptr{Cvoid},) model.p
                 num_cols = convert(Int,get_num_cols(model))
                 return copy(unsafe_wrap(Array,col_property_p,(num_cols,)))
             end
@@ -754,7 +756,7 @@ primal_column_solution = get_col_solution
 function set_col_solution(model::ClpModel, input::Vector{Float64})
     _jl__check_model(model)
 
-    @clp_ccall setColSolution Void (Ptr{Void},Ptr{Float64}) model.p input
+    @clp_ccall setColSolution Cvoid (Ptr{Cvoid},Ptr{Float64}) model.p input
 end
 
 # Get dual row solution.
@@ -787,13 +789,13 @@ column_upper = get_col_upper
 # Get the number of elements in matrix.
 function get_num_elements(model::ClpModel)
     _jl__check_model(model)
-    @clp_ccall getNumElements Int32 (Ptr{Void},) model.p
+    @clp_ccall getNumElements Int32 (Ptr{Cvoid},) model.p
 end
 
 # Get column starts in matrix.
 function get_vector_starts(model::ClpModel)
     _jl__check_model(model)
-    vec_starts_p = @clp_ccall getVectorStarts Ptr{CoinBigIndex} (Ptr{Void},) model.p
+    vec_starts_p = @clp_ccall getVectorStarts Ptr{CoinBigIndex} (Ptr{Cvoid},) model.p
     num_cols = Int(get_num_cols(model))
     return copy(unsafe_wrap(Array,vec_starts_p, (num_cols+1,)))
 end
@@ -802,7 +804,7 @@ end
 function get_indices(model::ClpModel)
     _jl__check_model(model)
     # getIndices returns an "int*", how do we know it's Int32??
-    row_indices_p = @clp_ccall getIndices Ptr{Int32} (Ptr{Void},) model.p
+    row_indices_p = @clp_ccall getIndices Ptr{Int32} (Ptr{Cvoid},) model.p
     num_elts = Int(get_num_elements(model))
     return copy(unsafe_wrap(Array,row_indices_p,(num_elts,)))
 end
@@ -827,7 +829,7 @@ end
 # Get element values in matrix.
 function get_elements(model::ClpModel)
     _jl__check_model(model)
-    elements_p = @clp_ccall getElements Ptr{Float64} (Ptr{Void},) model.p
+    elements_p = @clp_ccall getElements Ptr{Float64} (Ptr{Cvoid},) model.p
     num_elts = Int(get_num_elements(model))
     return copy(unsafe_wrap(Array,elements_p,(num_elts,)))
 end
@@ -835,7 +837,7 @@ end
 # Get objective value.
 function get_obj_value(model::ClpModel)
     _jl__check_model(model)
-    @clp_ccall getObjValue Float64 (Ptr{Void},) model.p
+    @clp_ccall getObjValue Float64 (Ptr{Cvoid},) model.p
 end
 objective_value = get_obj_value
 
@@ -849,12 +851,12 @@ end
 # Get an infeasibility ray (empty vector returned if none/wrong).
 function infeasibility_ray(model::ClpModel)
     _jl__check_model(model)
-    infeas_ray_p = @clp_ccall infeasibilityRay Ptr{Float64} (Ptr{Void},) model.p
+    infeas_ray_p = @clp_ccall infeasibilityRay Ptr{Float64} (Ptr{Cvoid},) model.p
     num_rows = convert(Int,get_num_rows(model))
     local infeas_ray::Vector{Float64}
     if infeas_ray_p != C_NULL
         infeas_ray = copy(unsafe_wrap(Array,infeas_ray_p,(num_rows,)))
-        ccall(:free,Void,(Ptr{Void},),infeas_ray_p)
+        ccall(:free,Cvoid,(Ptr{Cvoid},),infeas_ray_p)
     else
         infeas_ray = Array{Float64}(0)
     end
@@ -864,12 +866,12 @@ end
 # Get an unbounded ray (empty vector returned if none/wrong).
 function unbounded_ray(model::ClpModel)
     _jl__check_model(model)
-    unbd_ray_p = @clp_ccall unboundedRay Ptr{Float64} (Ptr{Void},) model.p
+    unbd_ray_p = @clp_ccall unboundedRay Ptr{Float64} (Ptr{Cvoid},) model.p
     num_cols = convert(Int,get_num_cols(model))
     local unbd_ray::Vector{Float64}
     if unbd_ray_p != C_NULL
         unbd_ray = copy(unsafe_wrap(Array,unbd_ray_p,(num_cols,)))
-        ccall(:free,Void,(Ptr{Void},),unbd_ray_p)
+        ccall(:free,Cvoid,(Ptr{Cvoid},),unbd_ray_p)
     else
         unbd_ray = Array{Float64}(0)
     end
@@ -879,7 +881,7 @@ end
 # Query whether the status array exists (partly for OsiClp).
 function statusExists(model::ClpModel)
     _jl__check_model(model)
-    ret = @clp_ccall statusExists Int32 (Ptr{Void},) model.p
+    ret = @clp_ccall statusExists Int32 (Ptr{Cvoid},) model.p
     return ret != 0
 end
 
@@ -912,48 +914,48 @@ end
 function get_column_status(model::ClpModel, sequence::Integer)
     _jl__check_model(model)
     _jl__check_col_is_valid(model, sequence)
-    return @clp_ccall getColumnStatus Int32 (Ptr{Void},Int32) model.p (sequence-1)
+    return @clp_ccall getColumnStatus Int32 (Ptr{Cvoid},Int32) model.p (sequence-1)
 end
 
 # Get row basis info.
 function get_row_status(model::ClpModel, sequence::Integer)
     _jl__check_model(model)
     _jl__check_row_is_valid(model, sequence)
-    return @clp_ccall getRowStatus Int32 (Ptr{Void},Int32) model.p (sequence-1)
+    return @clp_ccall getRowStatus Int32 (Ptr{Cvoid},Int32) model.p (sequence-1)
 end
 
 # Set variable basis info (and value if at bound).
 function set_column_status(model::ClpModel, sequence::Integer, value::Integer)
     _jl__check_model(model)
     _jl__check_col_is_valid(model, sequence)
-    @clp_ccall setColumnStatus Void (Ptr{Void},Int32,Int32) model.p (sequence-1) value
+    @clp_ccall setColumnStatus Cvoid (Ptr{Cvoid},Int32,Int32) model.p (sequence-1) value
 end
 
 # Set row basis info (and value if at bound).
 function set_row_status(model::ClpModel, sequence::Integer, value::Integer)
     _jl__check_model(model)
     _jl__check_row_is_valid(model, sequence)
-    @clp_ccall setRowStatus Void (Ptr{Void},Int32,Int32) model.p (sequence-1) value
+    @clp_ccall setRowStatus Cvoid (Ptr{Cvoid},Int32,Int32) model.p (sequence-1) value
 end
 
 # No reason to expose these
 # Set user pointer (used for generic purposes)
 #function get_user_pointer(model::ClpModel)
 # Get user pointer (used for generic purposes)
-#function set_user_pointer(model::ClpModel, pointer::Ptr{Void})
+#function set_user_pointer(model::ClpModel, pointer::Ptr{Cvoid})
 
 # Pass in c-pointer to callback function. (from cfunction())
 # See Coin_C_defines.h for signature
 # TODO: test this
-function register_call_back(model::ClpModel, callback::Ptr{Void})
+function register_call_back(model::ClpModel, callback::Ptr{Cvoid})
     _jl__check_model(model)
-    @clp_ccall registerCallBack Void (Ptr{Void},Ptr{Void}) model.p callback
+    @clp_ccall registerCallBack Cvoid (Ptr{Cvoid},Ptr{Cvoid}) model.p callback
 end
 
 # Unset callback function.
 function clear_call_back(model::ClpModel)
     _jl__check_model(model)
-    @clp_ccall clearCallBack Void (Ptr{Void},) model.p
+    @clp_ccall clearCallBack Cvoid (Ptr{Cvoid},) model.p
     return
 end
 
@@ -966,20 +968,20 @@ end
 #   above that: 8,16,32 etc just for selective debug.
 function log_level(model::ClpModel)
     _jl__check_model(model)
-    @clp_ccall logLevel Int32 (Ptr{Void},) model.p
+    @clp_ccall logLevel Int32 (Ptr{Cvoid},) model.p
 end
 
 # Set amount of print out.
 function set_log_level(model::ClpModel, value::Integer)
     _jl__check_model(model)
-    @clp_ccall setLogLevel Void (Ptr{Void}, Int32) model.p value
+    @clp_ccall setLogLevel Cvoid (Ptr{Cvoid}, Int32) model.p value
     return
 end
 
 # Get length of names (0 means no names).
 function length_names(model::ClpModel)
     _jl__check_model(model)
-    return @clp_ccall lengthNames Int32 (Ptr{Void},) model.p
+    return @clp_ccall lengthNames Int32 (Ptr{Cvoid},) model.p
 end
 
 # Return an array with a row name.
@@ -989,9 +991,9 @@ end
 function row_name(model::ClpModel, row::Integer)
     _jl__check_model(model)
     _jl__check_row_is_valid(model, row)
-    size = @clp_ccall lengthNames Int32 (Ptr{Void},) model.p
+    size = @clp_ccall lengthNames Int32 (Ptr{Cvoid},) model.p
     row_name = Array{UInt8}(size+1)
-    @clp_ccall rowName Void (Ptr{Void}, Int32, Ptr{UInt8}) model.p (row-1) row_name
+    @clp_ccall rowName Cvoid (Ptr{Cvoid}, Int32, Ptr{UInt8}) model.p (row-1) row_name
     return unsafe_string(row_name)
 end
 
@@ -1002,22 +1004,22 @@ end
 function column_name(model::ClpModel, col::Integer)
     _jl__check_model(model)
     _jl__check_col_is_valid(model, col)
-    size = @clp_ccall lengthNames Int32 (Ptr{Void},) model.p
+    size = @clp_ccall lengthNames Int32 (Ptr{Cvoid},) model.p
     col_name = Array{UInt8}(size+1)
-    @clp_ccall columnName Void (Ptr{Void}, Int32, Ptr{UInt8}) model.p (col-1) col_name
+    @clp_ccall columnName Cvoid (Ptr{Cvoid}, Int32, Ptr{UInt8}) model.p (col-1) col_name
     return unsafe_string(col_name)
 end
 
 # General solve algorithm which can do presolve.
 function initial_solve(model::ClpModel)
     _jl__check_model(model)
-    @clp_ccall initialSolve Int32 (Ptr{Void},) model.p
+    @clp_ccall initialSolve Int32 (Ptr{Cvoid},) model.p
 end
 
 function initial_solve_with_options(model::ClpModel,solve::ClpSolve)
     _jl__check_model(model)
     _jl__check_solve(solve)
-    @clp_ccall initialSolveWithOptions Int32 (Ptr{Void},Ptr{Void}) model.p solve.p
+    @clp_ccall initialSolveWithOptions Int32 (Ptr{Cvoid},Ptr{Cvoid}) model.p solve.p
 end
 
 initial_solve(model::ClpModel, solve::ClpSolve) = initial_solve_with_options(model,solve)
@@ -1025,43 +1027,43 @@ initial_solve(model::ClpModel, solve::ClpSolve) = initial_solve_with_options(mod
 # Dual initial solve.
 function initial_dual_solve(model::ClpModel)
     _jl__check_model(model)
-    @clp_ccall initialDualSolve Int32 (Ptr{Void},) model.p
+    @clp_ccall initialDualSolve Int32 (Ptr{Cvoid},) model.p
 end
 
 # Primal initial solve.
 function initial_primal_solve(model::ClpModel)
     _jl__check_model(model)
-    @clp_ccall initialPrimalSolve Int32 (Ptr{Void},) model.p
+    @clp_ccall initialPrimalSolve Int32 (Ptr{Cvoid},) model.p
 end
 
 # Barrier initial solve.
 function initial_barrier_solve(model::ClpModel)
     _jl__check_model(model)
-    @clp_ccall initialBarrierSolve Int32 (Ptr{Void},) model.p
+    @clp_ccall initialBarrierSolve Int32 (Ptr{Cvoid},) model.p
 end
 
 # Barrier initial solve, no crossover.
 function initial_barrier_no_cross_solve(model::ClpModel)
     _jl__check_model(model)
-    @clp_ccall initialBarrierNoCrossSolve Int32 (Ptr{Void},) model.p
+    @clp_ccall initialBarrierNoCrossSolve Int32 (Ptr{Cvoid},) model.p
 end
 
 # Dual algorithm.
 function dual(model::ClpModel, ifValuesPass::Integer)
     _jl__check_model(model)
-    @clp_ccall dual Int32 (Ptr{Void},Int32) model.p ifValuesPass
+    @clp_ccall dual Int32 (Ptr{Cvoid},Int32) model.p ifValuesPass
 end
 
 # Primal algorithm.
 function primal(model::ClpModel, ifValuesPass::Integer)
     _jl__check_model(model)
-    @clp_ccall primal Int32 (Ptr{Void},Int32) model.p ifValuesPass
+    @clp_ccall primal Int32 (Ptr{Cvoid},Int32) model.p ifValuesPass
 end
 
 # Solve the problem with the idiot code.
 function idiot(model::ClpModel, tryhard::Integer)
     _jl__check_model(model)
-    @clp_ccall idiot Int32 (Ptr{Void},Int32) model.p tryhard
+    @clp_ccall idiot Int32 (Ptr{Cvoid},Int32) model.p tryhard
 end
 
 # Set or unset scaling:
@@ -1075,14 +1077,14 @@ function scaling(model::ClpModel, mode::Integer)
     if !(0 <= mode <= 4)
         error("Invalid clp scaling mode $mode (must be between 0 and 4)")
     end
-    @clp_ccall scaling Void (Ptr{Void}, Int32) model.p mode
+    @clp_ccall scaling Cvoid (Ptr{Cvoid}, Int32) model.p mode
     return
 end
 
 # Get scaling flag.
 function scaling_flag(model::ClpModel)
     _jl__check_model(model)
-    return @clp_ccall scalingFlag Int32 (Ptr{Void},) model.p
+    return @clp_ccall scalingFlag Int32 (Ptr{Cvoid},) model.p
 end
 
 # Crash (at present just aimed at dual); returns:
@@ -1103,46 +1105,46 @@ function crash(model::ClpModel, gap::Float64, pivot::Int32)
     if !(0 <= pivot <= 2)
         error("Invalid clp crash pivot value $pivot (must be between 0 and 2)")
     end
-    return @clp_ccall crash Int32 (Ptr{Void}, Float64, Int32) model.p gap pivot
+    return @clp_ccall crash Int32 (Ptr{Cvoid}, Float64, Int32) model.p gap pivot
 end
 
 # Query whether the problem is primal feasible.
 function primal_feasible(model::ClpModel)
     _jl__check_model(model)
-    ret = @clp_ccall primalFeasible Int32 (Ptr{Void},) model.p
+    ret = @clp_ccall primalFeasible Int32 (Ptr{Cvoid},) model.p
     return ret != 0
 end
 
 # Query whether the problem is dual feasible.
 function dual_feasible(model::ClpModel)
     _jl__check_model(model)
-    ret = @clp_ccall dualFeasible Int32 (Ptr{Void},) model.p
+    ret = @clp_ccall dualFeasible Int32 (Ptr{Cvoid},) model.p
     return ret != 0
 end
 
 # Get dual bound.
 function dual_bound(model::ClpModel)
     _jl__check_model(model)
-    @clp_ccall dualBound Float64 (Ptr{Void},) model.p
+    @clp_ccall dualBound Float64 (Ptr{Cvoid},) model.p
 end
 
 # Set dual bound.
 function set_dual_bound(model::ClpModel, value::Real)
     _jl__check_model(model)
-    @clp_ccall setDualBound Void (Ptr{Void}, Float64) model.p value
+    @clp_ccall setDualBound Cvoid (Ptr{Cvoid}, Float64) model.p value
     return
 end
 
 # Get infeasibility cost.
 function infeasibility_cost(model::ClpModel)
     _jl__check_model(model)
-    @clp_ccall infeasibilityCost Float64 (Ptr{Void},) model.p
+    @clp_ccall infeasibilityCost Float64 (Ptr{Cvoid},) model.p
 end
 
 # Set infeasibility cost.
 function set_infeasibility_cost(model::ClpModel, value::Real)
     _jl__check_model(model)
-    @clp_ccall setInfeasibilityCost Void (Ptr{Void}, Float64) model.p value
+    @clp_ccall setInfeasibilityCost Cvoid (Ptr{Cvoid}, Float64) model.p value
     return
 end
 
@@ -1154,7 +1156,7 @@ end
 # The default is 100; others are for playing.
 function perturbation(model::ClpModel)
     _jl__check_model(model)
-    @clp_ccall perturbation Int32 (Ptr{Void},) model.p
+    @clp_ccall perturbation Int32 (Ptr{Cvoid},) model.p
 end
 
 # Set Perturbation.
@@ -1163,46 +1165,46 @@ function set_perturbation(model::ClpModel, value::Integer)
     if !(value == 50 || value == 100 || value == 101 || value == 102)
         error("Invalid clp perturbation value: $value (must be one of 50,100,101,102)")
     end
-    @clp_ccall setPerturbation Void (Ptr{Void}, Int32) model.p value
+    @clp_ccall setPerturbation Cvoid (Ptr{Cvoid}, Int32) model.p value
     return
 end
 
 # Get current (or last) algorithm.
 function algorithm(model::ClpModel)
     _jl__check_model(model)
-    @clp_ccall algorithm Int32 (Ptr{Void},) model.p
+    @clp_ccall algorithm Int32 (Ptr{Cvoid},) model.p
 end
 
 # Set algorithm.
 function set_algorithm(model::ClpModel, value::Integer)
     _jl__check_model(model)
     # XXX which values of the algorithm are valid ???
-    @clp_ccall setAlgorithm Void (Ptr{Void}, Int32) model.p value
+    @clp_ccall setAlgorithm Cvoid (Ptr{Cvoid}, Int32) model.p value
     return
 end
 
 # Get the sum of dual infeasibilities.
 function sum_dual_infeasibilities(model::ClpModel)
     _jl__check_model(model)
-    @clp_ccall sumDualInfeasibilities Float64 (Ptr{Void},) model.p
+    @clp_ccall sumDualInfeasibilities Float64 (Ptr{Cvoid},) model.p
 end
 
 # Get the number of dual infeasibilities.
 function number_dual_infeasibilities(model::ClpModel)
     _jl__check_model(model)
-    @clp_ccall numberDualInfeasibilities Int32 (Ptr{Void},) model.p
+    @clp_ccall numberDualInfeasibilities Int32 (Ptr{Cvoid},) model.p
 end
 
 # Get the sum of primal infeasibilities.
 function sum_primal_infeasibilities(model::ClpModel)
     _jl__check_model(model)
-    @clp_ccall sumPrimalInfeasibilities Float64 (Ptr{Void},) model.p
+    @clp_ccall sumPrimalInfeasibilities Float64 (Ptr{Cvoid},) model.p
 end
 
 # Get the number of primal infeasibilities.
 function number_primal_infeasibilities(model::ClpModel)
     _jl__check_model(model)
-    @clp_ccall numberPrimalInfeasibilities Int32 (Ptr{Void},) model.p
+    @clp_ccall numberPrimalInfeasibilities Int32 (Ptr{Cvoid},) model.p
 end
 
 # Save model to file, returns 0 if success.  This is designed for
@@ -1214,7 +1216,7 @@ function save_model(model::ClpModel, file_name::String)
     _jl__check_model(model)
     @assert isascii(file_name)
 
-    @clp_ccall saveModel Int32 (Ptr{Void}, Cstring) model.p file_name
+    @clp_ccall saveModel Int32 (Ptr{Cvoid}, Cstring) model.p file_name
 end
 
 # Restore model from file, returns 0 if success,
@@ -1223,63 +1225,63 @@ function restore_model(model::ClpModel, file_name::String)
     _jl__check_model(model)
     @assert isascii(file_name)
 
-    @clp_ccall restoreModel Int32 (Ptr{Void}, Cstring) model.p file_name
+    @clp_ccall restoreModel Int32 (Ptr{Cvoid}, Cstring) model.p file_name
 end
 
 # Just check solution (for external use) - sets sum of
 # infeasibilities etc.
 function check_solution(model::ClpModel);
     _jl__check_model(model)
-    @clp_ccall checkSolution Void (Ptr{Void},) model.p
+    @clp_ccall checkSolution Cvoid (Ptr{Cvoid},) model.p
     return
 end
 
 # Query whether there are numerical difficulties.
 function is_abandoned(model::ClpModel)
     _jl__check_model(model)
-    ret = @clp_ccall isAbandoned Int32 (Ptr{Void},) model.p
+    ret = @clp_ccall isAbandoned Int32 (Ptr{Cvoid},) model.p
     return ret != 0
 end
 
 # Query whether optimality is proven.
 function is_proven_optimal(model::ClpModel)
     _jl__check_model(model)
-    ret = @clp_ccall isProvenOptimal Int32 (Ptr{Void},) model.p
+    ret = @clp_ccall isProvenOptimal Int32 (Ptr{Cvoid},) model.p
     return ret != 0
 end
 
 # Query whether primal infeasiblity is proven.
 function is_proven_primal_infeasible(model::ClpModel)
     _jl__check_model(model)
-    ret = @clp_ccall isProvenPrimalInfeasible Int32 (Ptr{Void},) model.p
+    ret = @clp_ccall isProvenPrimalInfeasible Int32 (Ptr{Cvoid},) model.p
     return ret != 0
 end
 
 # Query whether dual infeasiblity is proven.
 function is_proven_dual_infeasible(model::ClpModel)
     _jl__check_model(model)
-    ret = @clp_ccall isProvenDualInfeasible Int32 (Ptr{Void},) model.p
+    ret = @clp_ccall isProvenDualInfeasible Int32 (Ptr{Cvoid},) model.p
     return ret != 0
 end
 
 # Query whether the given primal objective limit is reached.
 function is_primal_objective_limit_reached(model::ClpModel)
     _jl__check_model(model)
-    ret = @clp_ccall isPrimalObjectiveLimitReached Int32 (Ptr{Void},) model.p
+    ret = @clp_ccall isPrimalObjectiveLimitReached Int32 (Ptr{Cvoid},) model.p
     return ret != 0
 end
 
 # Query whether the given dual objective limit is reached.
 function is_dual_objective_limit_reached(model::ClpModel)
     _jl__check_model(model)
-    ret = @clp_ccall isDualObjectiveLimitReached Int32 (Ptr{Void},) model.p
+    ret = @clp_ccall isDualObjectiveLimitReached Int32 (Ptr{Cvoid},) model.p
     return ret != 0
 end
 
 # Query whether the iteration limit is reached
 function is_iteration_limit_reached(model::ClpModel)
     _jl__check_model(model)
-    ret = @clp_ccall isIterationLimitReached Int32 (Ptr{Void},) model.p
+    ret = @clp_ccall isIterationLimitReached Int32 (Ptr{Cvoid},) model.p
     return ret != 0
 end
 
@@ -1289,7 +1291,7 @@ end
 #   0  - ignore
 function get_obj_sense(model::ClpModel)
     _jl__check_model(model)
-    @clp_ccall getObjSense Float64 (Ptr{Void},) model.p
+    @clp_ccall getObjSense Float64 (Ptr{Cvoid},) model.p
 end
 
 # Set the direction of optimization.
@@ -1298,7 +1300,7 @@ function set_obj_sense(model::ClpModel, objsen::Real)
     if !(objsen == -1 || objsen == 0 || objsen == 1)
         error("Invalid clp objsense $objsense (should be -1,0 or 1)")
     end
-    @clp_ccall setObjSense Void (Ptr{Void}, Float64) model.p objsen
+    @clp_ccall setObjSense Cvoid (Ptr{Cvoid}, Float64) model.p objsen
     return
 end
 
@@ -1307,19 +1309,19 @@ function print_model(model::ClpModel, prefix::String)
     _jl__check_model(model)
     @assert isascii(prefix)
 
-    @clp_ccall printModel Void (Ptr{Void}, Cstring) model.p prefix
+    @clp_ccall printModel Cvoid (Ptr{Cvoid}, Cstring) model.p prefix
 end
 
 function get_small_element_value(model::ClpModel)
     _jl__check_model(model)
 
-    @clp_ccall getSmallElementValue Float64 (Ptr{Void},) model.p
+    @clp_ccall getSmallElementValue Float64 (Ptr{Cvoid},) model.p
 end
 
 function set_small_element_value(model::ClpModel,value::Float64)
     _jl__check_model(model)
 
-    @clp_ccall setSmallElementValue Void (Ptr{Void},Float64) model.p value
+    @clp_ccall setSmallElementValue Cvoid (Ptr{Cvoid},Float64) model.p value
 end
 
 # ClpSolve functions
@@ -1327,20 +1329,20 @@ end
 function set_special_option(solve::ClpSolve, which::Integer, value::Integer, extraInfo::Integer)
     _jl__check_solve(solve)
 
-    @clpsolve_ccall setSpecialOption Void (Ptr{Void},Int32,Int32,Int32) solve.p which value extraInfo
+    @clpsolve_ccall setSpecialOption Cvoid (Ptr{Cvoid},Int32,Int32,Int32) solve.p which value extraInfo
 end
 
 function get_special_option(solve::ClpSolve, which::Integer)
     _jl__check_solve(solve)
 
-    @clpsolve_ccall getSpecialOption Int32 (Ptr{Void},Int32) solve.p which
+    @clpsolve_ccall getSpecialOption Int32 (Ptr{Cvoid},Int32) solve.p which
 end
 
 macro def_get_int_property(fname,clpname)
     quote
         function $(esc(fname))(solve::ClpSolve)
             _jl__check_solve(solve)
-            @clpsolve_ccall $clpname Int32 (Ptr{Void},) solve.p
+            @clpsolve_ccall $clpname Int32 (Ptr{Cvoid},) solve.p
         end
     end
 end
@@ -1349,7 +1351,7 @@ macro def_set_int_property(fname,clpname)
     quote
         function $(esc(fname))(solve::ClpSolve, val::Integer)
             _jl__check_solve(solve)
-            @clpsolve_ccall $clpname Void (Ptr{Void},Int32) solve.p val
+            @clpsolve_ccall $clpname Cvoid (Ptr{Cvoid},Int32) solve.p val
         end
     end
 end
@@ -1361,7 +1363,7 @@ end
 function set_presolve_type(solve::ClpSolve, value::Integer)
     _jl__check_solve(solve)
 
-    @clpsolve_ccall setPresolveType Void (Ptr{Void},Int32,Int32) solve.p value -1
+    @clpsolve_ccall setPresolveType Cvoid (Ptr{Cvoid},Int32,Int32) solve.p value -1
 end
 
 @def_get_int_property get_presolve_type getPresolveType
@@ -1375,7 +1377,7 @@ end
 function set_solve_type(solve::ClpSolve, value::Integer)
     _jl__check_solve(solve)
 
-    @clpsolve_ccall setSolveType Void (Ptr{Void},Int32,Int32) solve.p value -1
+    @clpsolve_ccall setSolveType Cvoid (Ptr{Cvoid},Int32,Int32) solve.p value -1
 end
 
 @def_get_int_property get_solve_type getSolveType
@@ -1385,7 +1387,7 @@ end
 function get_extra_info(solve::ClpSolve, which::Integer)
     _jl__check_solve(solve)
 
-    @clpsolve_ccall getExtraInfo Int32 (Ptr{Void},Int32) solve.p which
+    @clpsolve_ccall getExtraInfo Int32 (Ptr{Cvoid},Int32) solve.p which
 end
 
 @def_set_int_property set_infeasible_return setInfeasibleReturn
