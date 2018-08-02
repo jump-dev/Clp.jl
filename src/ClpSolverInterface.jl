@@ -4,7 +4,47 @@ using Clp.ClpCInterface
 using LinearAlgebra: rmul!
 using SparseArrays: SparseMatrixCSC
 
-importall MathProgBase.SolverInterface
+import MathProgBase.SolverInterface:
+    AbstractLinearQuadraticModel,
+    AbstractMathProgSolver,
+    LinearQuadraticModel,
+    ConicModel,
+    LPQPtoConicBridge,
+    loadproblem!,
+    writeproblem,
+    getvarLB,
+    setvarLB!,
+    getvarUB,
+    setvarUB!,
+    getconstrLB,
+    setconstrLB!,
+    getconstrUB,
+    setconstrUB!,
+    getobj,
+    setobj!,
+    getconstrmatrix,
+    getunboundedray,
+    getinfeasibilityray,
+    addvar!,
+    addconstr!,
+    setsense!,
+    getsense,
+    getbasis,
+    numvar,
+    numconstr,
+    getvartype,
+    optimize!,
+    status,
+    supportedcones,
+    getobjval,
+    getsolution,
+    getconstrsolution,
+    getreducedcosts,
+    getconstrduals,
+    getrawsolver,
+    getvartype,
+    setvartype!
+
 
 export ClpMathProgModel,
     ClpSolver,
