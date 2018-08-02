@@ -1,7 +1,7 @@
 module ClpMathProgSolverInterface
 using Clp.ClpCInterface
 
-using LinearAlgebra: scale!
+using LinearAlgebra: rmul!
 using SparseArrays: SparseMatrixCSC
 
 importall MathProgBase.SolverInterface
