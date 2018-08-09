@@ -1,4 +1,3 @@
-export ClpOptimizer
 
 using LinQuadOptInterface
 using .ClpCInterface
@@ -27,10 +26,10 @@ const SUPPORTED_CONSTRAINTS = [
     (LQOI.VecLin, MOI.Zeros)
 ]
 
-mutable struct ClpOptimizer <: LQOI.LinQuadOptimizer
+mutable struct Optimizer <: LQOI.LinQuadOptimizer
     LQOI.@LinQuadOptimizerBase
     params::Dict{Symbol,Any}
-    ClpOptimizer(::Void) = new()
+    Optimizer(::Void) = new()
 end
 
 ### Options
@@ -53,8 +52,8 @@ const solveoptionmap = Dict(
    :InfeasibleReturn => set_infeasible_return,
    )
 
-function ClpOptimizer(;kwargs...)
-    optimizer = ClpOptimizer(nothing)
+function Optimizer(;kwargs...)
+    optimizer = Optimizer(nothing)
     optimizer.params = Dict{String,Any}()
     MOI.empty!(optimizer)
     for (name,value) in kwargs
@@ -63,10 +62,10 @@ function ClpOptimizer(;kwargs...)
     return optimizer
 end
 
-LQOI.LinearQuadraticModel(::Type{ClpOptimizer},env) = ClpModel()
+LQOI.LinearQuadraticModel(::Type{Optimizer},env) = ClpModel()
 
-LQOI.supported_constraints(optimizer::ClpOptimizer) = SUPPORTED_CONSTRAINTS
-LQOI.supported_objectives(optimizer::ClpOptimizer) = SUPPORTED_OBJECTIVES
+LQOI.supported_constraints(optimizer::Optimizer) = SUPPORTED_CONSTRAINTS
+LQOI.supported_objectives(optimizer::Optimizer) = SUPPORTED_OBJECTIVES
 
 """
     replace_inf(x::Real)
@@ -83,7 +82,7 @@ function replace_inf(x::Real)
     end
 end
 
-function LQOI.change_variable_bounds!(instance::ClpOptimizer, cols::Vector{Int},
+function LQOI.change_variable_bounds!(instance::Optimizer, cols::Vector{Int},
         values::Vector{Float64}, senses::Vector)
     upperbounds = get_col_upper(instance.inner)
     lowerbounds = get_col_lower(instance.inner)
@@ -101,28 +100,28 @@ function LQOI.change_variable_bounds!(instance::ClpOptimizer, cols::Vector{Int},
     chg_column_lower(instance.inner, lowerbounds)
 end
 
-function LQOI.get_variable_lowerbound(instance::ClpOptimizer, col::Int)
+function LQOI.get_variable_lowerbound(instance::Optimizer, col::Int)
     lower = get_col_lower(instance.inner)
     return replace_inf(lower[col])
 end
 
-function LQOI.get_variable_upperbound(instance::ClpOptimizer, col::Int)
+function LQOI.get_variable_upperbound(instance::Optimizer, col::Int)
     upper = get_col_upper(instance.inner)
     return replace_inf(upper[col])
 end
 
-function LQOI.get_number_linear_constraints(instance::ClpOptimizer)
+function LQOI.get_number_linear_constraints(instance::Optimizer)
     return get_num_rows(instance.inner)
 end
 
 """
-    append_row(instance::ClpOptimizer, row::Int, lower::Float64, upper::Float64,
+    append_row(instance::Optimizer, row::Int, lower::Float64, upper::Float64,
                rows::Vector{Int}, cols::Vector{Int}, coefs::Vector{Float64})
 
 Given a sparse matrix in the triplet-form `(rows, cols, coefs)`, add row `row`
 with upper bound `upper` and lower bound  `lower` to the instance `instance`.
 """
-function append_row(instance::ClpOptimizer, row::Int, lower::Float64,
+function append_row(instance::Optimizer, row::Int, lower::Float64,
                     upper::Float64, rows::Vector{Int}, cols::Vector{Int},
                     coefs::Vector{Float64})
     indices = if row == length(rows)
@@ -134,7 +133,7 @@ function append_row(instance::ClpOptimizer, row::Int, lower::Float64,
             coefs[indices], lower, upper)
 end
 
-function LQOI.add_linear_constraints!(instance::ClpOptimizer, A::LQOI.CSRMatrix{Float64},
+function LQOI.add_linear_constraints!(instance::Optimizer, A::LQOI.CSRMatrix{Float64},
         senses::Vector{Cchar}, right_hand_sides::Vector{Float64})
     rows = A.row_pointers
     cols = A.columns
@@ -160,7 +159,7 @@ function LQOI.add_linear_constraints!(instance::ClpOptimizer, A::LQOI.CSRMatrix{
     end
 end
 
-function LQOI.add_ranged_constraints!(instance::Clp.ClpOptimizer,
+function LQOI.add_ranged_constraints!(instance::Clp.Optimizer,
         A::LinQuadOptInterface.CSRMatrix{Float64},
         lb::Vector{Float64}, ub::Vector{Float64})
     rows = A.row_pointers
@@ -171,7 +170,7 @@ function LQOI.add_ranged_constraints!(instance::Clp.ClpOptimizer,
     end
 end
 
-function LQOI.get_rhs(instance::ClpOptimizer, row::Int)
+function LQOI.get_rhs(instance::Optimizer, row::Int)
     lower_bounds = get_row_lower(instance.inner)
     upper_bounds = get_row_upper(instance.inner)
     lower_bound = replace_inf(lower_bounds[row])
@@ -185,19 +184,19 @@ function LQOI.get_rhs(instance::ClpOptimizer, row::Int)
     end
 end
 
-function LQOI.get_linear_constraint(instance::ClpOptimizer, row::Int)::Tuple{Vector{Int}, Vector{Float64}}
+function LQOI.get_linear_constraint(instance::Optimizer, row::Int)::Tuple{Vector{Int}, Vector{Float64}}
     A = get_constraint_matrix(instance.inner)
     A_row = A[row,:]
     return Array{Int}(A_row.nzind), A_row.nzval
 end
 
-function LQOI.change_objective_coefficient!(instance::ClpOptimizer, col, coef)
+function LQOI.change_objective_coefficient!(instance::Optimizer, col, coef)
     objcoefs = get_obj_coefficients(instance.inner)
     objcoefs[col] = coef
     chg_obj_coefficients(instance.inner, objcoefs)
 end
 
-function LQOI.change_rhs_coefficient!(instance::ClpOptimizer, row, coef)
+function LQOI.change_rhs_coefficient!(instance::Optimizer, row, coef)
     lower_bounds = get_row_lower(instance.inner)
     upper_bounds = get_row_upper(instance.inner)
     lower_bound = replace_inf(lower_bounds[row])
@@ -213,11 +212,11 @@ function LQOI.change_rhs_coefficient!(instance::ClpOptimizer, row, coef)
     end
 end
 
-function LQOI.delete_linear_constraints!(instance::ClpOptimizer, start_row::Int, end_row::Int)
+function LQOI.delete_linear_constraints!(instance::Optimizer, start_row::Int, end_row::Int)
     delete_rows(instance.inner, [Cint(i-1) for i in start_row:end_row])
 end
 
-function LQOI.change_linear_constraint_sense!(instance::ClpOptimizer, rows::Vector{Int}, senses::Vector{Cchar})
+function LQOI.change_linear_constraint_sense!(instance::Optimizer, rows::Vector{Int}, senses::Vector{Cchar})
     lower = replace_inf.(get_row_lower(instance.inner))
     upper = replace_inf.(get_row_upper(instance.inner))
     for (sense, row) in zip(senses, rows)
@@ -245,7 +244,7 @@ function LQOI.change_linear_constraint_sense!(instance::ClpOptimizer, rows::Vect
     chg_row_lower(instance.inner, lower)
 end
 
-function LQOI.set_linear_objective!(instance::ClpOptimizer, cols::Vector{Int}, coefs::Vector{Float64})
+function LQOI.set_linear_objective!(instance::Optimizer, cols::Vector{Int}, coefs::Vector{Float64})
     objective_coefficients = zeros(Float64, get_num_cols(instance.inner))
     for (col, coef) in zip(cols, coefs)
         objective_coefficients[col] += coef
@@ -253,7 +252,7 @@ function LQOI.set_linear_objective!(instance::ClpOptimizer, cols::Vector{Int}, c
     chg_obj_coefficients(instance.inner, objective_coefficients)
 end
 
-function LQOI.change_objective_sense!(instance::ClpOptimizer, sense::Symbol)
+function LQOI.change_objective_sense!(instance::Optimizer, sense::Symbol)
     if sense == :min
         set_obj_sense(instance.inner, 1.0)
     elseif sense == :max
@@ -263,11 +262,11 @@ function LQOI.change_objective_sense!(instance::ClpOptimizer, sense::Symbol)
     end
 end
 
-function LQOI.get_linear_objective!(instance::ClpOptimizer, x::Vector{Float64})
+function LQOI.get_linear_objective!(instance::Optimizer, x::Vector{Float64})
     copy!(x, get_obj_coefficients(instance.inner))
 end
 
-function LQOI.solve_linear_problem!(instance::ClpOptimizer)
+function LQOI.solve_linear_problem!(instance::Optimizer)
     solveroptions = ClpSolve()
     model = instance.inner
     for (name, value) in instance.params
@@ -282,36 +281,36 @@ function LQOI.solve_linear_problem!(instance::ClpOptimizer)
     initial_solve_with_options(instance.inner, solveroptions)
 end
 
-function LQOI.get_variable_primal_solution!(instance::ClpOptimizer, x::Vector{Float64})
+function LQOI.get_variable_primal_solution!(instance::Optimizer, x::Vector{Float64})
     copy!(x, primal_column_solution(instance.inner))
 end
 
-function LQOI.get_linear_primal_solution!(instance::ClpOptimizer, x::Vector{Float64})
+function LQOI.get_linear_primal_solution!(instance::Optimizer, x::Vector{Float64})
     copy!(x, primal_row_solution(instance.inner))
 end
 
-function LQOI.get_variable_dual_solution!(instance::ClpOptimizer, x::Vector{Float64})
+function LQOI.get_variable_dual_solution!(instance::Optimizer, x::Vector{Float64})
     copy!(x, dual_column_solution(instance.inner))
 end
 
-function LQOI.get_linear_dual_solution!(instance::ClpOptimizer, x::Vector{Float64})
+function LQOI.get_linear_dual_solution!(instance::Optimizer, x::Vector{Float64})
     copy!(x, dual_row_solution(instance.inner))
 end
 
-function LQOI.get_objective_value(instance::ClpOptimizer)
+function LQOI.get_objective_value(instance::Optimizer)
     return objective_value(instance.inner)
 end
 
-function LQOI.get_farkas_dual!(instance::ClpOptimizer, result::Vector{Float64})
+function LQOI.get_farkas_dual!(instance::Optimizer, result::Vector{Float64})
     copy!(result, infeasibility_ray(instance.inner))
     scale!(result, -1.0)
 end
 
-function LQOI.get_unbounded_ray!(instance::ClpOptimizer, result::Vector{Float64})
+function LQOI.get_unbounded_ray!(instance::Optimizer, result::Vector{Float64})
     copy!(result, unbounded_ray(instance.inner))
 end
 
-function LQOI.get_termination_status(instance::ClpOptimizer)
+function LQOI.get_termination_status(instance::Optimizer)
     status = ClpCInterface.status(instance.inner)
     if status == 0
         return MOI.Success
@@ -336,7 +335,7 @@ function LQOI.get_termination_status(instance::ClpOptimizer)
     end
 end
 
-function LQOI.get_primal_status(instance::ClpOptimizer)
+function LQOI.get_primal_status(instance::Optimizer)
     if is_proven_dual_infeasible(instance.inner)
         return MOI.InfeasibilityCertificate
     elseif primal_feasible(instance.inner)
@@ -346,7 +345,7 @@ function LQOI.get_primal_status(instance::ClpOptimizer)
     end
 end
 
-function LQOI.get_dual_status(instance::ClpOptimizer)
+function LQOI.get_dual_status(instance::Optimizer)
     if is_proven_primal_infeasible(instance.inner)
         return MOI.InfeasibilityCertificate
     elseif dual_feasible(instance.inner)
@@ -356,16 +355,16 @@ function LQOI.get_dual_status(instance::ClpOptimizer)
     end
 end
 
-function LQOI.get_number_variables(instance::ClpOptimizer)
+function LQOI.get_number_variables(instance::Optimizer)
     return get_num_cols(instance.inner)
 end
 
-function LQOI.add_variables!(instance::ClpOptimizer, number_of_variables::Int)
+function LQOI.add_variables!(instance::Optimizer, number_of_variables::Int)
     for i in 1:number_of_variables
         add_column(instance.inner, Cint(0), Int32[], Float64[], -Inf, Inf, 0.0)
     end
 end
 
-function LQOI.delete_variables!(instance::ClpOptimizer, start_col::Int, end_col::Int)
+function LQOI.delete_variables!(instance::Optimizer, start_col::Int, end_col::Int)
     delete_columns(instance.inner, [Cint(i-1) for i in start_col:end_col])
 end

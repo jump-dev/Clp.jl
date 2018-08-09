@@ -6,7 +6,7 @@ const MOIT = MathOptInterface.Test
 
 @testset "Unit Tests" begin
     config = MOIT.TestConfig()
-    solver = ClpOptimizer(LogLevel = 0)
+    solver = Clp.Optimizer(LogLevel = 0)
     # MOIT.basic_constraint_tests(solver, config)
     MOIT.unittest(solver, config, [
         "solve_qp_edge_cases",           # unsupported
@@ -19,7 +19,7 @@ end
 
 @testset "Linear tests" begin
     linconfig = MOIT.TestConfig(modify_lhs = false)
-    solver = ClpOptimizer(LogLevel = 0)
+    solver = Clp.Optimizer(LogLevel = 0)
     MOIT.contlineartest(solver, linconfig, [
         # linear1 test is disabled due to the following bug:
         # https://projects.coin-or.org/Clp/ticket/84
@@ -40,7 +40,7 @@ end
 end
 
 @testset "ModelLike tests" begin
-    solver = ClpOptimizer(LogLevel = 0)
+    solver = Clp.Optimizer(LogLevel = 0)
     @testset "nametest" begin
         MOIT.nametest(solver)
     end
@@ -51,7 +51,7 @@ end
         MOIT.emptytest(solver)
     end 
     @testset "copytest" begin
-        solver2 = ClpOptimizer(LogLevel = 0)
+        solver2 = Clp.Optimizer(LogLevel = 0)
         MOIT.copytest(solver,solver2)
     end
 end
