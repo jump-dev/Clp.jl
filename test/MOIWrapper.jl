@@ -9,8 +9,11 @@ const MOIT = MathOptInterface.Test
     solver = ClpOptimizer(LogLevel = 0)
     # MOIT.basic_constraint_tests(solver, config)
     MOIT.unittest(solver, config, [
-        "solve_qcp_edge_cases",
-        "solve_qp_edge_cases"
+        "solve_qp_edge_cases",           # unsupported
+        "solve_qcp_edge_cases",          # unsupported
+        "solve_affine_interval",         # unsupported
+        "solve_objbound_edge_cases",     # unsupported integer variables
+        "solve_integer_edge_cases",      # unsupported integer variables
     ])
 end
 
@@ -46,13 +49,7 @@ end
     end
     @testset "emptytest" begin
         MOIT.emptytest(solver)
-    end
-    # @testset "orderedindicestest" begin
-        # MOIT.orderedindicestest(solver)
-    # end
-    @testset "canaddconstrainttest" begin
-        MOIT.canaddconstrainttest(solver, Float64, Complex{Float64})
-    end
+    end 
     @testset "copytest" begin
         solver2 = ClpOptimizer(LogLevel = 0)
         MOIT.copytest(solver,solver2)

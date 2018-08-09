@@ -6,6 +6,7 @@ __precompile__()
 
 module Clp
 
+using Compat
 
 include("ClpCInterface.jl")
 include("ClpSolverInterface.jl")

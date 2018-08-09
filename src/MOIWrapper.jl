@@ -7,7 +7,8 @@ const LQOI = LinQuadOptInterface
 const MOI  = LQOI.MOI
 
 const SUPPORTED_OBJECTIVES = [
-    LQOI.Linear
+    LQOI.Linear,
+    LQOI.SinVar
 ]
 
 const SUPPORTED_CONSTRAINTS = [
