@@ -7,7 +7,7 @@ const MOIT = MathOptInterface.Test
 @testset "Unit Tests" begin
     config = MOIT.TestConfig()
     solver = Clp.Optimizer(LogLevel = 0)
-    # MOIT.basic_constraint_tests(solver, config)
+    MOIT.basic_constraint_tests(solver, config)
     MOIT.unittest(solver, config, [
         "solve_qp_edge_cases",           # unsupported
         "solve_qcp_edge_cases",          # unsupported
