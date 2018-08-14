@@ -1,3 +1,9 @@
-using Clp
+using Clp, Base.Test
 
-include("mathprog.jl")
+@testset "MathProgBase" begin
+    include("mathprog.jl")
+end
+
+@testset "MathOptInterface" begin
+    include("MOIWrapper.jl")
+end

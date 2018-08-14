@@ -19,7 +19,9 @@ export
     resize,
     delete_rows,
     add_rows,
+    add_row,
     delete_columns,
+    add_column,
     add_columns,
     chg_row_lower,
     chg_row_upper,
@@ -414,14 +416,28 @@ function add_rows(model::ClpModel, number::Integer, row_lower::Vector{Float64},
         row_starts::Vector{Int32}, columns::Vector{Int32},
         elements::Vector{Float64})
     _jl__check_model(model)
-
     @clp_ccall addRows Void (Ptr{Void}, Int32, Ptr{Float64}, Ptr{Float64}, Ptr{Int32}, Ptr{Int32}, Ptr{Float64}) model.p number row_lower row_upper row_starts columns elements
+end
+
+#This function exists in cpp but not c interface
+function add_row(model::ClpModel, nnz::Cint, columns::Vector{Int32},
+                 elements::Vector{Float64}, row_lower::Float64, row_upper::Float64)
+    add_rows(model, 1, [row_lower], [row_upper], [Cint(0), nnz], columns,
+             elements)
 end
 
 # Delete columns.
 function delete_columns(model::ClpModel, which::Vector{Int32})
     _jl__check_model(model)
     @clp_ccall deleteColumns Void (Ptr{Void},Int32,Ptr{Int32}) model.p length(which) which
+end
+
+#This function exists in cpp but not c interface
+function add_column(model::ClpModel, nnz::Int32,  rows::Vector{Int32},
+                elements::Vector{Float64}, column_lower::Float64,
+                column_upper::Float64, objective::Float64)
+    add_columns(model, 1, [column_lower], [column_upper], [objective],
+                [Int32(0), nnz], rows, elements)
 end
 
 # Add columns.
@@ -440,7 +456,6 @@ function add_columns(model::ClpModel, column_lower::Vector{Float64},
         column_upper::Vector{Float64},
         objective::Vector{Float64},
         new_columns::SparseMatrixCSC{Float64,Int32})
-
     add_columns(model, new_columns.n, column_lower, column_upper, objective, new_columns.colptr-convert(Int32,1), new_columns.rowval-convert(Int32,1), new_columns.nzval)
 end
 
