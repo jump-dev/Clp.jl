@@ -29,7 +29,7 @@ const SUPPORTED_CONSTRAINTS = [
 mutable struct Optimizer <: LQOI.LinQuadOptimizer
     LQOI.@LinQuadOptimizerBase
     params::Dict{Symbol,Any}
-    Optimizer(::Void) = new()
+    Optimizer(::Nothing) = new()
 end
 
 ### Options
@@ -129,7 +129,7 @@ function append_row(instance::Optimizer, row::Int, lower::Float64,
     else
         rows[row]:(rows[row+1]-1)
     end
-    add_row(instance.inner, Cint(length(indices)), Cint.(cols[indices]-1),
+    add_row(instance.inner, Cint(length(indices)), Cint.(cols[indices] .- 1),
             coefs[indices], lower, upper)
 end
 
@@ -263,7 +263,7 @@ function LQOI.change_objective_sense!(instance::Optimizer, sense::Symbol)
 end
 
 function LQOI.get_linear_objective!(instance::Optimizer, x::Vector{Float64})
-    copy!(x, get_obj_coefficients(instance.inner))
+    copyto!(x, get_obj_coefficients(instance.inner))
 end
 
 function LQOI.solve_linear_problem!(instance::Optimizer)
@@ -282,19 +282,19 @@ function LQOI.solve_linear_problem!(instance::Optimizer)
 end
 
 function LQOI.get_variable_primal_solution!(instance::Optimizer, x::Vector{Float64})
-    copy!(x, primal_column_solution(instance.inner))
+    copyto!(x, primal_column_solution(instance.inner))
 end
 
 function LQOI.get_linear_primal_solution!(instance::Optimizer, x::Vector{Float64})
-    copy!(x, primal_row_solution(instance.inner))
+    copyto!(x, primal_row_solution(instance.inner))
 end
 
 function LQOI.get_variable_dual_solution!(instance::Optimizer, x::Vector{Float64})
-    copy!(x, dual_column_solution(instance.inner))
+    copyto!(x, dual_column_solution(instance.inner))
 end
 
 function LQOI.get_linear_dual_solution!(instance::Optimizer, x::Vector{Float64})
-    copy!(x, dual_row_solution(instance.inner))
+    copyto!(x, dual_row_solution(instance.inner))
 end
 
 function LQOI.get_objective_value(instance::Optimizer)
@@ -302,12 +302,12 @@ function LQOI.get_objective_value(instance::Optimizer)
 end
 
 function LQOI.get_farkas_dual!(instance::Optimizer, result::Vector{Float64})
-    copy!(result, infeasibility_ray(instance.inner))
-    scale!(result, -1.0)
+    copyto!(result, infeasibility_ray(instance.inner))
+    Compat.rmul!(result, -1.0)
 end
 
 function LQOI.get_unbounded_ray!(instance::Optimizer, result::Vector{Float64})
-    copy!(result, unbounded_ray(instance.inner))
+    copyto!(result, unbounded_ray(instance.inner))
 end
 
 function LQOI.get_termination_status(instance::Optimizer)

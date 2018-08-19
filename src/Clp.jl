@@ -2,8 +2,7 @@
 ### COIN-OR Clp API Wrapper
 ###
 
-__precompile__()
-
+VERSION < v"0.7.0-beta2.199" && __precompile__()
 module Clp
 
 using Compat
