@@ -1,4 +1,4 @@
-# This is needed because both Pkg and MathProgBase export status :(.
+# This is needed because both Compat.Pkg and MathProgBase export status :(.
 # Good thing MOI's tests aren't loaded via include.
 @static if VERSION < v"0.7-"
     using MathProgBase: status
