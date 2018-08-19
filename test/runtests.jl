@@ -1,7 +1,7 @@
 using Clp
 using Compat
 using Compat.Test
-using Compat.Pkg
+import Compat.Pkg
 
 @testset "MathProgBase" begin
     include("mathprog.jl")
