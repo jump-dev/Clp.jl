@@ -1,4 +1,7 @@
-using Clp, Base.Test
+using Clp
+using Compat
+using Compat.Test
+using Compat.Pkg
 
 @testset "MathProgBase" begin
     include("mathprog.jl")

@@ -1,46 +1,20 @@
 module ClpMathProgSolverInterface
 using Clp.ClpCInterface
+using Compat
+using Compat.LinearAlgebra
 
-importall MathProgBase.SolverInterface
+import MathProgBase
+const MPB = MathProgBase
 
-export ClpMathProgModel,
-    ClpSolver,
-    loadproblem!,
-    writeproblem,
-    getvarLB,
-    setvarLB!,
-    getvarLB,
-    setvarLB!,
-    getconstrLB,
-    setconstrLB!,
-    getconstrUB,
-    setconstrUB!,
-    getobj,
-    setobj!,
-    getconstrmatrix,
-    addvar!,
-    addconstr!,
-    setsense!,
-    getsense,
-    numvar,
-    numconstr,
-    optimize!,
-    status,
-    getobjval,
-    getsolution,
-    getconstrsolution,
-    getreducedcosts,
-    getconstrduals,
-    getrawsolver
+export ClpMathProgModel, ClpSolver
 
-
-type ClpMathProgModel <: AbstractLinearQuadraticModel
+mutable struct ClpMathProgModel <: MPB.AbstractLinearQuadraticModel
     inner::ClpModel
     solveroptions::ClpSolve
 end
 
-immutable ClpSolver <: AbstractMathProgSolver
-    options 
+struct ClpSolver <: MPB.AbstractMathProgSolver
+    options
 end
 ClpSolver(;kwargs...) = ClpSolver(kwargs)
 
@@ -86,24 +60,25 @@ function ClpMathProgModel(;kwargs...)
     return m
 end
 
-LinearQuadraticModel(s::ClpSolver) = ClpMathProgModel(;s.options...)
+MPB.LinearQuadraticModel(s::ClpSolver) = ClpMathProgModel(;s.options...)
 
-ConicModel(s::ClpSolver) = LPQPtoConicBridge(LinearQuadraticModel(s))
-supportedcones(s::ClpSolver) = [:Free,:Zero,:NonNeg,:NonPos]
+MPB.ConicModel(s::ClpSolver) = MPB.LPQPtoConicBridge(MPB.LinearQuadraticModel(s))
+MPB.supportedcones(s::ClpSolver) = [:Free,:Zero,:NonNeg,:NonPos]
 
 
-function loadproblem!(m::ClpMathProgModel, filename::AbstractString)
+function MPB.loadproblem!(m::ClpMathProgModel, filename::AbstractString)
     if endswith(filename,".mps") || endswith(filename,".mps.gz")
        read_mps(m.inner,filename)
     else
        error("unrecognized input format extension in $filename")
     end
-end   
+end
 
 
-function loadproblem!(m::ClpMathProgModel, A, collb, colub, obj, rowlb, rowub, sense)
+function MPB.loadproblem!(m::ClpMathProgModel, A, collb, colub, obj, rowlb,
+                          rowub, sense)
     load_problem(m.inner,A,collb,colub,obj,rowlb,rowub)
-    setsense!(m, sense)
+    MPB.setsense!(m, sense)
 end
 
 
@@ -121,27 +96,27 @@ function replaceInf(x)
     return x
 end
 
-getvarLB(m::ClpMathProgModel) = replaceInf(get_col_lower(m.inner))
-setvarLB!(m::ClpMathProgModel, collb) = chg_column_lower(m.inner, collb)
+MPB.getvarLB(m::ClpMathProgModel) = replaceInf(get_col_lower(m.inner))
+MPB.setvarLB!(m::ClpMathProgModel, collb) = chg_column_lower(m.inner, collb)
 
-getvarUB(m::ClpMathProgModel) = replaceInf(get_col_upper(m.inner))
-setvarUB!(m::ClpMathProgModel, colub) = chg_column_upper(m.inner, colub)
+MPB.getvarUB(m::ClpMathProgModel) = replaceInf(get_col_upper(m.inner))
+MPB.setvarUB!(m::ClpMathProgModel, colub) = chg_column_upper(m.inner, colub)
 
-getconstrLB(m::ClpMathProgModel) = replaceInf(get_row_lower(m.inner))
-setconstrLB!(m::ClpMathProgModel, rowlb) = chg_row_lower(m.inner, rowlb)
+MPB.getconstrLB(m::ClpMathProgModel) = replaceInf(get_row_lower(m.inner))
+MPB.setconstrLB!(m::ClpMathProgModel, rowlb) = chg_row_lower(m.inner, rowlb)
 
-getconstrUB(m::ClpMathProgModel) = replaceInf(get_row_upper(m.inner))
-setconstrUB!(m::ClpMathProgModel, rowub) = chg_row_upper(m.inner, rowub)
+MPB.getconstrUB(m::ClpMathProgModel) = replaceInf(get_row_upper(m.inner))
+MPB.setconstrUB!(m::ClpMathProgModel, rowub) = chg_row_upper(m.inner, rowub)
 
-getobj(m::ClpMathProgModel) = get_obj_coefficients(m.inner)
-setobj!(m::ClpMathProgModel, obj) = chg_obj_coefficients(m.inner, obj)
+MPB.getobj(m::ClpMathProgModel) = get_obj_coefficients(m.inner)
+MPB.setobj!(m::ClpMathProgModel, obj) = chg_obj_coefficients(m.inner, obj)
 
-function getconstrmatrix(m::ClpMathProgModel)
+function MPB.getconstrmatrix(m::ClpMathProgModel)
     A = get_constraint_matrix(m.inner)
     return convert(SparseMatrixCSC{Float64,Int},A)
 end
 
-function addvar!(m::ClpMathProgModel, rowidx, rowcoef, collb, colub, objcoef)
+function MPB.addvar!(m::ClpMathProgModel, rowidx, rowcoef, collb, colub, objcoef)
     @assert length(rowidx) == length(rowcoef)
     colstarts = Int32[0, length(rowcoef)]
     rows = Int32[ i - 1 for i in rowidx ]
@@ -149,14 +124,14 @@ function addvar!(m::ClpMathProgModel, rowidx, rowcoef, collb, colub, objcoef)
        colstarts, rows, convert(Vector{Float64},rowcoef))
 end
 
-function addconstr!(m::ClpMathProgModel, colidx, colcoef, rowlb, rowub)
+function MPB.addconstr!(m::ClpMathProgModel, colidx, colcoef, rowlb, rowub)
     @assert length(colidx) == length(colcoef)
     rowstarts = Int32[0, length(colcoef)]
     cols = Int32[ i - 1 for i in colidx ]
     add_rows(m.inner, 1, Float64[rowlb], Float64[rowub], rowstarts, cols, convert(Vector{Float64}, colcoef))
 end
 
-function setsense!(m::ClpMathProgModel,sense)
+function MPB.setsense!(m::ClpMathProgModel,sense)
     if sense == :Min
         set_obj_sense(m.inner, 1.0)
     elseif sense == :Max
@@ -166,7 +141,7 @@ function setsense!(m::ClpMathProgModel,sense)
     end
 end
 
-function getsense(m::ClpMathProgModel)
+function MPB.getsense(m::ClpMathProgModel)
     s = get_obj_sense(m.inner)
     if s == 1.0
         return :Min
@@ -177,12 +152,12 @@ function getsense(m::ClpMathProgModel)
     end
 end
 
-numvar(m::ClpMathProgModel) = get_num_cols(m.inner) 
-numconstr(m::ClpMathProgModel) = get_num_rows(m.inner)
+MPB.numvar(m::ClpMathProgModel) = get_num_cols(m.inner)
+MPB.numconstr(m::ClpMathProgModel) = get_num_rows(m.inner)
 
-optimize!(m::ClpMathProgModel) = initial_solve_with_options(m.inner,m.solveroptions)
+MPB.optimize!(m::ClpMathProgModel) = initial_solve_with_options(m.inner,m.solveroptions)
 
-function status(m::ClpMathProgModel)
+function MPB.status(m::ClpMathProgModel)
    s = ClpCInterface.status(m.inner)
    if s == 0
        return :Optimal
@@ -199,24 +174,26 @@ function status(m::ClpMathProgModel)
    end
 end
 
-getobjval(m::ClpMathProgModel) = objective_value(m.inner)
+MPB.getobjval(m::ClpMathProgModel) = objective_value(m.inner)
 
-getsolution(m::ClpMathProgModel) = primal_column_solution(m.inner) 
-getconstrsolution(m::ClpMathProgModel) = primal_row_solution(m.inner)
-getreducedcosts(m::ClpMathProgModel) = dual_column_solution(m.inner)
+MPB.getsolution(m::ClpMathProgModel) = primal_column_solution(m.inner)
+MPB.getconstrsolution(m::ClpMathProgModel) = primal_row_solution(m.inner)
+MPB.getreducedcosts(m::ClpMathProgModel) = dual_column_solution(m.inner)
 
-getconstrduals(m::ClpMathProgModel) = dual_row_solution(m.inner)
+MPB.getconstrduals(m::ClpMathProgModel) = dual_row_solution(m.inner)
 
-getinfeasibilityray(m::ClpMathProgModel) = scale!(infeasibility_ray(m.inner),-1.0)
-getunboundedray(m::ClpMathProgModel) = unbounded_ray(m.inner)
+function MPB.getinfeasibilityray(m::ClpMathProgModel)
+    return Compat.rmul!(infeasibility_ray(m.inner),-1.0)
+end
+MPB.getunboundedray(m::ClpMathProgModel) = unbounded_ray(m.inner)
 
 const statmap = Dict(zip([ 0x00,  0x01,            0x02,            0x03,       0x04,  0x05],
                      [:Free,:Basic,:NonbasicAtUpper,:NonbasicAtLower,:Superbasic,:Fixed]))
-function getbasis(m::ClpMathProgModel)
-    num_cols = numvar(m)
-    num_rows = numconstr(m)
-    cbasis = Array{Symbol}(num_cols)
-    rbasis = Array{Symbol}(num_rows)
+function MPB.getbasis(m::ClpMathProgModel)
+    num_cols = MPB.numvar(m)
+    num_rows = MPB.numconstr(m)
+    cbasis = Array{Symbol}(undef, num_cols)
+    rbasis = Array{Symbol}(undef, num_rows)
     for i in 1:num_cols
         val = get_column_status(m.inner, i)
         cbasis[i] = statmap[val]
@@ -225,15 +202,15 @@ function getbasis(m::ClpMathProgModel)
         val = get_row_status(m.inner, i)
         rbasis[i] = statmap[val]
     end
-    return cbasis,rbasis
+    return cbasis, rbasis
 end
 
-getvartype(m::ClpMathProgModel) = fill(:Cont, get_num_cols(m.inner))
-function setvartype!(m::ClpMathProgModel, typ::Vector{Symbol})
+MPB.getvartype(m::ClpMathProgModel) = fill(:Cont, get_num_cols(m.inner))
+function MPB.setvartype!(m::ClpMathProgModel, typ::Vector{Symbol})
     all(x->isequal(x,:Cont), typ) || error("Clp does not support integer variables")
     return nothing
 end
 
-getrawsolver(m::ClpMathProgModel) = m.inner
+MPB.getrawsolver(m::ClpMathProgModel) = m.inner
 
 end
