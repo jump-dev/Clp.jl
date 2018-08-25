@@ -13,7 +13,7 @@ dependencies = [
 
 for dependency in dependencies
     download(dependency,basename(dependency))
-    evalfile(dependency)
+    evalfile(basename(dependency))
 end
 
 
