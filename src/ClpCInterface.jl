@@ -193,7 +193,7 @@ macro clp_ccall(func, args...)
     args = [esc(ex) for ex in args]
     f = "Clp_$(func)"
     quote
-        ccall(($f,Cbc.libclp), $(args...))
+        ccall(($f,libClp), $(args...))
     end
 end
 
@@ -201,7 +201,7 @@ macro clpsolve_ccall(func, args...)
     args = [esc(ex) for ex in args]
     f = "ClpSolve_$(func)"
     quote
-        ccall(($f,Cbc.libclp), $(args...))
+        ccall(($f,libClp), $(args...))
     end
 end
 

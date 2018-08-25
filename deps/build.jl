@@ -22,8 +22,8 @@ const verbose = "--verbose" in ARGS
 const prefix = Prefix(get([a for a in ARGS if a != "--verbose"], 1, joinpath(@__DIR__, "usr")))
 products = [
     LibraryProduct(prefix, String["libOsiClp"], :libOsiClp),
-    LibraryProduct(prefix, String["libClp"], :libClpSolver),
-    LibraryProduct(prefix, String["libClpSolver"], :libOsiClp),
+    LibraryProduct(prefix, String["libClp"], :libClp),
+    LibraryProduct(prefix, String["libClpSolver"], :libClpSolver),
 ]
 
 # Download binaries from hosted location
