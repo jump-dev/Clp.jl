@@ -1,7 +1,7 @@
 module ClpCInterface
 
 # Load binary dependencies via Cbc package
-import Cbc
+#import Cbc
 
 export
     # Types
@@ -180,6 +180,11 @@ export
 
 import Base.pointer
 
+if isfile(joinpath(dirname(@__FILE__),"..","deps","deps.jl"))
+    include("../deps/deps.jl")
+else
+    error("Clp not properly installed. Please run Pkg.build(\"Clp\")")
+end
 
 ## Shared library interface setup
 #{{{
