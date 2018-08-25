@@ -1,5 +1,23 @@
 using BinaryProvider # requires BinaryProvider 0.3.0 or later
 
+dependencies = [
+    "https://github.com/juan-pablo-vielma/OsiBuilder/releases/download/v0.107.9-beta/build_OsiBuilder.v0.107.9.jl",
+    "https://github.com/juan-pablo-vielma/CoinUtilsBuilder/releases/download/v2.10.14-beta/build_CoinUtilsBuilder.v2.10.14.jl",
+    "https://github.com/juan-pablo-vielma/COINGLPKBuilder/releases/download/v1.10.5-beta4/build_COINGLPKBuilder.v1.10.5.jl",
+    "https://github.com/juan-pablo-vielma/COINMumpsBuilder/releases/download/v1.6.0-beta/build_COINMumpsBuilder.v1.6.0.jl",
+    "https://github.com/juan-pablo-vielma/COINMetisBuilder/releases/download/v1.3.5-beta/build_COINMetisBuilder.v1.3.5.jl",
+    "https://github.com/juan-pablo-vielma/COINLapackBuilder/releases/download/v1.5.6-beta/build_COINLapackBuilder.v1.5.6.jl",
+    "https://github.com/juan-pablo-vielma/COINBLASBuilder/releases/download/v1.4.6-beta2/build_COINBLASBuilder.v1.4.6.jl",
+    "https://github.com/juan-pablo-vielma/ASLBuilder/releases/download/v3.1.0-beta2/build_ASLBuilder.v3.1.0.jl"
+]
+
+for dependency in dependencies
+    download(dependency,basename(dependency))
+    evalfile(dependency)
+end
+
+
+
 # Parse some basic command-line arguments
 const verbose = "--verbose" in ARGS
 const prefix = Prefix(get([a for a in ARGS if a != "--verbose"], 1, joinpath(@__DIR__, "usr")))
