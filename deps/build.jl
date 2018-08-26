@@ -2,7 +2,7 @@ using BinaryProvider # requires BinaryProvider 0.3.0 or later
 
 dependencies = [
     "https://github.com/juan-pablo-vielma/OsiBuilder/releases/download/v0.107.9-beta/build_OsiBuilder.v0.107.9.jl",
-    "https://github.com/juan-pablo-vielma/CoinUtilsBuilder/releases/download/v2.10.14-beta/build_CoinUtilsBuilder.v2.10.14.jl",
+    "https://github.com/juan-pablo-vielma/CoinUtilsBuilder/releases/download/v2.10.14-beta2/build_CoinUtilsBuilder.v2.10.14.jl",
     "https://github.com/juan-pablo-vielma/COINGLPKBuilder/releases/download/v1.10.5-beta4/build_COINGLPKBuilder.v1.10.5.jl",
     "https://github.com/juan-pablo-vielma/COINMumpsBuilder/releases/download/v1.6.0-beta/build_COINMumpsBuilder.v1.6.0.jl",
     "https://github.com/juan-pablo-vielma/COINMetisBuilder/releases/download/v1.3.5-beta/build_COINMetisBuilder.v1.3.5.jl",
