@@ -7,6 +7,9 @@ julia:
   - nightly
 notifications:
   email: false
+addons:
+    apt_packages:
+        - gfortran
 script:
   - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
   - julia -e 'Pkg.clone(pwd()); Pkg.build("Clp"); Pkg.test("Clp"; coverage=true)'
