@@ -5,10 +5,14 @@ os:
 julia:
   - 0.6
   - 0.7
+  - 1.0
+
+matrix:
+  allow_failures:
+    - julia: 1.0
+
 notifications:
   email: false
-script:
-  - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
-  - julia -e 'Pkg.clone(pwd()); Pkg.build("Clp"); Pkg.test("Clp"; coverage=true)'
+
 after_success:
-    - julia -e 'cd(Pkg.dir("Clp")); Pkg.add("Coverage"); using Coverage; Codecov.submit(Codecov.process_folder())'
+    - julia -e 'import Compat; using Compat.Pkg; cd(Pkg.dir("Clp")); Pkg.add("Coverage"); using Coverage; Codecov.submit(Codecov.process_folder())'
