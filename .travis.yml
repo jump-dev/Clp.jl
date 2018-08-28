@@ -15,4 +15,4 @@ notifications:
   email: false
 
 after_success:
-    - julia -e 'using Pkg; cd(Pkg.dir("Clp")); Pkg.add("Coverage"); using Coverage; Codecov.submit(Codecov.process_folder())'
+    - julia -e 'import Compat; using Compat.Pkg; cd(Pkg.dir("Clp")); Pkg.add("Coverage"); using Coverage; Codecov.submit(Codecov.process_folder())'
