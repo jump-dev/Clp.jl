@@ -10,13 +10,6 @@ dependencies = [
     "https://github.com/juan-pablo-vielma/COINBLASBuilder/releases/download/v1.4.6-beta2/build_COINBLASBuilder.v1.4.6.jl" #,"https://github.com/juan-pablo-vielma/ASLBuilder/releases/download/v3.1.0-beta2/build_ASLBuilder.v3.1.0.jl"
 ]
 
-for dependency in reverse(dependencies)
-    download(dependency,basename(dependency))
-    evalfile(basename(dependency))
-end
-
-
-
 # Parse some basic command-line arguments
 const verbose = "--verbose" in ARGS
 const prefix = Prefix(get([a for a in ARGS if a != "--verbose"], 1, joinpath(@__DIR__, "usr")))
@@ -42,9 +35,13 @@ download_info = Dict(
 
 # Install unsatisfied or updated dependencies:
 unsatisfied = any(!satisfied(p; verbose=verbose) for p in products)
-if haskey(download_info, platform_key())
+if unsatisfied && haskey(download_info, platform_key())
+    for dependency in reverse(dependencies)          # We do not check for already installed dependencies
+        download(dependency,basename(dependency))
+        evalfile(basename(dependency))
+    end
     url, tarball_hash = download_info[platform_key()]
-    if unsatisfied || !isinstalled(url, tarball_hash; prefix=prefix)
+    if !isinstalled(url, tarball_hash; prefix=prefix) # This check may be redundant
         # Download and install binaries
         install(url, tarball_hash; prefix=prefix, force=true, verbose=verbose)
     end
