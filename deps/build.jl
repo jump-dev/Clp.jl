@@ -1,4 +1,4 @@
-using BinaryProvider # requires BinaryProvider 0.3.0 or later
+using BinaryProvider 
 
 dependencies = [
     "https://github.com/juan-pablo-vielma/OsiBuilder/releases/download/v0.107.9-beta/build_OsiBuilder.v0.107.9.jl",
@@ -7,7 +7,7 @@ dependencies = [
     "https://github.com/juan-pablo-vielma/COINMumpsBuilder/releases/download/v1.6.0-beta/build_COINMumpsBuilder.v1.6.0.jl",
     "https://github.com/juan-pablo-vielma/COINMetisBuilder/releases/download/v1.3.5-beta/build_COINMetisBuilder.v1.3.5.jl",
     "https://github.com/juan-pablo-vielma/COINLapackBuilder/releases/download/v1.5.6-beta/build_COINLapackBuilder.v1.5.6.jl",
-    "https://github.com/juan-pablo-vielma/COINBLASBuilder/releases/download/v1.4.6-beta2/build_COINBLASBuilder.v1.4.6.jl" #,"https://github.com/juan-pablo-vielma/ASLBuilder/releases/download/v3.1.0-beta2/build_ASLBuilder.v3.1.0.jl"
+    "https://github.com/juan-pablo-vielma/COINBLASBuilder/releases/download/v1.4.6-beta2/build_COINBLASBuilder.v1.4.6.jl" 
 ]
 
 # Parse some basic command-line arguments
@@ -33,16 +33,18 @@ download_info = Dict(
     Windows(:x86_64) => ("$bin_prefix/ClpBuilder.v1.16.11.x86_64-w64-mingw32.tar.gz", "aa48ab4ba27cee81589a601e6ce7bbae28b504d7388a48c2c0f5250074f1da8c"),
 )
 
-# Install unsatisfied or updated dependencies:
+# Install unsatisfied or updated dependencies:                    
 unsatisfied = any(!satisfied(p; verbose=verbose) for p in products)
-if unsatisfied && haskey(download_info, platform_key())
-    for dependency in reverse(dependencies)          # We do not check for already installed dependencies
-        download(dependency,basename(dependency))
-        evalfile(basename(dependency))
-    end
+if haskey(download_info, platform_key())
     url, tarball_hash = download_info[platform_key()]
-    if !isinstalled(url, tarball_hash; prefix=prefix) # This check may be redundant
+    # Check if this build.jl is providing new versions of the binaries, and
+    # if so, ovewrite the current binaries even if they were installed by the user 
+    if unsatisfied || !isinstalled(url, tarball_hash; prefix=prefix) 
         # Download and install binaries
+        for dependency in reverse(dependencies)          # We do not check for already installed dependencies
+            download(dependency,basename(dependency))
+            evalfile(basename(dependency))
+        end                            
         install(url, tarball_hash; prefix=prefix, force=true, verbose=verbose)
     end
 elseif unsatisfied
