@@ -10,6 +10,7 @@ platform:
 
 matrix:
   allow_failures:
+  - julia_version: 0.7
   - julia_version: 1.0
 
 branches:
