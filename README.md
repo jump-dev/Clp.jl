@@ -15,7 +15,7 @@ Interface to the **[Clp]** linear programming solver. Provides a complete interf
 The package is registered in `METADATA.jl` and so can be installed with `Pkg.add`.
 
 ```
-julia> Pkg.add("GLPK")
+julia> Pkg.add("Clp")
 ```
 
 Clp.jl will use [BinaryProvider.jl](https://github.com/JuliaPackaging/BinaryProvider.jl) to automatically install the Clp binaries.
@@ -24,7 +24,7 @@ Clp.jl will use [BinaryProvider.jl](https://github.com/JuliaPackaging/BinaryProv
 
 After Clp.jl is installed and built, you can replace the installed binary dependencies with custom builds by overwritting the binaries and libraries in Clp.jl's `deps/usr` folder. For instance, Julia v0.6 this can be achieved by running
 ```bash
-./configure --prefix=$HOME/.julia/v0.6/GLPK/deps/usr ...
+./configure --prefix=$HOME/.julia/v0.6/Clp/deps/usr ...
 make
 make install
 ```
