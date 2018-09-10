@@ -1,7 +1,5 @@
 module ClpCInterface
 
-# Load binary dependencies via Cbc package
-import Cbc
 using Compat
 using Compat.SparseArrays
 
@@ -184,6 +182,11 @@ export
 
 import Base.pointer
 
+if isfile(joinpath(dirname(@__FILE__),"..","deps","deps.jl"))
+    include("../deps/deps.jl")
+else
+    error("Clp not properly installed. Please run Pkg.build(\"Clp\")")
+end
 
 ## Shared library interface setup
 #{{{
@@ -192,7 +195,7 @@ macro clp_ccall(func, args...)
     args = [esc(ex) for ex in args]
     f = "Clp_$(func)"
     quote
-        ccall(($f,Cbc.libclp), $(args...))
+        ccall(($f,libClp), $(args...))
     end
 end
 
@@ -200,7 +203,7 @@ macro clpsolve_ccall(func, args...)
     args = [esc(ex) for ex in args]
     f = "ClpSolve_$(func)"
     quote
-        ccall(($f,Cbc.libclp), $(args...))
+        ccall(($f,libClp), $(args...))
     end
 end
 

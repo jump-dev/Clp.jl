@@ -1,0 +1,9 @@
+usr
+deps.jl
+build_OsiBuilder.v0.107.9.jl
+build_CoinUtilsBuilder.v2.10.14.jl
+build_COINGLPKBuilder.v1.10.5.jl
+build_COINMumpsBuilder.v1.6.0.jl
+build_COINMetisBuilder.v1.3.5.jl
+build_COINLapackBuilder.v1.5.6.jl
+build_COINBLASBuilder.v1.4.6.jl
