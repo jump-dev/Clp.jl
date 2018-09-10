@@ -1,7 +1,7 @@
 Clp
 ===
 
-Interface to the **[Clp]** linear programming solver. Provides a complete interface to the low-level C API, as well as an implementation of the solver-independent ``MathProgSolverInterface`` for efficiently solving sequences of linear programs. The **[Cbc]** julia package is used to provide the binary dependencies; see that package's README for supported platforms and installation instructions.  
+Interface to the **[Clp]** linear programming solver. Provides a complete interface to the low-level C API, as well as an implementation of the solver-independent ``MathProgSolverInterface`` for efficiently solving sequences of linear programs.   
 
 [![Build Status](https://travis-ci.org/JuliaOpt/Clp.jl.svg?branch=master)](https://travis-ci.org/JuliaOpt/Clp.jl)
 
@@ -9,6 +9,28 @@ Interface to the **[Clp]** linear programming solver. Provides a complete interf
 
 [Clp]: https://projects.coin-or.org/Clp
 [Cbc]: https://github.com/JuliaOpt/Cbc.jl
+
+## Installation
+
+The package is registered in `METADATA.jl` and so can be installed with `Pkg.add`.
+
+```
+julia> Pkg.add("GLPK")
+```
+
+Clp.jl will use [BinaryProvider.jl](https://github.com/JuliaPackaging/BinaryProvider.jl) to automatically install the Clp binaries.
+
+## Custom Installation
+
+After Clp.jl is installed and built, you can replace the installed binary dependencies with custom builds by overwritting the binaries and libraries in Clp.jl's `deps/usr` folder. For instance, Julia v0.6 this can be achieved by running
+```bash
+./configure --prefix=$HOME/.julia/v0.6/GLPK/deps/usr ...
+make
+make install
+```
+in Clp's source folder. 
+
+Note that the custom binaries will not be overwritten by subsequent builds of the currently installed version of Clp.jl. However, if Clp.jl is updated and the update includes new BinaryProvider versions of the Clp binaries, then the custom binaries will be overwritten by the new BinaryProvider versions.
 
 ### Using with **[MathProgBase]**
 
