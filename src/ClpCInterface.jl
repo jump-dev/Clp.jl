@@ -1,6 +1,5 @@
 module ClpCInterface
 
-# Load binary dependencies via Cbc package
 using Compat
 using Compat.SparseArrays
 
