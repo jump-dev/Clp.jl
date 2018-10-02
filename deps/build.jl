@@ -60,6 +60,10 @@ end
 # If we have a download, and we are unsatisfied (or the version we're
 # trying to install is not itself installed) then load it up!
 if unsatisfied || !isinstalled(dl_info...; prefix=prefix)
+    for dependency in reverse(dependencies)          # We do not check for already installed dependencies
+       download(dependency,basename(dependency))
+       evalfile(basename(dependency))
+    end   
     # Download and install binaries
     install(dl_info...; prefix=prefix, force=true, verbose=verbose)
 end
