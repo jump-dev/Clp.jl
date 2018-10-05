@@ -84,7 +84,6 @@ products = [
 dependencies = [
     "https://github.com/JuliaOpt/OsiBuilder/releases/download/v0.107.9-gccnoglpk/build_OsiBuilder.v0.107.9.jl",
     "https://github.com/JuliaOpt/CoinUtilsBuilder/releases/download/v2.10.14-gccnoglpk/build_CoinUtilsBuilder.v2.10.14.jl",
-    "https://github.com/JuliaOpt/COINGLPKBuilder/releases/download/v1.10.5-gcc/build_COINGLPKBuilder.v1.10.5.jl",
     "https://github.com/JuliaOpt/COINMumpsBuilder/releases/download/v1.6.0-1/build_COINMumpsBuilder.v1.6.0.jl",
     "https://github.com/JuliaOpt/COINMetisBuilder/releases/download/v1.3.5-gcc/build_COINMetisBuilder.v1.3.5.jl",
     "https://github.com/JuliaOpt/COINLapackBuilder/releases/download/v1.5.6-1/build_COINLapackBuilder.v1.5.6.jl",
