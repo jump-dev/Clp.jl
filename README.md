@@ -1,7 +1,10 @@
-Clp
-===
+# COIN-OR Linear Programming (Clp)
 
-Interface to the **[Clp]** linear programming solver. Provides a complete interface to the low-level C API, as well as an implementation of the solver-independent ``MathProgSolverInterface`` for efficiently solving sequences of linear programs.   
+![](https://www.coin-or.org/wordpress/wp-content/uploads/2014/08/COINOR.png)
+
+Interface to the **[COIN-OR Linear Programming](https://projects.coin-or.org/Clp)** solver. Provides a complete interface to the low-level C API, as well as an
+implementation of the solver-independent `MathProgBase` and `MathOptInterface`
+API's.   
 
 [![Build Status](https://travis-ci.org/JuliaOpt/Clp.jl.svg?branch=master)](https://travis-ci.org/JuliaOpt/Clp.jl)
 
@@ -28,7 +31,7 @@ After Clp.jl is installed and built, you can replace the installed binary depend
 make
 make install
 ```
-in Clp's source folder. 
+in Clp's source folder.
 
 Note that the custom binaries will not be overwritten by subsequent builds of the currently installed version of Clp.jl. However, if Clp.jl is updated and the update includes new BinaryProvider versions of the Clp binaries, then the custom binaries will be overwritten by the new BinaryProvider versions.
 
@@ -73,5 +76,4 @@ The low-level C interface is available in the ``ClpCInterface`` submodule:
 using Clp.ClpCInterface
 ```
 
-Using this interface is only recommended for advanced users. The Julia API is essentially a thin wrapper around the interface exported by ``Clp/src/Clp_C_Interface.h``, which is documented in-line. 
-
+Using this interface is only recommended for advanced users. The Julia API is essentially a thin wrapper around the interface exported by ``Clp/src/Clp_C_Interface.h``, which is documented in-line.
