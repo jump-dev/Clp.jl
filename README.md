@@ -1,10 +1,14 @@
-# COIN-OR Linear Programming (Clp)
+# COIN-OR Linear Programming Interface (Clp.jl)
 
 ![](https://www.coin-or.org/wordpress/wp-content/uploads/2014/08/COINOR.png)
 
-Interface to the **[COIN-OR Linear Programming](https://projects.coin-or.org/Clp)** solver. Provides a complete interface to the low-level C API, as well as an
-implementation of the solver-independent `MathProgBase` and `MathOptInterface`
-API's.   
+`Clp.jl` is an interface to the **[COIN-OR Linear
+Programming](https://projects.coin-or.org/Clp)** solver. It provides a complete
+interface to the low-level C API, as well as an implementation of the
+solver-independent `MathProgBase` and `MathOptInterface` API's.   
+
+*Note: This wrapper is maintained by the JuliaOpt community and is not a COIN-OR
+project.*
 
 [![Build Status](https://travis-ci.org/JuliaOpt/Clp.jl.svg?branch=master)](https://travis-ci.org/JuliaOpt/Clp.jl)
 
