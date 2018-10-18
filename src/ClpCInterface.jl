@@ -876,7 +876,7 @@ function infeasibility_ray(model::ClpModel)
         infeas_ray = copy(unsafe_wrap(Array,infeas_ray_p,(num_rows,)))
         ccall(:free,Cvoid,(Ptr{Cvoid},),infeas_ray_p)
     else
-        infeas_ray = Array{Float64}(0)
+        infeas_ray = Array{Float64}(undef, 0)
     end
     return infeas_ray
 end
@@ -891,7 +891,7 @@ function unbounded_ray(model::ClpModel)
         unbd_ray = copy(unsafe_wrap(Array,unbd_ray_p,(num_cols,)))
         ccall(:free,Cvoid,(Ptr{Cvoid},),unbd_ray_p)
     else
-        unbd_ray = Array{Float64}(0)
+        unbd_ray = Array{Float64}(undef, 0)
     end
     return unbd_ray
 end
@@ -1010,7 +1010,7 @@ function row_name(model::ClpModel, row::Integer)
     _jl__check_model(model)
     _jl__check_row_is_valid(model, row)
     size = @clp_ccall lengthNames Int32 (Ptr{Cvoid},) model.p
-    row_name = Array{UInt8}(size+1)
+    row_name = Array{UInt8}(undef, size+1)
     @clp_ccall rowName Cvoid (Ptr{Cvoid}, Int32, Ptr{UInt8}) model.p (row-1) row_name
     return unsafe_string(row_name)
 end
@@ -1023,7 +1023,7 @@ function column_name(model::ClpModel, col::Integer)
     _jl__check_model(model)
     _jl__check_col_is_valid(model, col)
     size = @clp_ccall lengthNames Int32 (Ptr{Cvoid},) model.p
-    col_name = Array{UInt8}(size+1)
+    col_name = Array{UInt8}(undef, size+1)
     @clp_ccall columnName Cvoid (Ptr{Cvoid}, Int32, Ptr{UInt8}) model.p (col-1) col_name
     return unsafe_string(col_name)
 end
