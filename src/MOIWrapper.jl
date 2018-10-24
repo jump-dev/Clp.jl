@@ -368,3 +368,13 @@ end
 function LQOI.delete_variables!(instance::Optimizer, start_col::Int, end_col::Int)
     delete_columns(instance.inner, [Cint(i-1) for i in start_col:end_col])
 end
+
+function LQOI.add_mip_starts!(instance::Optimizer, cols::Vector{Int},
+                              x::Vector{Float64})
+
+    input = zeros(Float64, get_num_cols(instance.inner))
+    for (col, val) in zip(cols, x)
+        input[col] = val
+    end
+    set_col_solution(instance.inner, input)
+end
