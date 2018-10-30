@@ -6,6 +6,7 @@ VERSION < v"0.7.0-beta2.199" && __precompile__()
 module Clp
 
 using Compat
+using SparseArrays
 
 include("ClpCInterface.jl")
 include("ClpSolverInterface.jl")
