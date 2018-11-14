@@ -81,17 +81,24 @@ products = [
     LibraryProduct(prefix, ["libClp"], :libClp),
     LibraryProduct(prefix, ["libClpSolver"], :libClpSolver),
 ]
+# dependencies = [
+#     "https://github.com/JuliaOpt/OsiBuilder/releases/download/bf/build_OsiBuilder.v0.107.9.jl",
+#     "https://github.com/JuliaOpt/CoinUtilsBuilder/releases/download/bf/build_CoinUtilsBuilder.v2.10.14.jl",
+#     "https://github.com/JuliaOpt/COINMumpsBuilder/releases/download/v1.6.0-1/build_COINMumpsBuilder.v1.6.0.jl",
+#     "https://github.com/JuliaOpt/COINMetisBuilder/releases/download/v1.3.5-gcc/build_COINMetisBuilder.v1.3.5.jl",
+#     "https://github.com/JuliaOpt/COINLapackBuilder/releases/download/bf/build_COINLapackBuilder.v1.5.6.jl",
+#     "https://github.com/JuliaOpt/COINBLASBuilder/releases/download/bf/build_COINBLASBuilder.v1.4.6.jl",
+#     "https://github.com/JuliaOpt/ASLBuilder/releases/download/v3.1.0-gcc/build_ASLBuilder.v3.1.0.jl"
+# ]
 dependencies = [
-    "https://github.com/JuliaOpt/OsiBuilder/releases/download/bf/build_OsiBuilder.v0.107.9.jl",
-    "https://github.com/JuliaOpt/CoinUtilsBuilder/releases/download/bf/build_CoinUtilsBuilder.v2.10.14.jl",
+    "https://github.com/JuliaOpt/OsiBuilder/releases/download/v0.107.9-1/build_OsiBuilder.v0.107.9.jl",
+    "https://github.com/JuliaOpt/CoinUtilsBuilder/releases/download/v2.10.14-1/build_CoinUtilsBuilder.v2.10.14.jl",
     "https://github.com/JuliaOpt/COINMumpsBuilder/releases/download/v1.6.0-1/build_COINMumpsBuilder.v1.6.0.jl",
-    "https://github.com/JuliaOpt/COINMetisBuilder/releases/download/v1.3.5-gcc/build_COINMetisBuilder.v1.3.5.jl",
-    "https://github.com/JuliaOpt/COINLapackBuilder/releases/download/bf/build_COINLapackBuilder.v1.5.6.jl",
-    "https://github.com/JuliaOpt/COINBLASBuilder/releases/download/bf/build_COINBLASBuilder.v1.4.6.jl",
-    "https://github.com/JuliaOpt/COINGLPKBuilder/releases/download/bf/build_COINGLPKBuilder.v1.10.5.jl",
-    "https://github.com/JuliaOpt/ASLBuilder/releases/download/v3.1.0-gcc/build_ASLBuilder.v3.1.0.jl"
+    "https://github.com/JuliaOpt/COINMetisBuilder/releases/download/v1.3.5-1/build_COINMetisBuilder.v1.3.5.jl",
+    "https://github.com/JuliaOpt/COINLapackBuilder/releases/download/v1.5.6-1/build_COINLapackBuilder.v1.5.6.jl",
+    "https://github.com/JuliaOpt/COINBLASBuilder/releases/download/v1.4.6-1/build_COINBLASBuilder.v1.4.6.jl",
+    "https://github.com/JuliaOpt/ASLBuilder/releases/download/v3.1.0-1/build_ASLBuilder.v3.1.0.jl"
 ]
-
 
 # Download binaries from hosted location
 bin_prefix = "https://github.com/JuliaOpt/ClpBuilder/releases/download/v1.16.11-gccnoglpk"
@@ -101,11 +108,12 @@ download_info = Dict(
     Windows(:x86_64, compiler_abi=CompilerABI(:gcc4)) => ("$bin_prefix/ClpBuilder.v1.16.11.x86_64-w64-mingw32-gcc4.tar.gz", "2761f8011a7d58f69a4f93c1d8d467dbe6d836c80e0785c23d3d588c01823070"),
     Windows(:x86_64, compiler_abi=CompilerABI(:gcc7)) => ("$bin_prefix/ClpBuilder.v1.16.11.x86_64-w64-mingw32-gcc7.tar.gz", "e85811602040db900405f7e99968384c4469233cf97ebeeb804f3019376af98a"),
     Windows(:x86_64, compiler_abi=CompilerABI(:gcc8)) => ("$bin_prefix/ClpBuilder.v1.16.11.x86_64-w64-mingw32-gcc8.tar.gz", "7fc3963fc299e7e52327190582c739c23e3c7a836f0513860ea1ffbe580e3b24"),
-)
+Windows(:x86_64, compiler_abi=CompilerABI(:gcc6)) => ("$bin_prefix/ClpBuilder.v1.16.11.x86_64-w64-mingw32-gcc6.tar.gz", "ae15c78e77cc6f7b6ddb271d4c694d8b50d89aa459d2f1bdaa2787a398ea26f4")
+                    )
 
 # Install unsatisfied or updated dependencies:
 unsatisfied = any(!satisfied(p; verbose=verbose) for p in products)
-dl_info = choose_download(download_info, platform_key_abi())
+dl_info = choose_download(download_info, Windows(:x86_64, compiler_abi=CompilerABI(:gcc6)))# platform_key_abi())
 if dl_info === nothing && unsatisfied
     # If we don't have a compatible .tar.gz to download, complain.
     # Alternatively, you could attempt to install from a separate provider,
