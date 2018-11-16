@@ -37,6 +37,16 @@ download_info = Dict(
     Windows(:x86_64, compiler_abi=CompilerABI(:gcc8)) => ("$bin_prefix/ClpBuilder.v1.16.11.x86_64-w64-mingw32-gcc8.tar.gz", "f9167e5fc0c201519cee2012a692c22c73b3c48af87ebd7eb45cd60ff4cd129e"),
 )
 
+dependencies = [
+    "https://github.com/JuliaOpt/OsiBuilder/releases/download/v0.107.9-1/build_OsiBuilder.v0.107.9.jl",
+    "https://github.com/JuliaOpt/CoinUtilsBuilder/releases/download/v2.10.14-1/build_CoinUtilsBuilder.v2.10.14.jl",
+    "https://github.com/JuliaOpt/COINMumpsBuilder/releases/download/v1.6.0-1/build_COINMumpsBuilder.v1.6.0.jl",
+    "https://github.com/JuliaOpt/COINMetisBuilder/releases/download/v1.3.5-1/build_COINMetisBuilder.v1.3.5.jl",
+    "https://github.com/JuliaOpt/COINLapackBuilder/releases/download/v1.5.6-1/build_COINLapackBuilder.v1.5.6.jl",
+    "https://github.com/JuliaOpt/COINBLASBuilder/releases/download/v1.4.6-1/build_COINBLASBuilder.v1.4.6.jl",
+    "https://github.com/JuliaOpt/ASLBuilder/releases/download/v3.1.0-1/build_ASLBuilder.v3.1.0.jl"
+]
+                    
 # Install unsatisfied or updated dependencies:
 unsatisfied = any(!satisfied(p; verbose=verbose) for p in products)
 
@@ -58,6 +68,10 @@ end
 # trying to install is not itself installed) then load it up!
 if unsatisfied || !isinstalled(dl_info...; prefix=prefix)
     # Download and install binaries
+    for dependency in reverse(dependencies)          # We do not check for already installed dependencies
+       download(dependency,basename(dependency))
+       evalfile(basename(dependency))
+    end   
     install(dl_info...; prefix=prefix, force=true, verbose=verbose)
 end
 
