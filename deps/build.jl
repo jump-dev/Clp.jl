@@ -43,7 +43,7 @@ unsatisfied = any(!satisfied(p; verbose=verbose) for p in products)
 # To fix gcc4 bug in Windows
 this_platform = platform_key_abi()
 if typeof(this_platform)==Windows && this_platform.compiler_abi.gcc_version == :gcc4
-   this_platform.compiler_abi.gcc_version = :gcc6
+   this_platform = Windows(this_platform.arch, this_platform.libc, this_platform.call_abi,CompilerABI(:gcc6, this_platform.compiler_abi.cxx_abi))
 end
 
 dl_info = choose_download(download_info, this_platform)
