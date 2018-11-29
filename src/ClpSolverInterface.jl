@@ -2,6 +2,7 @@ module ClpMathProgSolverInterface
 using Clp.ClpCInterface
 using Compat
 using Compat.LinearAlgebra
+using Compat.SparseArrays
 
 import MathProgBase
 const MPB = MathProgBase
