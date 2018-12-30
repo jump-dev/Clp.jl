@@ -11,8 +11,7 @@ solver-independent `MathProgBase` and `MathOptInterface` API's.
 project.*
 
 [![Build Status](https://travis-ci.org/JuliaOpt/Clp.jl.svg?branch=master)](https://travis-ci.org/JuliaOpt/Clp.jl)
-
-[![Clp](http://pkg.julialang.org/badges/Clp_0.6.svg)](http://pkg.julialang.org/?pkg=Clp&ver=0.6)
+[![codecov](https://codecov.io/gh/JuliaOpt/Clp.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/JuliaOpt/Clp.jl)
 
 [Clp]: https://projects.coin-or.org/Clp
 [Cbc]: https://github.com/JuliaOpt/Cbc.jl
