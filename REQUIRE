@@ -1,4 +1,4 @@
-julia 0.6.2
+julia 1.0.0
 Compat 0.59
 BinaryProvider 0.5.3
 MathProgBase 0.5 0.8
