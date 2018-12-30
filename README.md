@@ -25,19 +25,18 @@ The package is registered in `METADATA.jl` and so can be installed with `Pkg.add
 julia> Pkg.add("Clp")
 ```
 
-Clp.jl will use [BinaryProvider.jl](https://github.com/JuliaPackaging/BinaryProvider.jl) to automatically install the Clp binaries.
+Clp.jl will use [BinaryProvider.jl](https://github.com/JuliaPackaging/BinaryProvider.jl) to automatically install the Clp binaries. This should work for both the official Julia binaries from `https://julialang.org/downloads/` and source-builds. 
 
 ## Custom Installation
 
-After Clp.jl is installed and built, you can replace the installed binary dependencies with custom builds by overwritting the binaries and libraries in Clp.jl's `deps/usr` folder. For instance, Julia v0.6 this can be achieved by running
-```bash
-./configure --prefix=$HOME/.julia/v0.6/Clp/deps/usr ...
-make
-make install
+To install custom built Clp binaries set the environmental variable `JULIA_CLP_LIBRARY_PATH` and call `import Pkg; Pkg.build("Clp")`. For instance, if the libraries are installed in `/opt/lib` just call
+```julia
+ENV["JULIA_Clp_LIBRARY_PATH"]="/opt/lib"
+import Pkg; Pkg.build("Clp")
 ```
-in Clp's source folder.
+If you do not want BinaryProvider to download the default binaries on install set  `JULIA_CLP_LIBRARY_PATH`  before calling `import Pkg; Pkg.add("Clp")`.
 
-Note that the custom binaries will not be overwritten by subsequent builds of the currently installed version of Clp.jl. However, if Clp.jl is updated and the update includes new BinaryProvider versions of the Clp binaries, then the custom binaries will be overwritten by the new BinaryProvider versions.
+To switch back to the default binaries clear `JULIA_CLP_LIBRARY_PATH` and call `import Pkg; Pkg.add("Clp")`.
 
 ### Using with **[MathProgBase]**
 
