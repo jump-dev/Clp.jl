@@ -35,13 +35,14 @@ download_info = Dict(
     Windows(:x86_64, compiler_abi=CompilerABI(:gcc7)) => ("$bin_prefix/ClpBuilder.v1.16.11.x86_64-w64-mingw32-gcc7.tar.gz", "76078cbbf17456ea3b27145a3539a1f16c26ac261a13485068c8718d55aba6a3"),
     Windows(:x86_64, compiler_abi=CompilerABI(:gcc8)) => ("$bin_prefix/ClpBuilder.v1.16.11.x86_64-w64-mingw32-gcc8.tar.gz", "705cd3fc170d1607899e9bcfe981c84ef5244a94187abbc479251c7f37b316e1"),
 )
-                    
+
 # To fix gcc4 bug in Windows
+# https://sourceforge.net/p/mingw-w64/bugs/727/
 this_platform = platform_key_abi()
 if typeof(this_platform)==Windows && this_platform.compiler_abi.gcc_version == :gcc4
    this_platform = Windows(arch(this_platform), libc=libc(this_platform), compiler_abi=CompilerABI(:gcc6))
-end                  
-              
+end
+
 # no dynamic dependencies until Pkg3 support for binaries
 dependencies = [
 #    "https://github.com/JuliaOpt/OsiBuilder/releases/download/v0.107.9-1/build_OsiBuilder.v0.107.9.jl",
@@ -52,7 +53,7 @@ dependencies = [
 #     "https://github.com/JuliaOpt/COINBLASBuilder/releases/download/v1.4.6-1/build_COINBLASBuilder.v1.4.6.jl",
 #     "https://github.com/JuliaOpt/ASLBuilder/releases/download/v3.1.0-1/build_ASLBuilder.v3.1.0.jl"
 ]
-                  
+
 custom_library = false
 if haskey(ENV,"JULIA_CLP_LIBRARY_PATH")
     custom_products = [LibraryProduct(ENV["JULIA_CLP_LIBRARY_PATH"],product.libnames,product.variable_name) for product in products]
@@ -62,12 +63,12 @@ if haskey(ENV,"JULIA_CLP_LIBRARY_PATH")
     else
         error("Could not install custom libraries from $(ENV["JULIA_CLP_LIBRARY_PATH"]).\nTo fall back to BinaryProvider call delete!(ENV,\"JULIA_CLP_LIBRARY_PATH\") and run build again.")
     end
-end                    
+end
 
 if !custom_library
     # Install unsatisfied or updated dependencies:
     unsatisfied = any(!satisfied(p; verbose=verbose) for p in products)
-            
+
     dl_info = choose_download(download_info, this_platform)
     if dl_info === nothing && unsatisfied
         # If we don't have a compatible .tar.gz to download, complain.
@@ -80,14 +81,14 @@ if !custom_library
     # trying to install is not itself installed) then load it up!
     if unsatisfied || !isinstalled(dl_info...; prefix=prefix)
         # Download and install binaries
-    # no dynamic dependencies until Pkg3 support for binaries
-    #     for dependency in reverse(dependencies)          # We do not check for already installed dependencies
-    #        download(dependency,basename(dependency))
-    #        evalfile(basename(dependency))
-    #     end   
+        # no dynamic dependencies until Pkg3 support for binaries
+        # for dependency in reverse(dependencies)          # We do not check for already installed dependencies
+        #    download(dependency,basename(dependency))
+        #    evalfile(basename(dependency))
+        # end
         install(dl_info...; prefix=prefix, force=true, verbose=verbose)
     end
  end
-                    
+
 # Write out a deps.jl file that will contain mappings for our products
 write_deps_file(joinpath(@__DIR__, "deps.jl"), products, verbose=verbose)# using BinaryProvider # requires BinaryProvider 0.3.0 or later

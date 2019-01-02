@@ -24,13 +24,13 @@ The package is registered in `METADATA.jl` and so can be installed with `Pkg.add
 julia> import Pkg; Pkg.add("Clp")
 ```
 
-Clp.jl will use [BinaryProvider.jl](https://github.com/JuliaPackaging/BinaryProvider.jl) to automatically install the Clp binaries. This should work for both the official Julia binaries from `https://julialang.org/downloads/` and source-builds. 
+Clp.jl will use [BinaryProvider.jl](https://github.com/JuliaPackaging/BinaryProvider.jl) to automatically install the Clp binaries. This should work for both the official Julia binaries from `https://julialang.org/downloads/` and source-builds.
 
 ## Custom Installation
 
 To install custom built Clp binaries set the environmental variable `JULIA_CLP_LIBRARY_PATH` and call `import Pkg; Pkg.build("Clp")`. For instance, if the libraries are installed in `/opt/lib`, then call
 ```julia
-ENV["JULIA_CLP_LIBRARY_PATH"]="/opt/lib"
+ENV["JULIA_CLP_LIBRARY_PATH"] = "/opt/lib"
 import Pkg; Pkg.build("Clp")
 ```
 If you do not want BinaryProvider to download the default binaries on install, set `JULIA_CLP_LIBRARY_PATH` before calling `import Pkg; Pkg.add("Clp")`.
