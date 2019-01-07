@@ -82,6 +82,20 @@ function replace_inf(x::Real)
     end
 end
 
+
+function LQOI.get_objectivesense(model::Optimizer)
+    s = get_obj_sense(model.inner)
+    if s == 1.0
+        return MOI.MIN_SENSE
+    elseif s == -1.0
+        return MOI.MAX_SENSE
+    else
+        @assert iszero(s)
+        return MOI.FEASIBILITY_SENSE
+    end
+end
+
+
 function LQOI.change_variable_bounds!(instance::Optimizer, cols::Vector{Int},
         values::Vector{Float64}, senses::Vector)
     upperbounds = get_col_upper(instance.inner)
@@ -313,23 +327,15 @@ end
 function LQOI.get_termination_status(instance::Optimizer)
     status = ClpCInterface.status(instance.inner)
     if status == 0
-        return MOI.Success
+        return MOI.OPTIMAL
     elseif status == 1
-        if is_proven_primal_infeasible(instance.inner)
-            return MOI.Success
-        else
-            return MOI.InfeasibleNoResult
-        end
+        return MOI.INFEASIBLE
     elseif status == 2
-        if is_proven_dual_infeasible(instance.inner)
-            return MOI.Success
-        else
-            return MOI.UnboundedNoResult
-        end
+        return MOI.DUAL_INFEASIBLE
     elseif status == 3
-        return MOI.OtherLimit
+        return MOI.OTHER_LIMIT
     elseif status == 4
-        return MOI.OtherError
+        return MOI.OTHER_ERROR
     else
         error("status returned was $(status), but it must be in [0,1,2,3,4]")
     end
@@ -337,21 +343,21 @@ end
 
 function LQOI.get_primal_status(instance::Optimizer)
     if is_proven_dual_infeasible(instance.inner)
-        return MOI.InfeasibilityCertificate
+        return MOI.INFEASIBILITY_CERTIFICATE
     elseif primal_feasible(instance.inner)
-        return MOI.FeasiblePoint
+        return MOI.FEASIBLE_POINT
     else
-        return MOI.UnknownResultStatus
+        return MOI.UNKNOWN_RESULT_STATUS
     end
 end
 
 function LQOI.get_dual_status(instance::Optimizer)
     if is_proven_primal_infeasible(instance.inner)
-        return MOI.InfeasibilityCertificate
+        return MOI.INFEASIBILITY_CERTIFICATE
     elseif dual_feasible(instance.inner)
-        return MOI.FeasiblePoint
+        return MOI.FEASIBLE_POINT
     else
-        return MOI.UnknownResultStatus
+        return MOI.UNKNOWN_RESULT_STATUS
     end
 end
 
