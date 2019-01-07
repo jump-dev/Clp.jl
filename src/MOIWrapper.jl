@@ -89,6 +89,8 @@ function LQOI.get_objectivesense(model::Optimizer)
         return MOI.MIN_SENSE
     elseif s == -1.0
         return MOI.MAX_SENSE
+    elseif s == 0.0
+        return MOI.FEASIBILITY_SENSE
     else
         error("Invalid objective sense: $(s)")
     end
