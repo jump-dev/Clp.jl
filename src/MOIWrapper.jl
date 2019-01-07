@@ -90,6 +90,7 @@ function LQOI.get_objectivesense(model::Optimizer)
     elseif s == -1.0
         return MOI.MAX_SENSE
     else
+        @assert iszero(s)
         return MOI.FEASIBILITY_SENSE
     end
 end
