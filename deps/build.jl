@@ -9,30 +9,30 @@ products = [
 ]
 
 # Download binaries from hosted location
-bin_prefix = "https://github.com/JuliaOpt/ClpBuilder/releases/download/v1.16.11-1-static"
+bin_prefix = "https://github.com/JuliaOpt/ClpBuilder/releases/download/v1.16.11-1a-static"
 
 download_info = Dict(
-    Linux(:aarch64, libc=:glibc, compiler_abi=CompilerABI(:gcc4)) => ("$bin_prefix/ClpBuilder.v1.16.11.aarch64-linux-gnu-gcc4.tar.gz", "7486e8fee3ee02770276692784cbb2f6f5833445af5873ba4ee8e0dccce73ea9"),
-    Linux(:aarch64, libc=:glibc, compiler_abi=CompilerABI(:gcc7)) => ("$bin_prefix/ClpBuilder.v1.16.11.aarch64-linux-gnu-gcc7.tar.gz", "d245f665a2cd764cb220a15bd25b8f22d39e29c1a8602830d76bccb98d6efcfa"),
-    Linux(:aarch64, libc=:glibc, compiler_abi=CompilerABI(:gcc8)) => ("$bin_prefix/ClpBuilder.v1.16.11.aarch64-linux-gnu-gcc8.tar.gz", "4f35d9c124ce56a7289c7648a417f1ecaa771282f66eb7f958ed5e4d434a9e0e"),
-    Linux(:armv7l, libc=:glibc, call_abi=:eabihf, compiler_abi=CompilerABI(:gcc4)) => ("$bin_prefix/ClpBuilder.v1.16.11.arm-linux-gnueabihf-gcc4.tar.gz", "476be15b10ee70b20f20ae4f5120e1664715de406bf504b8ac1ae447214aedaf"),
-    Linux(:armv7l, libc=:glibc, call_abi=:eabihf, compiler_abi=CompilerABI(:gcc7)) => ("$bin_prefix/ClpBuilder.v1.16.11.arm-linux-gnueabihf-gcc7.tar.gz", "ffdb45fd798892b850d95b2a26c59f3f86a702a82c0ab227a9f8aebb75b892f4"),
-    Linux(:armv7l, libc=:glibc, call_abi=:eabihf, compiler_abi=CompilerABI(:gcc8)) => ("$bin_prefix/ClpBuilder.v1.16.11.arm-linux-gnueabihf-gcc8.tar.gz", "fffbea4035857537006f3e466ef72369d4daa149e960bd69ee8c7d52562013f8"),
-    Linux(:i686, libc=:glibc, compiler_abi=CompilerABI(:gcc4)) => ("$bin_prefix/ClpBuilder.v1.16.11.i686-linux-gnu-gcc4.tar.gz", "cbcd28e3ac7a6bd1250294a804114181c87f1b616113225ef7d35dcfb7f6ffa7"),
-    Linux(:i686, libc=:glibc, compiler_abi=CompilerABI(:gcc7)) => ("$bin_prefix/ClpBuilder.v1.16.11.i686-linux-gnu-gcc7.tar.gz", "977b830cd6997272cdee726c6deab24a5ccb54e5d10626c47d6be630a684db44"),
-    Linux(:i686, libc=:glibc, compiler_abi=CompilerABI(:gcc8)) => ("$bin_prefix/ClpBuilder.v1.16.11.i686-linux-gnu-gcc8.tar.gz", "718aad4ef7d46106ca8f1f082bface33c3b64e223b523ce02ba143e8e08b72e7"),
-    Windows(:i686, compiler_abi=CompilerABI(:gcc6)) => ("$bin_prefix/ClpBuilder.v1.16.11.i686-w64-mingw32-gcc6.tar.gz", "181fef44a57723a3d9e4cac6828aff308d2fa849245f6bf800110c7645a7bfdd"),
-    Windows(:i686, compiler_abi=CompilerABI(:gcc7)) => ("$bin_prefix/ClpBuilder.v1.16.11.i686-w64-mingw32-gcc7.tar.gz", "252ecd181bb32b5610d3131b3eee0c70cc68ae3f1d4fe2ba689256caf52afe86"),
-    Windows(:i686, compiler_abi=CompilerABI(:gcc8)) => ("$bin_prefix/ClpBuilder.v1.16.11.i686-w64-mingw32-gcc8.tar.gz", "0ac76950c0874f06bb52b13a85ec813181aa9c9162d741c8dc0d4bae01a22a26"),
-    MacOS(:x86_64, compiler_abi=CompilerABI(:gcc4)) => ("$bin_prefix/ClpBuilder.v1.16.11.x86_64-apple-darwin14-gcc4.tar.gz", "5a9aeb6e27ff9677464bcf3ecc0735a67d5473937b8555b6dc6b9064ed921b82"),
-    MacOS(:x86_64, compiler_abi=CompilerABI(:gcc7)) => ("$bin_prefix/ClpBuilder.v1.16.11.x86_64-apple-darwin14-gcc7.tar.gz", "262e7a7f16d08edf17d838a232016be29c6b5fc8484aa12790da2c44bed3917e"),
-    MacOS(:x86_64, compiler_abi=CompilerABI(:gcc8)) => ("$bin_prefix/ClpBuilder.v1.16.11.x86_64-apple-darwin14-gcc8.tar.gz", "1ba927665b089b0e6738d5cc62eb8fa916e0d5387e38964b388205d44f10005b"),
-    Linux(:x86_64, libc=:glibc, compiler_abi=CompilerABI(:gcc4)) => ("$bin_prefix/ClpBuilder.v1.16.11.x86_64-linux-gnu-gcc4.tar.gz", "b7e1b16b7a478762cf24f3112f6d064d497b845bac63896fdda19085d2109985"),
-    Linux(:x86_64, libc=:glibc, compiler_abi=CompilerABI(:gcc7)) => ("$bin_prefix/ClpBuilder.v1.16.11.x86_64-linux-gnu-gcc7.tar.gz", "b955aadca6134586babe120c499aee6583715d4964075bf73bbc42216e5ba911"),
-    Linux(:x86_64, libc=:glibc, compiler_abi=CompilerABI(:gcc8)) => ("$bin_prefix/ClpBuilder.v1.16.11.x86_64-linux-gnu-gcc8.tar.gz", "9b9ae725558a642b6a03a327236d91b1fc8c2c99c3afed932a3921d27ef1cbf6"),
-    Windows(:x86_64, compiler_abi=CompilerABI(:gcc6)) => ("$bin_prefix/ClpBuilder.v1.16.11.x86_64-w64-mingw32-gcc6.tar.gz", "03252a30570e9740dcc5f1413dd3481a68e8c12c7373fc1ac2a58cec73f3ff6f"),
-    Windows(:x86_64, compiler_abi=CompilerABI(:gcc7)) => ("$bin_prefix/ClpBuilder.v1.16.11.x86_64-w64-mingw32-gcc7.tar.gz", "76078cbbf17456ea3b27145a3539a1f16c26ac261a13485068c8718d55aba6a3"),
-    Windows(:x86_64, compiler_abi=CompilerABI(:gcc8)) => ("$bin_prefix/ClpBuilder.v1.16.11.x86_64-w64-mingw32-gcc8.tar.gz", "705cd3fc170d1607899e9bcfe981c84ef5244a94187abbc479251c7f37b316e1"),
+    Linux(:aarch64, libc=:glibc, compiler_abi=CompilerABI(:gcc4)) => ("$bin_prefix/ClpBuilder.v1.16.11.aarch64-linux-gnu-gcc4.tar.gz", "9ab682ea624549801bf95c1169cd1da055941d9449b53185589e2c818d003e4b"),
+    Linux(:aarch64, libc=:glibc, compiler_abi=CompilerABI(:gcc7)) => ("$bin_prefix/ClpBuilder.v1.16.11.aarch64-linux-gnu-gcc7.tar.gz", "92bd67f6f1ab11749b57228cd24134b5e8ca3a4b9ab695291528240ce33e6d68"),
+    Linux(:aarch64, libc=:glibc, compiler_abi=CompilerABI(:gcc8)) => ("$bin_prefix/ClpBuilder.v1.16.11.aarch64-linux-gnu-gcc8.tar.gz", "7de4e0d406560ca36d68693371dc5d1aaafc8ccc92922ab2942a3ee17ed5cebb"),
+    Linux(:armv7l, libc=:glibc, call_abi=:eabihf, compiler_abi=CompilerABI(:gcc4)) => ("$bin_prefix/ClpBuilder.v1.16.11.arm-linux-gnueabihf-gcc4.tar.gz", "84ecf9257fd7cf35e0e03f70ba91330a120c202ca668bf4ea59ae462e114479d"),
+    Linux(:armv7l, libc=:glibc, call_abi=:eabihf, compiler_abi=CompilerABI(:gcc7)) => ("$bin_prefix/ClpBuilder.v1.16.11.arm-linux-gnueabihf-gcc7.tar.gz", "669c8eb49f1c55ae40f25b3102794771c8b85df4a01282f4de6e03a2d551dc6c"),
+    Linux(:armv7l, libc=:glibc, call_abi=:eabihf, compiler_abi=CompilerABI(:gcc8)) => ("$bin_prefix/ClpBuilder.v1.16.11.arm-linux-gnueabihf-gcc8.tar.gz", "1183075c704d653ba09e3f56971972ff8f8183a7081cca2aa8e244fc98c81be5"),
+    Linux(:i686, libc=:glibc, compiler_abi=CompilerABI(:gcc4)) => ("$bin_prefix/ClpBuilder.v1.16.11.i686-linux-gnu-gcc4.tar.gz", "5bb05730d63755d3c9a79dc8a78d09511568e62ad84ed802bc6f8077120c6b75"),
+    Linux(:i686, libc=:glibc, compiler_abi=CompilerABI(:gcc7)) => ("$bin_prefix/ClpBuilder.v1.16.11.i686-linux-gnu-gcc7.tar.gz", "a193103da7eee0b9c8ff7f331297d0e71baea40ef2cc25183e426f1f6b0e9e48"),
+    Linux(:i686, libc=:glibc, compiler_abi=CompilerABI(:gcc8)) => ("$bin_prefix/ClpBuilder.v1.16.11.i686-linux-gnu-gcc8.tar.gz", "5eed843e7db9459d1b47476499b313bfe9a2a020cc2fcb6cca5a6964529e12f1"),
+    Windows(:i686, compiler_abi=CompilerABI(:gcc6)) => ("$bin_prefix/ClpBuilder.v1.16.11.i686-w64-mingw32-gcc6.tar.gz", "a5c4036856d399bf06d33e422775a2e031ca906885af092690311a29c907dcee"),
+    Windows(:i686, compiler_abi=CompilerABI(:gcc7)) => ("$bin_prefix/ClpBuilder.v1.16.11.i686-w64-mingw32-gcc7.tar.gz", "e008d435230fa77da0897237df5b594c8f1a8828edbf324a9e1dc54f23db77d4"),
+    Windows(:i686, compiler_abi=CompilerABI(:gcc8)) => ("$bin_prefix/ClpBuilder.v1.16.11.i686-w64-mingw32-gcc8.tar.gz", "67c010fd535e371b44c5ad626107b3c42b24ae00f6f011cb8340cf1a68c8ee9b"),
+    MacOS(:x86_64, compiler_abi=CompilerABI(:gcc4)) => ("$bin_prefix/ClpBuilder.v1.16.11.x86_64-apple-darwin14-gcc4.tar.gz", "07814295e81f24dd33dc1cfea349a840e086ba420808557161f3c7ada7b3cb03"),
+    MacOS(:x86_64, compiler_abi=CompilerABI(:gcc7)) => ("$bin_prefix/ClpBuilder.v1.16.11.x86_64-apple-darwin14-gcc7.tar.gz", "a5259539475be446f6ade1c73513ebc8eb9d1bf7b8cd7f53430879ad3f2a8e4a"),
+    MacOS(:x86_64, compiler_abi=CompilerABI(:gcc8)) => ("$bin_prefix/ClpBuilder.v1.16.11.x86_64-apple-darwin14-gcc8.tar.gz", "2ac3cd8ebc619887f2816b5f7cfdf99fe2d190ffe38eb92252d23d5ebfeb5715"),
+    Linux(:x86_64, libc=:glibc, compiler_abi=CompilerABI(:gcc4)) => ("$bin_prefix/ClpBuilder.v1.16.11.x86_64-linux-gnu-gcc4.tar.gz", "e2895e33c9193e4f547aaf8b75fe602c7506e8f87014dd9a92752c2a71cd6a63"),
+    Linux(:x86_64, libc=:glibc, compiler_abi=CompilerABI(:gcc7)) => ("$bin_prefix/ClpBuilder.v1.16.11.x86_64-linux-gnu-gcc7.tar.gz", "4c4f9c37c790a20d6e7874c684e898a012b5d07d61e125aa3a84fdf80620bcfc"),
+    Linux(:x86_64, libc=:glibc, compiler_abi=CompilerABI(:gcc8)) => ("$bin_prefix/ClpBuilder.v1.16.11.x86_64-linux-gnu-gcc8.tar.gz", "40dc02584678b264dde7be3084245a0b0efa84db4f143959fd1eca1a69c718a8"),
+    Windows(:x86_64, compiler_abi=CompilerABI(:gcc6)) => ("$bin_prefix/ClpBuilder.v1.16.11.x86_64-w64-mingw32-gcc6.tar.gz", "2ee820b182e4f878f973d66e6b8bea0a0cb9b3f9258de930bf7c94cbc80de71c"),
+    Windows(:x86_64, compiler_abi=CompilerABI(:gcc7)) => ("$bin_prefix/ClpBuilder.v1.16.11.x86_64-w64-mingw32-gcc7.tar.gz", "b4fe6a96a52ff7db307aab4cc6993f231f77ded6b39aeffa4b4c05cf11a8b770"),
+    Windows(:x86_64, compiler_abi=CompilerABI(:gcc8)) => ("$bin_prefix/ClpBuilder.v1.16.11.x86_64-w64-mingw32-gcc8.tar.gz", "2711d239bcbd3b7da18520694c447923c229c451b7f75c93573518f5424a6f61"),
 )
 
 # To fix gcc4 bug in Windows
