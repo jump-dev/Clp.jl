@@ -374,3 +374,16 @@ end
 function LQOI.delete_variables!(instance::Optimizer, start_col::Int, end_col::Int)
     delete_columns(instance.inner, [Cint(i-1) for i in start_col:end_col])
 end
+
+const statmap = Dict(zip([ 0x00,  0x01, 0x02, 0x03, 0x04, 0x05],
+                     [MOI.BASIC, MOI.BASIC, MOI.NONBASIC_AT_UPPER, MOI.NONBASIC_AT_LOWER,MOI.SUPER_BASIC, MOI.NONBASIC]))
+function MOI.get(instance::Optimizer, ::MOI.ConstraintBasisStatus, i::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},T}) where T <: LQOI.LinSets
+    row = instance[i]
+    val = get_row_status(instance.inner, row)
+    return  statmap[val]
+end
+function MOI.get(instance::Optimizer, ::MOI.VariableBasisStatus, i::LQOI.VarInd)
+    col = instance.variable_mapping[i]
+    val = get_column_status(instance.inner, col)
+    return  statmap[val]
+end
