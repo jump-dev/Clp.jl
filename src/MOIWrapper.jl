@@ -377,7 +377,7 @@ end
 
 const statmap = Dict(zip([ 0x00,  0x01, 0x02, 0x03, 0x04, 0x05],
                      [MOI.BASIC, MOI.BASIC, MOI.NONBASIC_AT_UPPER, MOI.NONBASIC_AT_LOWER,MOI.SUPER_BASIC, MOI.NONBASIC]))
-function MOI.get(instance::Optimizer, ::MOI.ConstraintBasisStatus, i::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},T}) where T <: LQOI.LinSets
+function MOI.get(instance::Optimizer, ::MOI.ConstraintBasisStatus, i::LQOI.LCI{T}) where T <: LQOI.LinSets
     row = instance[i]
     val = get_row_status(instance.inner, row)
     return  statmap[val]
