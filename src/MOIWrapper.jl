@@ -377,13 +377,33 @@ end
 
 const statmap = Dict(zip([ 0x00,  0x01, 0x02, 0x03, 0x04, 0x05],
                      [MOI.BASIC, MOI.BASIC, MOI.NONBASIC_AT_UPPER, MOI.NONBASIC_AT_LOWER,MOI.SUPER_BASIC, MOI.NONBASIC]))
-function MOI.get(instance::Optimizer, ::MOI.ConstraintBasisStatus, i::LQOI.LCI{T}) where T <: LQOI.LinSets
+function MOI.get(instance::Optimizer, ::MOI.ConstraintBasisStatus, i::LQOI.LCI{T}) where T <: Union{LQOI.LE, LQOI.GE, LQOI.EQ}
+    row = instance[i]
+    val = get_row_status(instance.inner, row)
+    stat = statmap[val]
+    # Single sided constraints, should not specify lower or upper
+    if stat == MOI.NONBASIC_AT_LOWER || stat == MOI.NONBASIC_AT_UPPER
+        return MOI.NONBASIC
+    end
+    return stat
+end
+
+function MOI.get(instance::Optimizer, ::MOI.ConstraintBasisStatus, i::LQOI.LCI{T}) where T <: LQOI.IV
     row = instance[i]
     val = get_row_status(instance.inner, row)
     return  statmap[val]
 end
+
 function MOI.get(instance::Optimizer, ::MOI.VariableBasisStatus, i::LQOI.VarInd)
     col = instance.variable_mapping[i]
+    lower = replace_inf(get_col_lower(instance.inner)[col])
+    upper = replace_inf(get_col_upper(instance.inner)[col])
     val = get_column_status(instance.inner, col)
-    return  statmap[val]
+    stat = statmap[val]
+    # For NONBASIC single sided variable, only return NONBASIC status for simplicity
+    if xor(isfinite(lower), isfinite(upper)) &&
+        (stat == MOI.NONBASIC_AT_LOWER || stat == MOI.NONBASIC_AT_UPPER)
+        return MOI.NONBASIC
+    end
+    return stat
 end
