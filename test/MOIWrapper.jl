@@ -18,7 +18,7 @@ const MOIT = MathOptInterface.Test
 end
 
 @testset "Linear tests" begin
-    linconfig = MOIT.TestConfig(modify_lhs = false)
+    linconfig = MOIT.TestConfig(modify_lhs = false, basis = true)
     solver = Clp.Optimizer(LogLevel = 0)
     MOIT.contlineartest(solver, linconfig, [
         # linear1 test is disabled due to the following bug:
