@@ -418,7 +418,7 @@ end
 
 function MOI.get(instance::Optimizer, ::MOI.ConstraintBasisStatus, ci::LQOI.SVCI{T}) where T <: LQOI.IV
     vi = instance[ci]
-    return MOI.get(instance, MOI.VariableBasisStatus(), ci)
+    return MOI.get(instance, MOI.VariableBasisStatus(), vi)
 end
 
 function MOI.get(instance::Optimizer, ::MOI.VariableBasisStatus, i::LQOI.VarInd)
