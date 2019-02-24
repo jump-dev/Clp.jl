@@ -388,10 +388,37 @@ function MOI.get(instance::Optimizer, ::MOI.ConstraintBasisStatus, i::LQOI.LCI{T
     return stat
 end
 
-function MOI.get(instance::Optimizer, ::MOI.ConstraintBasisStatus, i::LQOI.LCI{T}) where T <: LQOI.IV
-    row = instance[i]
-    val = get_row_status(instance.inner, row)
-    return  statmap[val]
+function MOI.get(instance::Optimizer, ::MOI.ConstraintBasisStatus, ::LQOI.SVCI{T}) where T <: LQOI.EQ
+    return MOI.NONBASIC
+end
+
+function MOI.get(instance::Optimizer, ::MOI.ConstraintBasisStatus, ci::LQOI.SVCI{T}) where T <: LQOI.LE
+    vi = instance[ci]
+    var_stat =  MOI.get(instance, MOI.VariableBasisStatus(), vi)
+    if var_stat == MOI.NONBASIC_AT_UPPER
+        return MOI.NONBASIC
+    end
+    if var_stat == MOI.NONBASIC_AT_LOWER
+        return MOI.BASIC
+    end
+    return var_stat
+end
+
+function MOI.get(instance::Optimizer, ::MOI.ConstraintBasisStatus, ci::LQOI.SVCI{T}) where T <: LQOI.GE
+    vi = instance[ci]
+    var_stat =  MOI.get(instance, MOI.VariableBasisStatus(), vi)
+    if var_stat == MOI.NONBASIC_AT_LOWER
+        return MOI.NONBASIC
+    end
+    if var_stat == MOI.NONBASIC_AT_UPPER
+        return MOI.BASIC
+    end
+    return var_stat
+end
+
+function MOI.get(instance::Optimizer, ::MOI.ConstraintBasisStatus, ci::LQOI.SVCI{T}) where T <: LQOI.IV
+    vi = instance[ci]
+    return MOI.get(instance, MOI.VariableBasisStatus(), ci)
 end
 
 function MOI.get(instance::Optimizer, ::MOI.VariableBasisStatus, i::LQOI.VarInd)
