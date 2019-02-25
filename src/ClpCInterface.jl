@@ -81,6 +81,7 @@ export
     get_vector_starts,
     get_indices,
     get_constraint_matrix,
+    unsafe_get_constraint_matrix,
     get_vector_lengths,
     get_elements,
     get_obj_value,
