@@ -811,46 +811,65 @@ function get_num_elements(model::ClpModel)
 end
 
 # Get column starts in matrix.
-function get_vector_starts(model::ClpModel)
+# Unsafe because array is in memory which is not managed by julia
+function unsafe_get_vector_starts(model::ClpModel)
     _jl__check_model(model)
     vec_starts_p = @clp_ccall getVectorStarts Ptr{CoinBigIndex} (Ptr{Cvoid},) model.p
     num_cols = Int(get_num_cols(model))
-    return copy(unsafe_wrap(Array,vec_starts_p, (num_cols+1,)))
+    return unsafe_wrap(Array,vec_starts_p, (num_cols+1,))
 end
 
+# Get column starts in matrix.
+get_vector_starts(model::ClpModel) = copy(unsafe_get_vector_starts(model))
+
 # Get row indices in matrix.
-function get_indices(model::ClpModel)
+# Unsafe because array is in memory which is not managed by julia
+function unsafe_get_indices(model::ClpModel)
     _jl__check_model(model)
     # getIndices returns an "int*", how do we know it's Int32??
     row_indices_p = @clp_ccall getIndices Ptr{Int32} (Ptr{Cvoid},) model.p
     num_elts = Int(get_num_elements(model))
-    return copy(unsafe_wrap(Array,row_indices_p,(num_elts,)))
+    return unsafe_wrap(Array,row_indices_p,(num_elts,))
 end
 
-function get_constraint_matrix(model::ClpModel)
+# Get row indices in matrix.
+get_indices(model::ClpModel) = copy(unsafe_get_indices(model))
+
+# Get the constraint matrix.
+# Unsafe because array is in memory which is not managed by julia.
+function unsafe_get_constraint_matrix(model::ClpModel)
     _jl__check_model(model)
     @assert CoinBigIndex == Int32
     # SparseMatrixCSC requires same integer type for colptr and rowval
     num_cols = convert(Int, get_num_cols(model))
     num_rows = convert(Int, get_num_rows(model))
-    colptr = get_vector_starts(model) .+ convert(Int32,1)
-    rowval = get_indices(model) .+ convert(CoinBigIndex,1)
-    nzval = get_elements(model)
-
+    colptr = unsafe_get_vector_starts(model) .+ convert(Int32,1)
+    rowval = unsafe_get_indices(model) .+ convert(CoinBigIndex,1)
+    nzval = unsafe_get_elements(model)
     return SparseMatrixCSC{Float64,CoinBigIndex}(num_rows,num_cols,colptr,rowval,nzval)
+end
 
+# Get the constraint matrix.
+function get_constraint_matrix(model::ClpModel)
+    mat = unsafe_get_constraint_matrix(model)
+    return SparseMatrixCSC(mat.m, mat.n, mat.colptr, mat.rowval, copy(mat.nzval))
 end
 
 # Get column vector lengths in matrix.
 @def_get_col_property get_vector_lengths getVectorLengths
 
 # Get element values in matrix.
-function get_elements(model::ClpModel)
+# Unsafe because array is in memory which is not managed by julia
+function unsafe_get_elements(model::ClpModel)
+
     _jl__check_model(model)
     elements_p = @clp_ccall getElements Ptr{Float64} (Ptr{Cvoid},) model.p
     num_elts = Int(get_num_elements(model))
-    return copy(unsafe_wrap(Array,elements_p,(num_elts,)))
+    return unsafe_wrap(Array,elements_p,(num_elts,))
 end
+
+# Get element values in matrix.
+get_elements(model::ClpModel) = copy(unsafe_get_elements(model))
 
 # Get objective value.
 function get_obj_value(model::ClpModel)
