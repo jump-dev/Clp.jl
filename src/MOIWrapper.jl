@@ -256,7 +256,10 @@ function cached_get_constraint_matrix(instance::Optimizer)
     return instance.cached_constraint_matrix
 end
 
-
+# This function is using an undocumented capability in Clp, by which you can
+# modify the coefficent matrix returned by unsafe_get_constraint_matrix and have
+# the results reflected in the model.  That means that there is no way to add a
+# coefficent only change it.
 function LQOI.change_matrix_coefficient!(instance::Optimizer, row, col, coef)
     A = cached_get_constraint_matrix(instance)
     ind = sparse_value_index(A, row, col)
