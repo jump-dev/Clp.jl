@@ -1,6 +1,7 @@
 
 using LinQuadOptInterface
 using .ClpCInterface
+using SparseArrays
 
 const LQOI = LinQuadOptInterface
 const MOI  = LQOI.MOI
@@ -29,9 +30,9 @@ const SUPPORTED_CONSTRAINTS = [
 mutable struct Optimizer <: LQOI.LinQuadOptimizer
     LQOI.@LinQuadOptimizerBase
     params::Dict{Symbol,Any}
+    cached_constraint_matrix::Union{Missing,SparseMatrixCSC}
     Optimizer(::Nothing) = new()
 end
-
 ### Options
 
 # map option name to C function
@@ -55,6 +56,7 @@ const solveoptionmap = Dict(
 function Optimizer(;kwargs...)
     optimizer = Optimizer(nothing)
     optimizer.params = Dict{String,Any}()
+    optimizer.cached_constraint_matrix = missing
     MOI.empty!(optimizer)
     for (name,value) in kwargs
         optimizer.params[Symbol(name)] = value
@@ -66,6 +68,19 @@ LQOI.LinearQuadraticModel(::Type{Optimizer},env) = ClpModel()
 
 LQOI.supported_constraints(optimizer::Optimizer) = SUPPORTED_CONSTRAINTS
 LQOI.supported_objectives(optimizer::Optimizer) = SUPPORTED_OBJECTIVES
+
+
+"""
+    clear_cached_coefficient_matrix!(opt::Optimizer)
+
+Use this function when ever there is an operation that may change the Clp constraint matrix
+"""
+@inline function clear_cached_coefficient_matrix!(opt::Optimizer)
+    ismissing(opt.cached_constraint_matrix) || opt.cached_constraint_matrix = missing
+    return true
+end
+
+
 
 """
     replace_inf(x::Real)
@@ -98,6 +113,9 @@ end
 
 function LQOI.change_variable_bounds!(instance::Optimizer, cols::Vector{Int},
         values::Vector{Float64}, senses::Vector)
+    #This operation may change coefficent matrix
+    clear_cached_coefficient_matrix!(instance)
+
     upperbounds = get_col_upper(instance.inner)
     lowerbounds = get_col_lower(instance.inner)
     for (col, value, sense) in zip(cols, values, senses)
@@ -138,6 +156,8 @@ with upper bound `upper` and lower bound  `lower` to the instance `instance`.
 function append_row(instance::Optimizer, row::Int, lower::Float64,
                     upper::Float64, rows::Vector{Int}, cols::Vector{Int},
                     coefs::Vector{Float64})
+    #This operation will change coefficent matrix
+    clear_cached_coefficient_matrix!(instance)
     indices = if row == length(rows)
         rows[row]:length(cols)
     else
@@ -149,6 +169,8 @@ end
 
 function LQOI.add_linear_constraints!(instance::Optimizer, A::LQOI.CSRMatrix{Float64},
         senses::Vector{Cchar}, right_hand_sides::Vector{Float64})
+    #This operation will change coefficent matrix
+    clear_cached_coefficient_matrix!(instance)
     rows = A.row_pointers
     cols = A.columns
     coefs = A.coefficients
@@ -176,6 +198,8 @@ end
 function LQOI.add_ranged_constraints!(instance::Clp.Optimizer,
         A::LinQuadOptInterface.CSRMatrix{Float64},
         lb::Vector{Float64}, ub::Vector{Float64})
+    #This operation may change coefficent matrix
+    clear_cached_coefficient_matrix!(instance)
     rows = A.row_pointers
     cols = A.columns
     coefs = A.coefficients
@@ -199,18 +223,55 @@ function LQOI.get_rhs(instance::Optimizer, row::Int)
 end
 
 function LQOI.get_linear_constraint(instance::Optimizer, row::Int)::Tuple{Vector{Int}, Vector{Float64}}
-    A = get_constraint_matrix(instance.inner)
+    A = cached_get_constraint_matrix(instance.inner)
     A_row = A[row,:]
     return Array{Int}(A_row.nzind), A_row.nzval
 end
 
 function LQOI.change_objective_coefficient!(instance::Optimizer, col, coef)
+    #This operation may change coefficent matrix
+    clear_cached_coefficient_matrix!(instance)
+
     objcoefs = get_obj_coefficients(instance.inner)
     objcoefs[col] = coef
     chg_obj_coefficients(instance.inner, objcoefs)
 end
 
+# Returns the index to a sparse cartesian input, returning missing if it isn't present
+function sparse_value_index(A::SparseMatrixCSC, row::Integer, col::Integer)
+    col_range = nzrange(A, col)
+    row_inds = rowvals(A)[col_range]
+    for (n,ind) in enumerate(row_inds)
+        ind == row && return col_range[n]
+        ind > row  && return missing
+    end
+    return missing
+end
+
+# Gets the contraint method eith from cache or from solver if needed
+function cached_get_constraint_matrix(instance::Optimizer)
+    if ismissing(instance.cached_constraint_matrix)
+        instance.cached_constraint_matrix = unsafe_get_constraint_matrix(instance.inner)
+    end
+    return instance.cached_constraint_matrix
+end
+
+
+function LQOI.change_matrix_coefficient!(instance::Optimizer, row, col, coef)
+    A = cached_get_constraint_matrix(instance)
+    ind = sparse_value_index(A, row, col)
+    if ismissing(ind)
+        # It would be great to have a better error here, but there is no wat to throw a good MOI error from here.
+        error("Clp currently only supports changing constraint coefficients which were present at the creation of the constraint")
+    end
+    nzvals = nonzeros(A)
+    nzvals[ind] = coef
+end
+
 function LQOI.change_rhs_coefficient!(instance::Optimizer, row, coef)
+    #This operation may change coefficent matrix
+    clear_cached_coefficient_matrix!(instance)
+
     lower_bounds = get_row_lower(instance.inner)
     upper_bounds = get_row_upper(instance.inner)
     lower_bound = replace_inf(lower_bounds[row])
@@ -227,10 +288,16 @@ function LQOI.change_rhs_coefficient!(instance::Optimizer, row, coef)
 end
 
 function LQOI.delete_linear_constraints!(instance::Optimizer, start_row::Int, end_row::Int)
+    #This operation may change coefficent matrix
+    clear_cached_coefficient_matrix!(instance)
+
     delete_rows(instance.inner, [Cint(i-1) for i in start_row:end_row])
 end
 
 function LQOI.change_linear_constraint_sense!(instance::Optimizer, rows::Vector{Int}, senses::Vector{Cchar})
+    #This operation may change coefficent matrix
+    clear_cached_coefficient_matrix!(instance)
+
     lower = replace_inf.(get_row_lower(instance.inner))
     upper = replace_inf.(get_row_upper(instance.inner))
     for (sense, row) in zip(senses, rows)
@@ -259,6 +326,9 @@ function LQOI.change_linear_constraint_sense!(instance::Optimizer, rows::Vector{
 end
 
 function LQOI.set_linear_objective!(instance::Optimizer, cols::Vector{Int}, coefs::Vector{Float64})
+    #This operation may change coefficent matrix
+    clear_cached_coefficient_matrix!(instance)
+
     objective_coefficients = zeros(Float64, get_num_cols(instance.inner))
     for (col, coef) in zip(cols, coefs)
         objective_coefficients[col] += coef
@@ -267,6 +337,9 @@ function LQOI.set_linear_objective!(instance::Optimizer, cols::Vector{Int}, coef
 end
 
 function LQOI.change_objective_sense!(instance::Optimizer, sense::Symbol)
+    #This operation may change coefficent matrix
+    clear_cached_coefficient_matrix!(instance)
+
     if sense == :min
         set_obj_sense(instance.inner, 1.0)
     elseif sense == :max
@@ -281,6 +354,9 @@ function LQOI.get_linear_objective!(instance::Optimizer, x::Vector{Float64})
 end
 
 function LQOI.solve_linear_problem!(instance::Optimizer)
+    #This operation may change coefficent matrix
+    clear_cached_coefficient_matrix!(instance)
+
     solveroptions = ClpSolve()
     model = instance.inner
     for (name, value) in instance.params
@@ -366,11 +442,17 @@ function LQOI.get_number_variables(instance::Optimizer)
 end
 
 function LQOI.add_variables!(instance::Optimizer, number_of_variables::Int)
+    #This operation may change coefficent matrix
+    clear_cached_coefficient_matrix!(instance)
+
     for i in 1:number_of_variables
         add_column(instance.inner, Cint(0), Int32[], Float64[], -Inf, Inf, 0.0)
     end
 end
 
 function LQOI.delete_variables!(instance::Optimizer, start_col::Int, end_col::Int)
+    #This operation may change coefficent matrix
+    clear_cached_coefficient_matrix!(instance)
+
     delete_columns(instance.inner, [Cint(i-1) for i in start_col:end_col])
 end
