@@ -76,7 +76,7 @@ LQOI.supported_objectives(optimizer::Optimizer) = SUPPORTED_OBJECTIVES
 Use this function when ever there is an operation that may change the Clp constraint matrix
 """
 @inline function clear_cached_coefficient_matrix!(opt::Optimizer)
-    ismissing(opt.cached_constraint_matrix) || opt.cached_constraint_matrix = missing
+    ismissing(opt.cached_constraint_matrix) || (opt.cached_constraint_matrix = missing)
     return true
 end
 
@@ -223,7 +223,7 @@ function LQOI.get_rhs(instance::Optimizer, row::Int)
 end
 
 function LQOI.get_linear_constraint(instance::Optimizer, row::Int)::Tuple{Vector{Int}, Vector{Float64}}
-    A = cached_get_constraint_matrix(instance.inner)
+    A = cached_get_constraint_matrix(instance)
     A_row = A[row,:]
     return Array{Int}(A_row.nzind), A_row.nzval
 end
