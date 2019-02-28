@@ -392,45 +392,27 @@ function MOI.get(instance::Optimizer, ::MOI.ConstraintBasisStatus, ::LQOI.SVCI{T
     return MOI.NONBASIC
 end
 
-function MOI.get(instance::Optimizer, ::MOI.ConstraintBasisStatus, ci::LQOI.SVCI{T}) where T <: LQOI.LE
-    vi = instance[ci]
-    var_stat =  MOI.get(instance, MOI.VariableBasisStatus(), vi)
-    if var_stat == MOI.NONBASIC_AT_UPPER
-        return MOI.NONBASIC
-    end
-    if var_stat == MOI.NONBASIC_AT_LOWER
-        return MOI.BASIC
-    end
-    return var_stat
-end
-
-function MOI.get(instance::Optimizer, ::MOI.ConstraintBasisStatus, ci::LQOI.SVCI{T}) where T <: LQOI.GE
-    vi = instance[ci]
-    var_stat =  MOI.get(instance, MOI.VariableBasisStatus(), vi)
-    if var_stat == MOI.NONBASIC_AT_LOWER
-        return MOI.NONBASIC
-    end
-    if var_stat == MOI.NONBASIC_AT_UPPER
-        return MOI.BASIC
-    end
-    return var_stat
-end
-
-function MOI.get(instance::Optimizer, ::MOI.ConstraintBasisStatus, ci::LQOI.SVCI{T}) where T <: LQOI.IV
-    vi = instance[ci]
-    return MOI.get(instance, MOI.VariableBasisStatus(), vi)
-end
-
-function MOI.get(instance::Optimizer, ::MOI.VariableBasisStatus, i::LQOI.VarInd)
+function variable_basis_status(instance::Optimizer, i::LQOI.VarInd)
     col = instance.variable_mapping[i]
     lower = replace_inf(get_col_lower(instance.inner)[col])
     upper = replace_inf(get_col_upper(instance.inner)[col])
     val = get_column_status(instance.inner, col)
-    stat = statmap[val]
-    # For NONBASIC single sided variable, only return NONBASIC status for simplicity
-    if xor(isfinite(lower), isfinite(upper)) &&
-        (stat == MOI.NONBASIC_AT_LOWER || stat == MOI.NONBASIC_AT_UPPER)
-        return MOI.NONBASIC
-    end
-    return stat
+    return val
+end
+
+function MOI.get(instance::Optimizer, ::MOI.ConstraintBasisStatus, ci::LQOI.SVCI{T}) where T <: LQOI.IV
+    return statmap[variable_basis_status(instance, instance[ci])]
+end
+
+#Single sided constraints returns NONBASIC instead of NONBASIC_AT_X
+const statmap_LE = Dict(zip([ 0x00,  0x01, 0x02, 0x03, 0x04, 0x05],
+                     [MOI.BASIC, MOI.BASIC, MOI.NONBASIC, MOI.BASIC, MOI.SUPER_BASIC, MOI.NONBASIC]))
+function MOI.get(instance::Optimizer, ::MOI.ConstraintBasisStatus, ci::LQOI.SVCI{T}) where T <: LQOI.LE
+    return statmap_LE[variable_basis_status(instance, instance[ci])]
+end
+
+const statmap_GE = Dict(zip([ 0x00,  0x01, 0x02, 0x03, 0x04, 0x05],
+                     [MOI.BASIC, MOI.BASIC, MOI.BASIC, MOI.NONBASIC, MOI.SUPER_BASIC, MOI.NONBASIC]))
+function MOI.get(instance::Optimizer, ::MOI.ConstraintBasisStatus, ci::LQOI.SVCI{T}) where T <: LQOI.GE
+    return statmap_GE[variable_basis_status(instance, instance[ci])]
 end

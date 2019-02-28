@@ -33,12 +33,15 @@ end
         # bounds. These are available through C++, but not via the C interface.
         "linear12",
         # partial_start requires VariablePrimalStart to be implemented by the
-        # solver. 
+        # solver.
         "partial_start"
     ])
 
     @testset "Interval Bridge" begin
         MOIT.linear10test(MOIB.SplitInterval{Float64}(solver), linconfig)
+    end
+    @testset "Slack Bridge" begin
+        MOIT.linear10test(MOIB.ScalarSlack{Float64}(solver), linconfig)
     end
 end
 
