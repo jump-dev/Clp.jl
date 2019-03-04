@@ -392,27 +392,22 @@ function MOI.get(instance::Optimizer, ::MOI.ConstraintBasisStatus, ::LQOI.SVCI{T
     return MOI.NONBASIC
 end
 
-function variable_basis_status(instance::Optimizer, i::LQOI.VarInd)
-    col = instance.variable_mapping[i]
-    lower = replace_inf(get_col_lower(instance.inner)[col])
-    upper = replace_inf(get_col_upper(instance.inner)[col])
-    val = get_column_status(instance.inner, col)
-    return val
-end
-
 function MOI.get(instance::Optimizer, ::MOI.ConstraintBasisStatus, ci::LQOI.SVCI{T}) where T <: LQOI.IV
-    return statmap[variable_basis_status(instance, instance[ci])]
+    col = instance.variable_mapping[instance[ci]]
+    return statmap[get_column_status(instance.inner, col)]
 end
 
 #Single sided constraints returns NONBASIC instead of NONBASIC_AT_X
 const statmap_LE = Dict(zip([ 0x00,  0x01, 0x02, 0x03, 0x04, 0x05],
                      [MOI.BASIC, MOI.BASIC, MOI.NONBASIC, MOI.BASIC, MOI.SUPER_BASIC, MOI.NONBASIC]))
 function MOI.get(instance::Optimizer, ::MOI.ConstraintBasisStatus, ci::LQOI.SVCI{T}) where T <: LQOI.LE
-    return statmap_LE[variable_basis_status(instance, instance[ci])]
+    col = instance.variable_mapping[instance[ci]]
+    return statmap_LE[get_column_status(instance.inner, col)]
 end
 
 const statmap_GE = Dict(zip([ 0x00,  0x01, 0x02, 0x03, 0x04, 0x05],
                      [MOI.BASIC, MOI.BASIC, MOI.BASIC, MOI.NONBASIC, MOI.SUPER_BASIC, MOI.NONBASIC]))
 function MOI.get(instance::Optimizer, ::MOI.ConstraintBasisStatus, ci::LQOI.SVCI{T}) where T <: LQOI.GE
-    return statmap_GE[variable_basis_status(instance, instance[ci])]
+    col = instance.variable_mapping[instance[ci]]
+    return statmap_GE[get_column_status(instance.inner, col)]
 end

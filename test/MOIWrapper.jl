@@ -26,6 +26,7 @@ end
         "linear1",
         # linear10 test is tested below because it has interval sets.
         "linear10",
+        "linear10b",
         # linear11 test is excluded as it fails on Linux for some reason.
         # It passes on Mac and Windows.
         "linear11",
@@ -39,9 +40,11 @@ end
 
     @testset "Interval Bridge" begin
         MOIT.linear10test(MOIB.SplitInterval{Float64}(solver), linconfig)
+        MOIT.linear10btest(MOIB.SplitInterval{Float64}(solver), linconfig)
     end
     @testset "Slack Bridge" begin
         MOIT.linear10test(MOIB.ScalarSlack{Float64}(solver), linconfig)
+        MOIT.linear10btest(MOIB.SplitInterval{Float64}(solver), linconfig)
     end
 end
 
