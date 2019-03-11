@@ -138,20 +138,16 @@ with upper bound `upper` and lower bound  `lower` to the instance `instance`.
 function append_row(instance::Optimizer, row::Int, lower::Float64,
                     upper::Float64, rows::Vector{Int}, cols::Vector{Int},
                     coefs::Vector{Float64})
-    indices = if row == length(rows)
-        rows[row]:length(cols)
-    else
-        rows[row]:(rows[row+1]-1)
-    end
+    indices = rows[row]:(rows[row+1]-1)
     add_row(instance.inner, Cint(length(indices)), Cint.(cols[indices] .- 1),
             coefs[indices], lower, upper)
 end
 
 function LQOI.add_linear_constraints!(instance::Optimizer, A::LQOI.CSRMatrix{Float64},
         senses::Vector{Cchar}, right_hand_sides::Vector{Float64})
-    rows = A.row_pointers
-    cols = A.columns
-    coefs = A.coefficients
+    rows = LQOI.row_pointers(A)
+    cols = LQOI.colvals(A)
+    coefs = LQOI.nonzeros(A)
     for (row, (rhs, sense)) in enumerate(zip(right_hand_sides, senses))
         if rhs > 1e20
             error("rhs must always be less than 1e20")
