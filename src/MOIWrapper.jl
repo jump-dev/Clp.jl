@@ -401,9 +401,8 @@ function LQOI.get_number_variables(instance::Optimizer)
 end
 
 function LQOI.add_variables!(instance::Optimizer, number_of_variables::Int)
-    for i in 1:number_of_variables
-        add_column(instance.inner, Cint(0), Int32[], Float64[], -Inf, Inf, 0.0)
-    end
+    bounds_array=fill(Float64(Inf), number_of_variables)
+    add_columns(instance.inner, -bounds_array, bounds_array, zeros(Float64,number_of_variables), SparseArrays.spzeros(Float64, Cint, 1, number_of_variables))
 end
 
 function LQOI.delete_variables!(instance::Optimizer, start_col::Int, end_col::Int)

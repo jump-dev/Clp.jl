@@ -500,8 +500,9 @@ end
 function add_columns(model::ClpModel, column_lower::Vector{Float64},
         column_upper::Vector{Float64},
         objective::Vector{Float64},
-        new_columns::SparseMatrixCSC{Float64,Int32})
-    add_columns(model, new_columns.n, column_lower, column_upper, objective, new_columns.colptr-convert(Int32,1), new_columns.rowval-convert(Int32,1), new_columns.nzval)
+        new_columns::SparseMatrixCSC{Float64,T}) where T
+    add_columns(model, new_columns.n, column_lower, column_upper, objective, convert(Vector{Int32},new_columns.colptr).-Int32(1),
+            convert(Vector{Int32},new_columns.rowval).-Int32(1), new_columns.nzval)
 end
 
 
