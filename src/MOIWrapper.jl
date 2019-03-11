@@ -130,24 +130,60 @@ end
 
 """
     append_row(instance::Optimizer, row::Int, lower::Float64, upper::Float64,
-               rows::Vector{Int}, cols::Vector{Int}, coefs::Vector{Float64})
+               row_pointers::Vector{Int}, cols::Vector{Int}, coefs::Vector{Float64})
 
-Given a sparse matrix in the triplet-form `(rows, cols, coefs)`, add row `row`
+Given a sparse matrix in the triplet-form `(row_pointers, cols, coefs)`, add row `row`
 with upper bound `upper` and lower bound  `lower` to the instance `instance`.
 """
 function append_row(instance::Optimizer, row::Int, lower::Float64,
-                    upper::Float64, rows::Vector{Int}, cols::Vector{Int},
+                    upper::Float64, row_pointers::Vector{Int}, cols::Vector{Int},
                     coefs::Vector{Float64})
-    indices = rows[row]:(rows[row+1]-1)
+    indices = row_pointers[row]:(row_pointers[row+1]-1)
     add_row(instance.inner, Cint(length(indices)), Cint.(cols[indices] .- 1),
             coefs[indices], lower, upper)
 end
 
+"""
+    append_rows(instance::Optimizer, row::Int, lower::Float64, upper::Float64,
+               row_pointers::Vector{Int}, cols::Vector{Int}, coefs::Vector{Float64})
+
+Given a sparse matrix in the triplet-form `(row_pointers, cols, coefs)`, add row `row`
+with upper bound `upper` and lower bound  `lower` to the instance `instance`.
+"""
+function append_rows(instance::Optimizer, rows::UnitRange{Int}, lower::Vector{Float64},
+                    upper::Vector{Float64}, A::LQOI.CSRMatrix{T}) where T
+
+    add_rows(instance.inner, rows, lower, upper,A)
+end
+
 function LQOI.add_linear_constraints!(instance::Optimizer, A::LQOI.CSRMatrix{Float64},
         senses::Vector{Cchar}, right_hand_sides::Vector{Float64})
-    rows = LQOI.row_pointers(A)
-    cols = LQOI.colvals(A)
-    coefs = LQOI.nonzeros(A)
+    num_rows=size(A,1)
+    # rows = LQOI.row_pointers(A)
+    # cols = LQOI.colvals(A)
+    # coefs = LQOI.nonzeros(A)
+    # for (row, (rhs, sense)) in enumerate(zip(right_hand_sides, senses))
+    #     if rhs > 1e20
+    #         error("rhs must always be less than 1e20")
+    #     elseif rhs < -1e20
+    #         error("rhs must always be greater than -1e20")
+    #     end
+    #     lower = -Inf
+    #     upper = Inf
+    #     if sense == Cchar('L')
+    #         upper = rhs
+    #     elseif sense == Cchar('G')
+    #         lower = rhs
+    #     elseif sense == Cchar('E')
+    #         upper = lower = rhs
+    #     else
+    #         error("sense must be Cchar(x) where x is in ['L','G',E']")
+    #     end
+    #     append_row(instance, row, lower, upper, rows, cols, coefs)
+    # end
+
+    uppers=Vector{Float64}(undef,num_rows)
+    lowers=Vector{Float64}(undef,num_rows)
     for (row, (rhs, sense)) in enumerate(zip(right_hand_sides, senses))
         if rhs > 1e20
             error("rhs must always be less than 1e20")
@@ -165,8 +201,11 @@ function LQOI.add_linear_constraints!(instance::Optimizer, A::LQOI.CSRMatrix{Flo
         else
             error("sense must be Cchar(x) where x is in ['L','G',E']")
         end
-        append_row(instance, row, lower, upper, rows, cols, coefs)
+        uppers[row]=upper
+        lowers[row]=lower
     end
+     append_rows(instance, 1:num_rows, lowers, uppers, A)
+
 end
 
 function LQOI.add_ranged_constraints!(instance::Clp.Optimizer,

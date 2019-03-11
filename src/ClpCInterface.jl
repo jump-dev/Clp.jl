@@ -2,6 +2,7 @@ module ClpCInterface
 
 using Compat
 using Compat.SparseArrays
+using Compat.LinearAlgebra
 
 export
     # Types
@@ -424,12 +425,51 @@ function add_rows(model::ClpModel, number::Integer, row_lower::Vector{Float64},
     @clp_ccall addRows Cvoid (Ptr{Cvoid}, Int32, Ptr{Float64}, Ptr{Float64}, Ptr{Int32}, Ptr{Int32}, Ptr{Float64}) model.p number row_lower row_upper row_starts columns elements
 end
 
+# Add rows.
+function add_rows(model::ClpModel, rows::UnitRange{Int}, rows_lower::AbstractVector{Float64},
+        rows_upper::AbstractVector{Float64},
+        A::Adjoint{Float64,SparseMatrixCSC{Float64,Ti}}) where Ti <: Integer
+    @assert length(rows_upper) == length(rows_upper)
+    if length(rows) != length(rows_lower)
+        # This is to catch the case where a sparse array may have been passed in
+        println("Length Rows != lenght rows_lower")
+        if length(rows_lower) == size(A,1)
+            rows_lower = rows_lower[rows]
+            rows_upper = rows_upper[rows]
+        else
+             error("Bounds Vectors must have the same length as rows or the number of rows in A")
+         end
+    end
+    Ac = A'  # This is a simple way to remove the adjoint
+    num_rows=length(rows)
+    columns = convert(Vector{Cint},SparseArrays.rowvals(Ac))
+    columns .-= 1
+    coefficients = SparseArrays.nonzeros(Ac)
+    row_pointers = Vector{Cint}(undef,length(rows)+1)
+    for (n,r) in enumerate(rows)
+        rng=nzrange(Ac, r)
+        # This is a check that it is a packed sparse
+        if n > 1 &&  ((row_pointers[n]) != first(rng))
+            error("Sparse array must be a packed continuous representation")
+        end
+        row_pointers[n]=first(rng)
+        row_pointers[n+1]=last(rng)+1
+    end
+    row_pointers .-= 1
+    add_rows(model,num_rows , rows_lower, rows_upper, row_pointers, columns,
+             coefficients)
+
+end
+
 #This function exists in cpp but not c interface
 function add_row(model::ClpModel, nnz::Cint, columns::Vector{Int32},
                  elements::Vector{Float64}, row_lower::Float64, row_upper::Float64)
     add_rows(model, 1, [row_lower], [row_upper], [Cint(0), nnz], columns,
              elements)
 end
+
+
+
 
 # Delete columns.
 function delete_columns(model::ClpModel, which::Vector{Int32})
