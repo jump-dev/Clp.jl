@@ -428,7 +428,7 @@ end
 # Add rows.
 function add_rows(model::ClpModel, rows::UnitRange{Int}, rows_lower::AbstractVector{Float64},
         rows_upper::AbstractVector{Float64},
-        A::Adjoint{Float64,SparseMatrixCSC{Float64,Ti}}) where Ti <: Integer
+        A::Transpose{Float64,SparseMatrixCSC{Float64,Ti}}) where Ti <: Integer
     @assert length(rows_upper) == length(rows_upper)
     if length(rows) != length(rows_lower)
         # This is to catch the case where a sparse array may have been passed in
@@ -440,7 +440,7 @@ function add_rows(model::ClpModel, rows::UnitRange{Int}, rows_lower::AbstractVec
              error("Bounds Vectors must have the same length as rows or the number of rows in A")
          end
     end
-    Ac = A'  # This is a simple way to remove the adjoint
+    Ac = transepose(A)  # This is a simple way to remove the adjoint
     num_rows=length(rows)
     columns = convert(Vector{Cint},SparseArrays.rowvals(Ac))
     columns .-= 1
