@@ -440,7 +440,7 @@ function add_rows(model::ClpModel, rows::UnitRange{Int}, rows_lower::AbstractVec
              error("Bounds Vectors must have the same length as rows or the number of rows in A")
          end
     end
-    Ac = transepose(A)  # This is a simple way to remove the adjoint
+    Ac = transpose(A)  # This is a simple way to remove the adjoint
     num_rows=length(rows)
     columns = convert(Vector{Cint},SparseArrays.rowvals(Ac))
     columns .-= 1
