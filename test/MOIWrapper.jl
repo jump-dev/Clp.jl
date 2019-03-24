@@ -44,7 +44,7 @@ end
     end
     @testset "Slack Bridge" begin
         MOIT.linear10test(MOIB.ScalarSlack{Float64}(solver), linconfig)
-        MOIT.linear10btest(MOIB.SplitInterval{Float64}(solver), linconfig)
+        MOIT.linear10btest(MOIB.ScalarSlack{Float64}(solver), linconfig)
     end
 end
 
