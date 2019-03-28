@@ -375,6 +375,7 @@ function LQOI.delete_variables!(instance::Optimizer, start_col::Int, end_col::In
     delete_columns(instance.inner, [Cint(i-1) for i in start_col:end_col])
 end
 
+# Corresponds to the `Status` struct defined in https://github.com/coin-or/Clp/blob/master/Clp/src/ClpSimplex.hpp#L114.
 const STATMAP = Dict(0x00 => MOI.BASIC, 0x01 => MOI.BASIC, 0x02 => MOI.NONBASIC_AT_UPPER,
                     0x03 => MOI.NONBASIC_AT_LOWER, 0x04 => MOI.SUPER_BASIC, 0x05 => MOI.NONBASIC)
 
