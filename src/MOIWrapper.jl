@@ -375,39 +375,31 @@ function LQOI.delete_variables!(instance::Optimizer, start_col::Int, end_col::In
     delete_columns(instance.inner, [Cint(i-1) for i in start_col:end_col])
 end
 
-const statmap = Dict(zip([ 0x00,  0x01, 0x02, 0x03, 0x04, 0x05],
-                     [MOI.BASIC, MOI.BASIC, MOI.NONBASIC_AT_UPPER, MOI.NONBASIC_AT_LOWER,MOI.SUPER_BASIC, MOI.NONBASIC]))
-function MOI.get(instance::Optimizer, ::MOI.ConstraintBasisStatus, i::LQOI.LCI{T}) where T <: Union{LQOI.LE, LQOI.GE, LQOI.EQ}
-    row = instance[i]
-    val = get_row_status(instance.inner, row)
-    stat = statmap[val]
-    # Single sided constraints, should not specify lower or upper
+const STATMAP = Dict(0x00 => MOI.BASIC, 0x01 => MOI.BASIC, 0x02 => MOI.NONBASIC_AT_UPPER,
+                    0x03 => MOI.NONBASIC_AT_LOWER, 0x04 => MOI.SUPER_BASIC, 0x05 => MOI.NONBASIC)
+
+function MOI.get(instance::Optimizer, ::MOI.ConstraintBasisStatus,
+        ci::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64}, S}) where S <: Union{LQOI.LE, LQOI.GE, LQOI.EQ}
+    row = instance[ci]
+    stat = STATMAP[get_row_status(instance.inner, row)]
+    # Single sided constraints should not specify `NONBASIC_AT_X` but only `NONBASIC`.
     if stat == MOI.NONBASIC_AT_LOWER || stat == MOI.NONBASIC_AT_UPPER
         return MOI.NONBASIC
     end
     return stat
 end
 
-function MOI.get(instance::Optimizer, ::MOI.ConstraintBasisStatus, ::LQOI.SVCI{T}) where T <: LQOI.EQ
-    return MOI.NONBASIC
-end
-
-function MOI.get(instance::Optimizer, ::MOI.ConstraintBasisStatus, ci::LQOI.SVCI{T}) where T <: LQOI.IV
-    col = instance.variable_mapping[instance[ci]]
-    return statmap[get_column_status(instance.inner, col)]
-end
-
-#Single sided constraints returns NONBASIC instead of NONBASIC_AT_X
-const statmap_LE = Dict(zip([ 0x00,  0x01, 0x02, 0x03, 0x04, 0x05],
-                     [MOI.BASIC, MOI.BASIC, MOI.NONBASIC, MOI.BASIC, MOI.SUPER_BASIC, MOI.NONBASIC]))
-function MOI.get(instance::Optimizer, ::MOI.ConstraintBasisStatus, ci::LQOI.SVCI{T}) where T <: LQOI.LE
-    col = instance.variable_mapping[instance[ci]]
-    return statmap_LE[get_column_status(instance.inner, col)]
-end
-
-const statmap_GE = Dict(zip([ 0x00,  0x01, 0x02, 0x03, 0x04, 0x05],
-                     [MOI.BASIC, MOI.BASIC, MOI.BASIC, MOI.NONBASIC, MOI.SUPER_BASIC, MOI.NONBASIC]))
-function MOI.get(instance::Optimizer, ::MOI.ConstraintBasisStatus, ci::LQOI.SVCI{T}) where T <: LQOI.GE
-    col = instance.variable_mapping[instance[ci]]
-    return statmap_GE[get_column_status(instance.inner, col)]
+function MOI.get(instance::Optimizer, ::MOI.ConstraintBasisStatus,
+        vi::MOI.ConstraintIndex{MOI.SingleVariable, S}) where S <: Union{LQOI.LE, LQOI.GE, LQOI.EQ, LQOI.IV}
+    col = instance.variable_mapping[instance[vi]]
+    stat = STATMAP[get_column_status(instance.inner, col)]
+    # If, e.g., a column is `NONBASIC_AT_LOWER` then the ≤ constraint is `BASIC`.
+    if (S <: LQOI.LE && stat == MOI.NONBASIC_AT_LOWER) || (S <: LQOI.GE && stat == MOI.NONBASIC_AT_UPPER)
+        return MOI.BASIC
+    end
+    # Single sided constraints should not specify `NONBASIC_AT_X` but only `NONBASIC`.
+    if !(S <: LQOI.IV) && (stat == MOI.NONBASIC_AT_LOWER || stat == MOI.NONBASIC_AT_UPPER)
+        return MOI.NONBASIC
+    end
+    return stat
 end
