@@ -374,3 +374,33 @@ end
 function LQOI.delete_variables!(instance::Optimizer, start_col::Int, end_col::Int)
     delete_columns(instance.inner, [Cint(i-1) for i in start_col:end_col])
 end
+
+# Corresponds to the `Status` struct defined in https://github.com/coin-or/Clp/blob/8419e63/Clp/src/ClpSimplex.hpp#L114.
+const STATMAP = Dict(0x00 => MOI.BASIC, 0x01 => MOI.BASIC, 0x02 => MOI.NONBASIC_AT_UPPER,
+                    0x03 => MOI.NONBASIC_AT_LOWER, 0x04 => MOI.SUPER_BASIC, 0x05 => MOI.NONBASIC)
+
+function MOI.get(instance::Optimizer, ::MOI.ConstraintBasisStatus,
+        ci::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64}, S}) where S <: Union{LQOI.LE, LQOI.GE, LQOI.EQ}
+    row = instance[ci]
+    stat = STATMAP[get_row_status(instance.inner, row)]
+    # Single sided constraints should not specify `NONBASIC_AT_X` but only `NONBASIC`.
+    if stat == MOI.NONBASIC_AT_LOWER || stat == MOI.NONBASIC_AT_UPPER
+        return MOI.NONBASIC
+    end
+    return stat
+end
+
+function MOI.get(instance::Optimizer, ::MOI.ConstraintBasisStatus,
+        vi::MOI.ConstraintIndex{MOI.SingleVariable, S}) where S <: Union{LQOI.LE, LQOI.GE, LQOI.EQ, LQOI.IV}
+    col = instance.variable_mapping[instance[vi]]
+    stat = STATMAP[get_column_status(instance.inner, col)]
+    # If, e.g., a column is `NONBASIC_AT_LOWER` then the ≤ constraint is `BASIC`.
+    if (S <: LQOI.LE && stat == MOI.NONBASIC_AT_LOWER) || (S <: LQOI.GE && stat == MOI.NONBASIC_AT_UPPER)
+        return MOI.BASIC
+    end
+    # Single sided constraints should not specify `NONBASIC_AT_X` but only `NONBASIC`.
+    if !(S <: LQOI.IV) && (stat == MOI.NONBASIC_AT_LOWER || stat == MOI.NONBASIC_AT_UPPER)
+        return MOI.NONBASIC
+    end
+    return stat
+end
