@@ -24,7 +24,6 @@ end
         # linear1 test is disabled due to the following bug:
         # https://projects.coin-or.org/Clp/ticket/84
         "linear1",
-        "linear8c",
         # linear10 test is tested below because it has interval sets.
         "linear10",
         "linear10b",
