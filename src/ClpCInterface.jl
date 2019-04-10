@@ -626,7 +626,7 @@ const get_iteration_count = number_iterations
 function set_number_iterations(model::ClpModel, iters::Integer)
     _jl__check_model(model)
     @clp_ccall setNumberIterations Cvoid (Ptr{Cvoid}, Int32) model.p iters
-    return nothing
+    return
 end
 
 # Get maximum number of iterations
@@ -639,7 +639,7 @@ end
 function set_maximum_iterations(model::ClpModel, max_iters::Integer)
     _jl__check_model(model)
     @clp_ccall setMaximumIterations Cvoid (Ptr{Cvoid}, Int32) model.p max_iters
-    return nothing
+    return
 end
 
 # Get maximum time in seconds (from when set is called)
@@ -652,7 +652,7 @@ end
 function set_maximum_seconds(model::ClpModel, max_secs::Real)
     _jl__check_model(model)
     @clp_ccall setMaximumSeconds Cvoid (Ptr{Cvoid}, Float64) model.p max_secs
-    return nothing
+    return
 end
 
 # Query whether maximum iterations or time were hit
@@ -1128,7 +1128,7 @@ end
 function set_dual_bound(model::ClpModel, value::Real)
     _jl__check_model(model)
     @clp_ccall setDualBound Cvoid (Ptr{Cvoid}, Float64) model.p value
-    return nothing
+    return
 end
 
 # Get infeasibility cost.
@@ -1141,7 +1141,7 @@ end
 function set_infeasibility_cost(model::ClpModel, value::Real)
     _jl__check_model(model)
     @clp_ccall setInfeasibilityCost Cvoid (Ptr{Cvoid}, Float64) model.p value
-    return nothing
+    return
 end
 
 # Get Perturbation. Values are:
@@ -1162,7 +1162,7 @@ function set_perturbation(model::ClpModel, value::Integer)
         error("Invalid clp perturbation value: $value (must be one of 50,100,101,102)")
     end
     @clp_ccall setPerturbation Cvoid (Ptr{Cvoid}, Int32) model.p value
-    return nothing
+    return
 end
 
 # Get current (or last) algorithm.
@@ -1176,7 +1176,7 @@ function set_algorithm(model::ClpModel, value::Integer)
     _jl__check_model(model)
     # XXX which values of the algorithm are valid ???
     @clp_ccall setAlgorithm Cvoid (Ptr{Cvoid}, Int32) model.p value
-    return nothing
+    return
 end
 
 # Get the sum of dual infeasibilities.
@@ -1229,7 +1229,7 @@ end
 function check_solution(model::ClpModel);
     _jl__check_model(model)
     @clp_ccall checkSolution Cvoid (Ptr{Cvoid},) model.p
-    return nothing
+    return
 end
 
 # Query whether there are numerical difficulties.

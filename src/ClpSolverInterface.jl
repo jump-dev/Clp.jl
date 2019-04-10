@@ -209,7 +209,7 @@ end
 MPB.getvartype(m::ClpMathProgModel) = fill(:Cont, get_num_cols(m.inner))
 function MPB.setvartype!(m::ClpMathProgModel, typ::Vector{Symbol})
     all(x->isequal(x,:Cont), typ) || error("Clp does not support integer variables")
-    return nothing
+    return
 end
 
 MPB.getrawsolver(m::ClpMathProgModel) = m.inner
