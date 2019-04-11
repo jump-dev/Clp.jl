@@ -66,10 +66,14 @@ end
     @testset "Inexistant unbounded ray" begin
         o = Clp.Optimizer(LogLevel = 0)
         x = MOI.add_variables(o, 5)
-        MOI.add_constraint(o, x, MathOptInterface.Nonnegatives(5))
-        set(o, ObjectiveFunction{ScalarAffineFunction{Float64}}(),
-                    ScalarAffineFunction(ScalarAffineTerm.(1.0, x), 0.0))
-        set(o, ObjectiveSense(), MAX_SENSE)
-        optimize!(o)
+        for i in 1:5
+            MOI.add_constraint(o, MOI.SingleVariable(x[i]), MOI.GreaterThan(0.))
+        end
+        MOI.set(o, MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}(),
+                    MOI.ScalarAffineFunction(MOI.ScalarAffineTerm.(1.0, x), 0.0))
+        MOI.set(o, MOI.ObjectiveSense(), MOI.MAX_SENSE)
+        MOI.optimize!(o)
+        status = MOI.get(o, MOI.TerminationStatus())
+        @test status == MOI.DUAL_INFEASIBLE
     end
 end
