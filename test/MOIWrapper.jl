@@ -63,4 +63,13 @@ end
         solver2 = Clp.Optimizer(LogLevel = 0)
         MOIT.copytest(solver,solver2)
     end
+    @testset "Inexistant unbounded ray" begin
+        o = Clp.Optimizer(LogLevel = 0)
+        x = MOI.add_variables(o, 5)
+        MOI.add_constraint(o, x, MathOptInterface.Nonnegatives(5))
+        set(o, ObjectiveFunction{ScalarAffineFunction{Float64}}(),
+                    ScalarAffineFunction(ScalarAffineTerm.(1.0, x), 0.0))
+        set(o, ObjectiveSense(), MAX_SENSE)
+        optimize!(o)
+    end
 end
