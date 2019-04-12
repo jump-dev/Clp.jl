@@ -1,9 +1,6 @@
-if VERSION < v"0.7"
-    testdir = joinpath(Pkg.dir("MathProgBase"), "test")
-else
-    import MathProgBase
-    testdir = joinpath(dirname(pathof(MathProgBase)), "..", "test")
-end
+import MathProgBase
+testdir = joinpath(dirname(pathof(MathProgBase)), "..", "test")
+
 include(joinpath(testdir, "linprog.jl"))
 linprogtest(ClpSolver())
 

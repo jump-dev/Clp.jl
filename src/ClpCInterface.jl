@@ -185,7 +185,7 @@ import Base.pointer
 if isfile(joinpath(dirname(@__FILE__),"..","deps","deps.jl"))
     include("../deps/deps.jl")
 else
-    error("Clp not properly installed. Please run Pkg.build(\"Clp\")")
+    error("Clp not properly installed. Please run import Pkg; Pkg.build(\"Clp\")")
 end
 
 ## Shared library interface setup
@@ -536,14 +536,14 @@ function get_num_rows(model::ClpModel)
     _jl__check_model(model)
     @clp_ccall getNumRows Int32 (Ptr{Cvoid},) model.p
 end
-number_rows = get_num_rows
+const number_rows = get_num_rows
 
 # Number of columns.
 function get_num_cols(model::ClpModel)
     _jl__check_model(model)
     @clp_ccall getNumCols Int32 (Ptr{Cvoid},) model.p
 end
-number_cols = get_num_cols
+const number_cols = get_num_cols
 
 # Get primal tolerance.
 function primal_tolerance(model::ClpModel)
@@ -601,7 +601,7 @@ and add new unit tests.
 # Fill in array with problem name.
 function problem_name(model::ClpModel)
     _jl__check_model(model)
-    problem_name = Array{UInt8}(1000)
+    problem_name = Array{UInt8}(undef, 1000)
     @clp_ccall problemName Cvoid (Ptr{Cvoid}, Int32, Ptr{UInt8}) model.p 1000 problem_name
     return bytestring(problem_name)
 end
@@ -620,7 +620,7 @@ function number_iterations(model::ClpModel)
     _jl__check_model(model)
     @clp_ccall numberIterations Int32 (Ptr{Cvoid},) model.p
 end
-get_iteration_count = number_iterations
+const get_iteration_count = number_iterations
 
 # Set number of iterations
 function set_number_iterations(model::ClpModel, iters::Integer)
@@ -719,45 +719,23 @@ end
 # TODO: do we actually want to make a copy of the result?
 # More efficient to not and let the sufficiently warned user do so if desired.
 macro def_get_row_property(fname,clpname)
-    if VERSION >= v"0.7-"
-        return quote
-            function $(esc(fname))(model::ClpModel)
-                _jl__check_model(model)
-                row_property_p = @clp_ccall $clpname Ptr{Float64} (Ptr{Cvoid},) model.p
-                num_rows = convert(Int,get_num_rows(model))
-                return copy(unsafe_wrap(Array,row_property_p,(num_rows,)))
-            end
-        end
-    else
-        return quote
-            function $(esc(fname))(model::ClpModel)
-                _jl__check_model(model)
-                row_property_p = @clp_ccall $(esc(clpname)) Ptr{Float64} (Ptr{Cvoid},) model.p
-                num_rows = convert(Int,get_num_rows(model))
-                return copy(unsafe_wrap(Array,row_property_p,(num_rows,)))
-            end
+    return quote
+        function $(esc(fname))(model::ClpModel)
+            _jl__check_model(model)
+            row_property_p = @clp_ccall $clpname Ptr{Float64} (Ptr{Cvoid},) model.p
+            num_rows = convert(Int,get_num_rows(model))
+            return copy(unsafe_wrap(Array,row_property_p,(num_rows,)))
         end
     end
 end
 
 macro def_get_col_property(fname,clpname)
-    if VERSION >= v"0.7-"
-        return quote
-            function $(esc(fname))(model::ClpModel)
-                _jl__check_model(model)
-                col_property_p = @clp_ccall $clpname Ptr{Float64} (Ptr{Cvoid},) model.p
-                num_cols = convert(Int,get_num_cols(model))
-                return copy(unsafe_wrap(Array,col_property_p,(num_cols,)))
-            end
-        end
-    else
-        return quote
-            function $(esc(fname))(model::ClpModel)
-                _jl__check_model(model)
-                col_property_p = @clp_ccall $(esc(clpname)) Ptr{Float64} (Ptr{Cvoid},) model.p
-                num_cols = convert(Int,get_num_cols(model))
-                return copy(unsafe_wrap(Array,col_property_p,(num_cols,)))
-            end
+    return quote
+        function $(esc(fname))(model::ClpModel)
+            _jl__check_model(model)
+            col_property_p = @clp_ccall $clpname Ptr{Float64} (Ptr{Cvoid},) model.p
+            num_cols = convert(Int,get_num_cols(model))
+            return copy(unsafe_wrap(Array,col_property_p,(num_cols,)))
         end
     end
 end
@@ -765,11 +743,11 @@ end
 # Get primal row solution.
 @def_get_row_property get_row_activity getRowActivity
 
-primal_row_solution = get_row_activity
+const primal_row_solution = get_row_activity
 
 # Get primal column solution.
 @def_get_col_property get_col_solution getColSolution
-primal_column_solution = get_col_solution
+const primal_column_solution = get_col_solution
 
 function set_col_solution(model::ClpModel, input::Vector{Float64})
     _jl__check_model(model)
@@ -779,30 +757,30 @@ end
 
 # Get dual row solution.
 @def_get_row_property get_row_price getRowPrice
-dual_row_solution = get_row_price
+const dual_row_solution = get_row_price
 
 # Get dual column solution (i.e. the reduced costs).
 @def_get_col_property get_reduced_cost getReducedCost
-dual_column_solution = get_reduced_cost
+const dual_column_solution = get_reduced_cost
 
 # Get row lower bounds.
 @def_get_row_property get_row_lower getRowLower
-row_lower = get_row_lower
+const row_lower = get_row_lower
 
 # Get row upper bounds.
 @def_get_row_property get_row_upper getRowUpper
-row_upper = get_row_upper
+const row_upper = get_row_upper
 
 @def_get_col_property get_obj_coefficients getObjCoefficients
-objective = get_obj_coefficients
+const objective = get_obj_coefficients
 
 # Get column lower bounds.
 @def_get_col_property get_col_lower getColLower
-column_lower = get_col_lower
+const column_lower = get_col_lower
 
 # Get column upper bounds.
 @def_get_col_property get_col_upper getColUpper
-column_upper = get_col_upper
+const column_upper = get_col_upper
 
 # Get the number of elements in matrix.
 function get_num_elements(model::ClpModel)
@@ -857,7 +835,7 @@ function get_obj_value(model::ClpModel)
     _jl__check_model(model)
     @clp_ccall getObjValue Float64 (Ptr{Cvoid},) model.p
 end
-objective_value = get_obj_value
+const objective_value = get_obj_value
 
 # Get integer information.
 function integer_information(model::ClpModel)
@@ -876,7 +854,7 @@ function infeasibility_ray(model::ClpModel)
         infeas_ray = copy(unsafe_wrap(Array,infeas_ray_p,(num_rows,)))
         ccall(:free,Cvoid,(Ptr{Cvoid},),infeas_ray_p)
     else
-        infeas_ray = Array{Float64}(0)
+        infeas_ray = Array{Float64}(undef, 0)
     end
     return infeas_ray
 end
@@ -891,7 +869,7 @@ function unbounded_ray(model::ClpModel)
         unbd_ray = copy(unsafe_wrap(Array,unbd_ray_p,(num_cols,)))
         ccall(:free,Cvoid,(Ptr{Cvoid},),unbd_ray_p)
     else
-        unbd_ray = Array{Float64}(0)
+        unbd_ray = Array{Float64}(undef, 0)
     end
     return unbd_ray
 end
