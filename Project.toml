@@ -1,6 +1,5 @@
 name = "Clp"
 uuid = "5e71592d-7078-450d-8580-c595f51aa13b"
-authors = ["Mathieu Besançon <mathieu.besancon@gmail.com>"]
 repo = "https://github.com/JuliaOpt/Clp.jl.git"
 version = "0.6.3"
 
