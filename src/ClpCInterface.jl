@@ -1,7 +1,6 @@
 module ClpCInterface
 
-using Compat
-using Compat.SparseArrays
+using SparseArrays
 
 export
     # Types
@@ -223,7 +222,7 @@ mutable struct ClpModel
     function ClpModel()
         p = @clp_ccall newModel Ptr{Cvoid} ()
         prob = new(p)
-        @compat finalizer(delete_model, prob)
+        finalizer(delete_model, prob)
         return prob
     end
 end
@@ -242,7 +241,7 @@ mutable struct ClpSolve
     function ClpSolve()
         p = @clpsolve_ccall new Ptr{Cvoid} ()
         prob = new(p)
-        @compat finalizer(delete_solve, prob)
+        finalizer(delete_solve, prob)
         return prob
     end
 end

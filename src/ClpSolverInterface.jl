@@ -1,8 +1,7 @@
 module ClpMathProgSolverInterface
 using Clp.ClpCInterface
-using Compat
-using Compat.LinearAlgebra
-using Compat.SparseArrays
+using LinearAlgebra
+using SparseArrays
 
 import MathProgBase
 const MPB = MathProgBase
@@ -184,7 +183,7 @@ MPB.getreducedcosts(m::ClpMathProgModel) = dual_column_solution(m.inner)
 MPB.getconstrduals(m::ClpMathProgModel) = dual_row_solution(m.inner)
 
 function MPB.getinfeasibilityray(m::ClpMathProgModel)
-    return Compat.rmul!(infeasibility_ray(m.inner),-1.0)
+    return LinearAlgebra.rmul!(infeasibility_ray(m.inner),-1.0)
 end
 MPB.getunboundedray(m::ClpMathProgModel) = unbounded_ray(m.inner)
 
