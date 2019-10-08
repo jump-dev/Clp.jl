@@ -3,12 +3,12 @@ os:
   - linux
   - osx
 julia:
-  - 0.7
   - 1.0
+  - 1.2
 
 notifications:
   email: false
 
 after_success:
-    - julia -e 'import Compat; using Compat.Pkg; cd(Pkg.dir("Clp")); Pkg.add("Coverage"); using Coverage; Codecov.submit(Codecov.process_folder())'
+    - julia -e 'import Pkg; cd(Pkg.dir("Clp")); Pkg.add("Coverage"); import Coverage; Codecov.submit(Codecov.process_folder())'
 
