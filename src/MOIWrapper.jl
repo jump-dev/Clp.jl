@@ -2,6 +2,8 @@
 using LinQuadOptInterface
 using .ClpCInterface
 
+import LinearAlgebra
+
 const LQOI = LinQuadOptInterface
 const MOI  = LQOI.MOI
 
@@ -317,7 +319,7 @@ end
 
 function LQOI.get_farkas_dual!(instance::Optimizer, result::Vector{Float64})
     copyto!(result, infeasibility_ray(instance.inner))
-    Compat.rmul!(result, -1.0)
+    LinearAlgebra.rmul!(result, -1.0)
 end
 
 function LQOI.get_unbounded_ray!(instance::Optimizer, result::Vector{Float64})
