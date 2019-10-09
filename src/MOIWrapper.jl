@@ -24,7 +24,6 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
 
     optimize_called::Bool
 
-    # TODO: Constructor
     function Optimizer(;kwargs...)
         inner_model = Clp.ClpModel()
         model = new(inner_model, false, false)
@@ -68,7 +67,9 @@ function MOI.set(model::Optimizer, param::MOI.RawParameter, value)
     # There is now `set_param`-like function in Clp's C interface.
     # So we go through the list of individual parameters
     if param.name == :LogLevel
+        # Clp has several verbosity levels
         Clp.set_log_level(model.inner, value)
+        model.silent = iszero(value)
     elseif param.name == :MaximumSecond
         Clp.set_maximum_seconds(model.inner, value)
     else
@@ -91,6 +92,7 @@ end
 
 MOI.supports(::Optimizer, ::MOI.Silent) = true
 function MOI.set(model::Optimizer, ::MOI.Silent, value::Bool)
+    model.silent = value
     if value
         Clp.set_log_level(model.inner, 0)
     else
@@ -125,20 +127,17 @@ MOI.supports(::Optimizer, ::MOI.NumberOfThreads) = false
 # 
 # =======================
 MOI.supports_constraint(::Optimizer,
-    ::Type{MOI.ScalarAffineFunction{Float64}}, ::Type{S}
-) where{S <: SCALAR_SETS} = true
+    ::Type{MOI.ScalarAffineFunction{Float64}}, ::Type{<:SCALAR_SETS}
+) = true
 
 MOI.supports_constraint(::Optimizer,
-    ::Type{MOI.SingleVariable}, ::Type{S}
-) where{S <: SCALAR_SETS} = true
+    ::Type{MOI.SingleVariable}, ::Type{<:SCALAR_SETS}
+) = true
 
 MOI.supports(::Optimizer, ::MOI.ObjectiveSense) = true
 
 MOI.supports(::Optimizer,
-    ::MOI.ObjectiveFunction{<:Union{
-        MOI.ScalarAffineFunction{Float64},
-        MOI.SingleVariable
-    }}
+    ::MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}
 ) = true
 
 # =======================
@@ -157,9 +156,9 @@ function MOI.copy_to(
         ))
     end
     fobj_type = MOI.get(src, MOI.ObjectiveFunctionType())
-    if ! MOI.supports(dest, MOI.ObjectiveFunction{fobj_type}())
-        error("Unsupported objective $(fobj_type).")
-    end
+    MOI.supports(dest, MOI.ObjectiveFunction{fobj_type}()) || throw(
+        MOI.UnsupportedAttribute(MOI.ObjectiveFunction(fobj))
+    )
 
     # Empty dest
     MOI.empty!(dest)
@@ -236,7 +235,7 @@ function MOI.copy_to(
         for index in MOI.get(src, MOI.ListOfConstraintIndices{F, S}())
             # Retrieve problem data
             # TODO: ensure that `(f, s)` are in canonical form
-            f = MOI.get(src, MOI.ConstraintFunction(), index)
+            f = MOIU.canonical(MOI.get(src, MOI.ConstraintFunction(), index))
             s = MOI.get(src, MOI.ConstraintSet(), index)
 
             # Extract bounds
@@ -269,17 +268,15 @@ function MOI.copy_to(
     elseif sense == MOI.FEASIBILITY_SENSE
         Clp.set_obj_sense(dest.inner, 0)   # feasibility
     else
-        error("Unknown objective sense: $(sense).")
+        # Should not be reached, but just in case
+        throw(MOI.UnsupportedAttribute(sense))
     end
 
     fobj = MOI.get(src, MOI.ObjectiveFunction{fobj_type}())
     obj_coeffs = zeros(length(x_src))
     obj_offset = 0.0
 
-    if fobj_type == MOI.SingleVariable
-        x = mapping.varmap[fobj.variable]
-        obj_coeffs[x.value] = 1.0
-    elseif fobj_type == MOI.ScalarAffineFunction{Float64}
+    if fobj_type == MOI.ScalarAffineFunction{Float64}
         # Record objective coeffs
         for term in fobj.terms
             x = mapping.varmap[term.variable_index]
@@ -288,7 +285,8 @@ function MOI.copy_to(
         end
         obj_offset = fobj.constant
     else
-        error("Unsupported objective type: $(fobj_type).")
+        # Should not be reached here, but just in case
+        throw(MOI.UnsupportedAttribute(fobj))
     end
 
     # Set objective coefficients
