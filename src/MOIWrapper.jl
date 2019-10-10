@@ -46,6 +46,10 @@ end
 
 function MOI.empty!(model::Optimizer)
     # TODO: keep track of parameters
+    # Free current Clp object
+    Clp.ClpCInterface.delete_model(model.inner)
+
+    # Create new Clp object
     model.inner = Clp.ClpModel()
 
     if model.silent
