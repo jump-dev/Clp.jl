@@ -336,6 +336,25 @@ function MOI.get(model::Optimizer, ::MOI.TerminationStatus)
     end
 end
 
+function MOI.get(model::Optimizer, ::MOI.RawStatusString)
+    model.optimize_called || return "MOI.OPTIMIZE_NOT_CALLED"
+
+    st = Clp.status(model.inner)
+    if st == 0
+        return "0 - optimal"
+    elseif st == 1
+        return "1 - primal infeasible"
+    elseif st == 2
+        return "2 - dual infeasible"
+    elseif st == 3
+        return "3 - stopped on iterations etc"  
+    elseif st == 4
+        return "4 - stopped due to errors"
+    else
+        error("Expected integer in [0, 4] but got $st")
+    end
+end
+
 function MOI.get(model::Optimizer, ::MOI.ResultCount)
     st = MOI.get(model, MOI.TerminationStatus())
 
