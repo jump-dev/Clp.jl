@@ -68,20 +68,11 @@ end
         # "linear11",
         # linear12 test requires the InfeasibilityCertificate for variable
         # bounds. These are available through C++, but not via the C interface.
-        "linear12",
+        # "linear12",
         # partial_start requires VariablePrimalStart to be implemented by the
         # solver.
         "partial_start"
     ])
-
-    # @testset "Interval Bridge" begin
-    #     MOIT.linear10test(MOIB.SplitInterval{Float64}(solver), linconfig)
-    #     MOIT.linear10btest(MOIB.SplitInterval{Float64}(solver), linconfig)
-    # end
-    # @testset "Slack Bridge" begin
-    #     MOIT.linear10test(MOIB.ScalarSlack{Float64}(solver), linconfig)
-    #     MOIT.linear10btest(MOIB.ScalarSlack{Float64}(solver), linconfig)
-    # end
 end
 
 @testset "ModelLike" begin
