@@ -18,15 +18,39 @@ const SCALAR_SETS = Union{
     MOI.Interval{Float64}
 }
 
-mutable struct Optimizer <: MOI.AbstractOptimizer
-    inner::Clp.ClpModel
-    silent::Bool
+# Maps Clp's parameters to getter/setter function
+const CLP_OPTION_MAP = Dict(
+    :PrimalTolerance => (Clp.primal_tolerance, Clp.set_primal_tolerance),
+    :DualTolerance => (Clp.dual_tolerance, Clp.set_dual_tolerance),
+    :DualObjectiveLimit => (Clp.dual_objective_limit, Clp.set_dual_objective_limit),
+    # :MaximumIterations => (Clp.maximum_iterations, Clp.set_maximum_iterations),  # See #67
+    :MaximumSeconds => (Clp.maximum_seconds, Clp.set_maximum_seconds),
+    :LogLevel => (Clp.log_level, Clp.set_log_level),
+    :Scaling => (Clp.scaling_flag, Clp.scaling),
+    :Perturbation => (Clp.perturbation, Clp.set_perturbation),
+    :Algorithm => (Clp.algorithm, Clp.set_algorithm)
+)
 
+const SOLVE_OPTION_MAP = Dict(
+   :PresolveType => (Clp.get_presolve_type, Clp.set_presolve_type),
+   :SolveType => (Clp.get_solve_type, Clp.set_solve_type),
+   :InfeasibleReturn => (Clp.infeasible_return, Clp.set_infeasible_return)
+)
+
+mutable struct Optimizer <: MOI.AbstractOptimizer
+    # Inner Clp object
+    inner::Clp.ClpModel
+
+    # Clp solve options
+    solver_options::Clp.ClpSolve
+
+    # To handle MOI.OPTIMIZE_NOT_CALLED status
     optimize_called::Bool
 
     function Optimizer(;kwargs...)
         inner_model = Clp.ClpModel()
-        model = new(inner_model, false, false)
+        solver_options = Clp.ClpSolve()
+        model = new(inner_model, solver_options, false)
 
         for (key, value) in kwargs
             MOI.set(model, MOI.RawParameter(key), value)
@@ -44,19 +68,22 @@ function MOI.is_empty(model::Optimizer)
     return (Clp.get_num_rows(model.inner) == 0) && (Clp.get_num_cols(model.inner) == 0)
 end
 
-function MOI.empty!(model::Optimizer)
-    # TODO: keep track of parameters
-    # Free current Clp object
-    Clp.ClpCInterface.delete_model(model.inner)
+function MOI.empty!(model::Optimizer)    
+    old_model = model.inner
 
     # Create new Clp object
     model.inner = Clp.ClpModel()
 
-    if model.silent
-        Clp.set_log_level(model.inner, 0)
+    # Copy parameters from old model into new model
+    for (option, (getter, setter)) in CLP_OPTION_MAP
+        value = getter(old_model)
+        setter(model.inner, value)
     end
 
     model.optimize_called = false
+
+    # Free old Clp object
+    Clp.ClpCInterface.delete_model(old_model)
 
     return nothing
 end
@@ -68,35 +95,30 @@ MOI.get(::Optimizer, ::MOI.SolverName) = "Clp"
 MOI.supports(::Optimizer, param::MOI.RawParameter) = true
 
 function MOI.set(model::Optimizer, param::MOI.RawParameter, value)
-    # There is now `set_param`-like function in Clp's C interface.
-    # So we go through the list of individual parameters
-    if param.name == :LogLevel
-        # Clp has several verbosity levels
-        Clp.set_log_level(model.inner, value)
-        model.silent = iszero(value)
-    elseif param.name == :MaximumSecond
-        Clp.set_maximum_seconds(model.inner, value)
+    
+    if haskey(CLP_OPTION_MAP, param.name)
+        CLP_OPTION_MAP[param.name][2](model.inner, value)
+    elseif haskey(SOLVE_OPTION_MAP, param.name)
+        SOLVE_OPTION_MAP[param.name][2](model.solver_options, value)
     else
-        # TODO: Check that we don't miss anything here
         throw(MOI.UnsupportedAttribute(param))
     end
+
     return nothing
 end
 
 function MOI.get(model::Optimizer, param::MOI.RawParameter)
-    if param.name == :LogLevel
-        return Clp.log_level(model.inner)
-    elseif param.name == :MaximumSecond
-        return Clp.maximum_seconds(model.inner)
+    if haskey(CLP_OPTION_MAP, param.name)
+        return CLP_OPTION_MAP[param.name][1](model.inner)
+    elseif haskey(SOLVE_OPTION_MAP, param.name)
+        return SOLVE_OPTION_MAP[param.name][1](model.solver_options)
     else
         throw(MOI.UnsupportedAttribute(param))
     end
-    return nothing
 end
 
 MOI.supports(::Optimizer, ::MOI.Silent) = true
 function MOI.set(model::Optimizer, ::MOI.Silent, value::Bool)
-    model.silent = value
     if value
         Clp.set_log_level(model.inner, 0)
     else
@@ -249,7 +271,7 @@ function MOI.copy_to(
 
             # Identify constraint terms
             coeffs = [t.coefficient for t in f.terms]
-            cols = [
+            cols::Vector{Int} = [
                 mapping.varmap[t.variable_index].value
                 for t in f.terms
             ]
@@ -307,7 +329,7 @@ end
 # ===============================
 
 function MOI.optimize!(model::Optimizer)
-    Clp.initial_solve(model.inner)
+    Clp.initial_solve_with_options(model.inner, model.solver_options)
     model.optimize_called = true
     return nothing
 end

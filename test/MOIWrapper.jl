@@ -36,10 +36,10 @@ end
 @testset "Unit Tests" begin
     MOIT.unittest(BRIDGED, CONFIG, [
         # Unsupported attributes
-        "number_threads",
+        "number_threads",  # not supported by Clp
         "solve_result_index",  # calls ObjectiveValue(2)
         "time_limit_sec",  # Weird behaviour of Clp
-        "solve_time",  # not supported
+        "solve_time",  # not supported by Clp
         # Tests that require integer variables
         "solve_integer_edge_cases",
         "solve_zero_one_with_bounds_1",
@@ -78,13 +78,13 @@ end
 @testset "ModelLike" begin
     # solver = Clp.Optimizer(LogLevel = 0)
     @testset "nametest" begin
-        MOIT.nametest(CACHED)
+        MOIT.nametest(BRIDGED)
     end
     @testset "validtest" begin
-        MOIT.validtest(CACHED)
+        MOIT.validtest(BRIDGED)
     end
     @testset "emptytest" begin
-        MOIT.emptytest(CACHED)
+        MOIT.emptytest(BRIDGED)
     end
     # @testset "copytest" begin
     #     solver2 = Clp.Optimizer(LogLevel = 0)
@@ -93,14 +93,14 @@ end
     # Clp returns C_NULL when queried for the infeasibility ray in this case.
     @testset "Inexistant unbounded ray" begin
         # o = Clp.Optimizer(LogLevel = 0)
-        MOI.empty!(CACHED)
+        MOI.empty!(BRIDGED)
 
-        x = MOI.add_variables(CACHED, 5)
-        MOI.set(CACHED, MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}(),
+        x = MOI.add_variables(BRIDGED, 5)
+        MOI.set(BRIDGED, MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}(),
                    MOI.ScalarAffineFunction(MOI.ScalarAffineTerm.(1.0, x), 0.0))
-        MOI.set(CACHED, MOI.ObjectiveSense(), MOI.MAX_SENSE)
-        MOI.optimize!(CACHED)
-        status = MOI.get(CACHED, MOI.TerminationStatus())
+        MOI.set(BRIDGED, MOI.ObjectiveSense(), MOI.MAX_SENSE)
+        MOI.optimize!(BRIDGED)
+        status = MOI.get(BRIDGED, MOI.TerminationStatus())
         @test status == MOI.DUAL_INFEASIBLE
     end
 end
