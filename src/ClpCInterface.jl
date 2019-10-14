@@ -631,6 +631,8 @@ end
 # Get maximum number of iterations
 function maximum_iterations(model::ClpModel)
     _jl__check_model(model)
+    # The C function's name does not follow the `Clp_` convention
+    # See https://github.com/JuliaOpt/Clp.jl/issues/67
     ccall((:maximumIterations, libClp), Int32, (Ptr{Cvoid},), model.p)
 end
 
