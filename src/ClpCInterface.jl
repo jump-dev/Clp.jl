@@ -631,7 +631,7 @@ end
 # Get maximum number of iterations
 function maximum_iterations(model::ClpModel)
     _jl__check_model(model)
-    @clp_ccall maximumIterations Int32 (Ptr{Cvoid},) model.p
+    ccall((:maximumIterations, libClp), Int32, (Ptr{Cvoid},), model.p)
 end
 
 # Set maximum number of iterations
