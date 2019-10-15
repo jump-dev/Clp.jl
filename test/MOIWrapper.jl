@@ -37,7 +37,6 @@ end
     MOIT.unittest(BRIDGED, CONFIG, [
         # Unsupported attributes
         "number_threads",  # not supported by Clp
-        "solve_result_index",  # calls ObjectiveValue(2)
         "time_limit_sec",  # Weird behaviour of Clp
         "solve_time",  # not supported by Clp
         # Tests that require integer variables

@@ -23,7 +23,7 @@ const CLP_OPTION_MAP = Dict(
     :PrimalTolerance => (Clp.primal_tolerance, Clp.set_primal_tolerance),
     :DualTolerance => (Clp.dual_tolerance, Clp.set_dual_tolerance),
     :DualObjectiveLimit => (Clp.dual_objective_limit, Clp.set_dual_objective_limit),
-    # :MaximumIterations => (Clp.maximum_iterations, Clp.set_maximum_iterations),  # See #67
+    :MaximumIterations => (Clp.maximum_iterations, Clp.set_maximum_iterations),
     :MaximumSeconds => (Clp.maximum_seconds, Clp.set_maximum_seconds),
     :LogLevel => (Clp.log_level, Clp.set_log_level),
     :Scaling => (Clp.scaling_flag, Clp.scaling),
@@ -295,7 +295,7 @@ function MOI.copy_to(
         Clp.set_obj_sense(dest.inner, 0)   # feasibility
     else
         # Should not be reached, but just in case
-        throw(MOI.UnsupportedAttribute(sense))
+        error("Unexpected optimization sense $sense")
     end
 
     fobj = MOI.get(src, MOI.ObjectiveFunction{fobj_type}())
@@ -312,7 +312,7 @@ function MOI.copy_to(
         obj_offset = fobj.constant
     else
         # Should not be reached here, but just in case
-        throw(MOI.UnsupportedAttribute(fobj))
+        error("Unexpected objective $fobj")
     end
 
     # Set objective coefficients
@@ -336,7 +336,12 @@ end
 
 MOI.get(model::Optimizer, ::MOI.NumberOfVariables) = Clp.get_num_cols(model.inner)
 
-MOI.get(model::Optimizer, ::MOI.ObjectiveValue) = Clp.get_obj_value(model.inner)
+function MOI.get(model::Optimizer, attr::MOI.ObjectiveValue)
+    # Check result index
+    MOI.check_result_index_bounds(model, attr)
+
+    return Clp.get_obj_value(model.inner)
+end
 
 function MOI.get(model::Optimizer, ::MOI.TerminationStatus)
 
@@ -388,7 +393,10 @@ function MOI.get(model::Optimizer, ::MOI.ResultCount)
 end
 
 # Solution status
-function MOI.get(model::Optimizer, ::MOI.PrimalStatus)
+function MOI.get(model::Optimizer, attr::MOI.PrimalStatus)
+    # Check result index
+    attr.N == 1 || return MOI.NO_SOLUTION
+
     if Clp.is_proven_dual_infeasible(model.inner)
         return MOI.INFEASIBILITY_CERTIFICATE
     elseif Clp.primal_feasible(model.inner)
@@ -398,7 +406,10 @@ function MOI.get(model::Optimizer, ::MOI.PrimalStatus)
     end
 end
 
-function MOI.get(model::Optimizer, ::MOI.DualStatus)
+function MOI.get(model::Optimizer, attr::MOI.DualStatus)
+    # Check result index
+    attr.N == 1 || return MOI.NO_SOLUTION
+
     if Clp.is_proven_primal_infeasible(model.inner)
         return MOI.INFEASIBILITY_CERTIFICATE
     elseif Clp.dual_feasible(model.inner)
@@ -411,8 +422,12 @@ end
 # ===================
 #   Primal solution
 # ===================
-function MOI.get(model::Optimizer, ::MOI.VariablePrimal, x::MOI.VariableIndex)
-    # We assume the variable index is valid
+function MOI.get(model::Optimizer, attr::MOI.VariablePrimal, x::MOI.VariableIndex)
+    # Check result index
+    MOI.check_result_index_bounds(model, attr)
+
+    # We assume the variable index is valid,
+    # since Clp should be accessed via a CachingOptimizer
     primal_status = MOI.get(model, MOI.PrimalStatus())
     if primal_status == MOI.INFEASIBILITY_CERTIFICATE
         sol = Clp.unbounded_ray(model.inner)
@@ -425,25 +440,50 @@ function MOI.get(model::Optimizer, ::MOI.VariablePrimal, x::MOI.VariableIndex)
     end
 end
 
-function MOI.get(model::Optimizer, ::MOI.VariablePrimal, xs::Vector{MOI.VariableIndex})
-    sol = Clp.get_col_solution(model.inner)
-    return [sol[x.value] for x in xs]
+function MOI.get(model::Optimizer, attr::MOI.VariablePrimal, xs::Vector{MOI.VariableIndex})
+    # Check result index
+    MOI.check_result_index_bounds(model, attr)
+
+    col_indices = [idx.value for idx in xs]
+    
+    # We assume all variable indices is valid,
+    # since Clp should be accessed via a CachingOptimizer
+    primal_status = MOI.get(model, MOI.PrimalStatus())
+    if primal_status == MOI.INFEASIBILITY_CERTIFICATE
+        sol = Clp.unbounded_ray(model.inner)
+        return sol[col_indices]
+    elseif primal_status == MOI.FEASIBLE_POINT
+        sol = Clp.get_col_solution(model.inner)
+        return sol[col_indices]
+    else
+        error("Primal solution not available")
+    end
 end
 
-function MOI.get(model::Optimizer, ::MOI.ConstraintPrimal,
+function MOI.get(model::Optimizer, attr::MOI.ConstraintPrimal,
     c::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64}, S}
 ) where{S <:SCALAR_SETS}
-    # TODO: Check that constraint index is valid
+    # Check result index
+    MOI.check_result_index_bounds(model, attr)
+
+    # We assume that the constraint index is valid,
+    # since Clp should be accessed via a CachingOptimizer
     # TODO: What happens if model is unbounded / infeasible?
+
     # Get primal row solution
     sol = Clp.get_row_activity(model.inner)
     return sol[c.value]
 end
 
-# TODO: what happens if problem is unbounded?
-MOI.get(model::Optimizer, ::MOI.ConstraintPrimal,
+function MOI.get(model::Optimizer, attr::MOI.ConstraintPrimal,
     c::MOI.ConstraintIndex{MOI.SingleVariable, S}
-) where{S <: SCALAR_SETS} = MOI.get(model, MOI.VariablePrimal(), MOI.VariableIndex(c.value))
+) where{S <: SCALAR_SETS}
+    # Check result index
+    MOI.check_result_index_bounds(model, attr)
+
+    # TODO: What happens if model is unbounded / infeasible?
+    return MOI.get(model, MOI.VariablePrimal(), MOI.VariableIndex(c.value))
+end
 
 
 # =================
@@ -451,9 +491,12 @@ MOI.get(model::Optimizer, ::MOI.ConstraintPrimal,
 # =================
 # If sense is maximize, we negate all the duals to follow MOI conventions
 # Feasibility problems are treated as a minimization
-function MOI.get(model::Optimizer, ::MOI.ConstraintDual,
+function MOI.get(model::Optimizer, attr::MOI.ConstraintDual,
     c::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64}, S}
 ) where{S <: SCALAR_SETS}
+    # Check result index
+    MOI.check_result_index_bounds(model, attr)
+
     sense = (Clp.get_obj_sense(model.inner) == -1) ? -1 : 1
 
     dual_status = MOI.get(model, MOI.DualStatus())
@@ -473,9 +516,12 @@ end
 
 # Reduced costs
 # TODO: what happens if problem is unbounded / infeasible?
-function MOI.get(model::Optimizer, ::MOI.ConstraintDual,
+function MOI.get(model::Optimizer, attr::MOI.ConstraintDual,
     c::MOI.ConstraintIndex{MOI.SingleVariable, MOI.LessThan{Float64}}   
 )
+    # Check result index
+    MOI.check_result_index_bounds(model, attr)
+
     rc = Clp.get_reduced_cost(model.inner)[c.value]
     sense = (Clp.get_obj_sense(model.inner) == -1) ? -1 : 1
 
@@ -489,9 +535,12 @@ function MOI.get(model::Optimizer, ::MOI.ConstraintDual,
     end
 end
 
-function MOI.get(model::Optimizer, ::MOI.ConstraintDual,
+function MOI.get(model::Optimizer, attr::MOI.ConstraintDual,
     c::MOI.ConstraintIndex{MOI.SingleVariable, MOI.GreaterThan{Float64}}   
 )
+    # Check result index
+    MOI.check_result_index_bounds(model, attr)
+
     rc = Clp.get_reduced_cost(model.inner)[c.value]
     sense = (Clp.get_obj_sense(model.inner) == -1) ? -1 : 1
 
@@ -505,9 +554,12 @@ function MOI.get(model::Optimizer, ::MOI.ConstraintDual,
     end
 end
 
-function MOI.get(model::Optimizer, ::MOI.ConstraintDual,
+function MOI.get(model::Optimizer, attr::MOI.ConstraintDual,
     c::MOI.ConstraintIndex{MOI.SingleVariable, S}   
 ) where{S <: Union{MOI.Interval{Float64}, MOI.EqualTo{Float64}}}
+    # Check result index
+    MOI.check_result_index_bounds(model, attr)
+    
     sense = (Clp.get_obj_sense(model.inner) == -1) ? -1 : 1
     return sense * Clp.get_reduced_cost(model.inner)[c.value]
 end
