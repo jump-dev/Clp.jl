@@ -27,7 +27,9 @@ MOI.set(CACHED, MOI.Silent(), true)
 const BRIDGED = MOI.Bridges.full_bridge_optimizer(CACHED, Float64)
 MOI.set(BRIDGED, MOI.Silent(), true)
 
-const CONFIG = MOIT.TestConfig()
+const CONFIG = MOIT.TestConfig(
+    dual_objective_value=false
+)
 
 @testset "basic_constraint_tests" begin
     MOIT.basic_constraint_tests(CACHED, CONFIG)
@@ -56,18 +58,11 @@ end
 
 @testset "Linear tests" begin
     MOIT.contlineartest(BRIDGED, CONFIG, [
-        # linear1 test is disabled due to the following bug:
-        # https://projects.coin-or.org/Clp/ticket/84
-        # "linear1",
-        # linear10 test is tested below because it has interval sets.
-        # "linear10",
-        # "linear10b",
-        # linear11 test is excluded as it fails on Linux for some reason.
-        # It passes on Mac and Windows.
-        # "linear11",
+        # Queries an infeasibility certificate
+        "linear8a",
         # linear12 test requires the InfeasibilityCertificate for variable
         # bounds. These are available through C++, but not via the C interface.
-        # "linear12",
+        "linear12",
         # partial_start requires VariablePrimalStart to be implemented by the
         # solver.
         "partial_start"
