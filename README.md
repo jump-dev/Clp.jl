@@ -72,7 +72,7 @@ using MathProgBase
 linprog(..., ClpSolver(Option1=value1,Option2=value2,...))
 ```
 
-S the list of options below, and the MathProgBase documentation for further information.
+See the list of options below, and the MathProgBase documentation for further information.
 
 [MathProgBase]: https://github.com/JuliaOpt/MathProgBase.jl
 
