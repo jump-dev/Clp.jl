@@ -1,408 +1,565 @@
+import MathOptInterface
+const MOI = MathOptInterface
+const MOIU = MathOptInterface.Utilities
 
-using LinQuadOptInterface
 using .ClpCInterface
 
-import LinearAlgebra
+# Helper functions
+_bounds(s::MOI.GreaterThan{Float64}) = (s.lower, Inf)
+_bounds(s::MOI.LessThan{Float64}) = (-Inf, s.upper)
+_bounds(s::MOI.EqualTo{Float64}) = (s.value, s.value)
+_bounds(s::MOI.Interval{Float64}) = (s.lower, s.upper)
 
-const LQOI = LinQuadOptInterface
-const MOI  = LQOI.MOI
+# Supported scalar sets
+const SCALAR_SETS = Union{
+    MOI.GreaterThan{Float64},
+    MOI.LessThan{Float64},
+    MOI.EqualTo{Float64},
+    MOI.Interval{Float64}
+}
 
-const SUPPORTED_OBJECTIVES = [
-    LQOI.Linear,
-    LQOI.SinVar
-]
+# Maps Clp's parameters to getter/setter function
+const CLP_OPTION_MAP = Dict(
+    :PrimalTolerance => (Clp.primal_tolerance, Clp.set_primal_tolerance),
+    :DualTolerance => (Clp.dual_tolerance, Clp.set_dual_tolerance),
+    :DualObjectiveLimit => (Clp.dual_objective_limit, Clp.set_dual_objective_limit),
+    :MaximumIterations => (Clp.maximum_iterations, Clp.set_maximum_iterations),
+    :MaximumSeconds => (Clp.maximum_seconds, Clp.set_maximum_seconds),
+    :LogLevel => (Clp.log_level, Clp.set_log_level),
+    :Scaling => (Clp.scaling_flag, Clp.scaling),
+    :Perturbation => (Clp.perturbation, Clp.set_perturbation),
+    :Algorithm => (Clp.algorithm, Clp.set_algorithm)
+)
 
-const SUPPORTED_CONSTRAINTS = [
-    (LQOI.Linear, LQOI.EQ),
-    (LQOI.Linear, LQOI.LE),
-    (LQOI.Linear, LQOI.GE),
-    (LQOI.SinVar, LQOI.EQ),
-    (LQOI.SinVar, LQOI.LE),
-    (LQOI.SinVar, LQOI.GE),
-    (LQOI.SinVar, LQOI.IV),
-    (LQOI.VecVar, MOI.Nonnegatives),
-    (LQOI.VecVar, MOI.Nonpositives),
-    (LQOI.VecVar, MOI.Zeros),
-    (LQOI.VecLin, MOI.Nonnegatives),
-    (LQOI.VecLin, MOI.Nonpositives),
-    (LQOI.VecLin, MOI.Zeros)
-]
+const SOLVE_OPTION_MAP = Dict(
+   :PresolveType => (Clp.get_presolve_type, Clp.set_presolve_type),
+   :SolveType => (Clp.get_solve_type, Clp.set_solve_type),
+   :InfeasibleReturn => (Clp.infeasible_return, Clp.set_infeasible_return)
+)
 
-mutable struct Optimizer <: LQOI.LinQuadOptimizer
-    LQOI.@LinQuadOptimizerBase
-    params::Dict{Symbol,Any}
-    Optimizer(::Nothing) = new()
-end
+mutable struct Optimizer <: MOI.AbstractOptimizer
+    # Inner Clp object
+    inner::Clp.ClpModel
 
-### Options
+    # Clp solve options
+    solver_options::Clp.ClpSolve
 
-# map option name to C function
-const optionmap = Dict(
-   :PrimalTolerance => set_primal_tolerance,
-   :DualTolerance => set_dual_tolerance,
-   :DualObjectiveLimit => set_dual_objective_limit,
-   :MaximumIterations => set_maximum_iterations,
-   :MaximumSeconds => set_maximum_seconds,
-   :LogLevel => set_log_level,
-   :Scaling => scaling,
-   :Perturbation => set_perturbation,
-   )
-# These options are set by using the ClpSolve object
-const solveoptionmap = Dict(
-   :PresolveType => set_presolve_type,
-   :SolveType => set_solve_type,
-   :InfeasibleReturn => set_infeasible_return,
-   )
+    # To handle MOI.OPTIMIZE_NOT_CALLED status
+    optimize_called::Bool
 
-function Optimizer(;kwargs...)
-    optimizer = Optimizer(nothing)
-    optimizer.params = Dict{String,Any}()
-    MOI.empty!(optimizer)
-    for (name,value) in kwargs
-        optimizer.params[Symbol(name)] = value
+    function Optimizer(;kwargs...)
+        inner_model = Clp.ClpModel()
+        solver_options = Clp.ClpSolve()
+        model = new(inner_model, solver_options, false)
+
+        for (key, value) in kwargs
+            MOI.set(model, MOI.RawParameter(key), value)
+        end
+
+        return model
     end
-    return optimizer
 end
 
-LQOI.LinearQuadraticModel(::Type{Optimizer},env) = ClpModel()
+# ====================
+#   empty functions
+# ====================
+function MOI.is_empty(model::Optimizer)
+    # A problem is empty if it has no variable and no linear constraint
+    return (Clp.get_num_rows(model.inner) == 0) && (Clp.get_num_cols(model.inner) == 0)
+end
 
-LQOI.supported_constraints(optimizer::Optimizer) = SUPPORTED_CONSTRAINTS
-LQOI.supported_objectives(optimizer::Optimizer) = SUPPORTED_OBJECTIVES
+function MOI.empty!(model::Optimizer)    
+    old_model = model.inner
 
-"""
-    replace_inf(x::Real)
+    # Create new Clp object
+    model.inner = Clp.ClpModel()
 
-Return `Inf` if `x>1e20`, `-Inf` if `x<-1e20`, and `x` otherwise.
-"""
-function replace_inf(x::Real)
-    if x > 1e20
-        return Inf
-    elseif x < -1e20
-        return -Inf
+    # Copy parameters from old model into new model
+    for (option, (getter, setter)) in CLP_OPTION_MAP
+        value = getter(old_model)
+        setter(model.inner, value)
+    end
+
+    model.optimize_called = false
+
+    # Free old Clp object
+    Clp.ClpCInterface.delete_model(old_model)
+
+    return nothing
+end
+
+
+MOI.get(::Optimizer, ::MOI.SolverName) = "Clp"
+
+# TODO: improve type-stability of `MOI.RawParameter`-related methods.
+MOI.supports(::Optimizer, param::MOI.RawParameter) = true
+
+function MOI.set(model::Optimizer, param::MOI.RawParameter, value)
+    
+    if haskey(CLP_OPTION_MAP, param.name)
+        CLP_OPTION_MAP[param.name][2](model.inner, value)
+    elseif haskey(SOLVE_OPTION_MAP, param.name)
+        SOLVE_OPTION_MAP[param.name][2](model.solver_options, value)
     else
-        return x
+        throw(MOI.UnsupportedAttribute(param))
     end
+
+    return nothing
 end
 
-
-function LQOI.get_objectivesense(model::Optimizer)
-    s = get_obj_sense(model.inner)
-    if s == 1.0
-        return MOI.MIN_SENSE
-    elseif s == -1.0
-        return MOI.MAX_SENSE
+function MOI.get(model::Optimizer, param::MOI.RawParameter)
+    if haskey(CLP_OPTION_MAP, param.name)
+        return CLP_OPTION_MAP[param.name][1](model.inner)
+    elseif haskey(SOLVE_OPTION_MAP, param.name)
+        return SOLVE_OPTION_MAP[param.name][1](model.solver_options)
     else
-        @assert iszero(s)
-        return MOI.FEASIBILITY_SENSE
+        throw(MOI.UnsupportedAttribute(param))
     end
 end
 
+MOI.supports(::Optimizer, ::MOI.Silent) = true
+function MOI.set(model::Optimizer, ::MOI.Silent, value::Bool)
+    if value
+        Clp.set_log_level(model.inner, 0)
+    else
+        Clp.set_log_level(model.inner, 1)
+    end
+    return nothing
+end
 
-function LQOI.change_variable_bounds!(instance::Optimizer, cols::Vector{Int},
-        values::Vector{Float64}, senses::Vector)
-    upperbounds = get_col_upper(instance.inner)
-    lowerbounds = get_col_lower(instance.inner)
-    for (col, value, sense) in zip(cols, values, senses)
-        if sense == Cchar('U')
-            upperbounds[col] = value
-        elseif sense == Cchar('L')
-            lowerbounds[col] = value
-        else
-            error("sense is Cchar('$(Char(sense))'), but only Cchar('U') " *
-                  "Cchar('L') are supported.")
+function MOI.get(model::Optimizer, ::MOI.Silent)
+    return Clp.log_level(model.inner) == 0
+end
+
+MOI.supports(::Optimizer, ::MOI.TimeLimitSec) = true
+
+function MOI.set(model::Optimizer, ::MOI.TimeLimitSec, value)
+    if value === nothing
+        # De-activate time limit
+        Clp.set_maximum_seconds(model.inner, -1.0)
+    else
+        Clp.set_maximum_seconds(model.inner, value)
+    end
+    return nothing
+end
+
+# Clp behaves weird here
+MOI.get(model::Optimizer, ::MOI.TimeLimitSec) = Clp.maximum_seconds(model.inner)
+
+MOI.supports(::Optimizer, ::MOI.NumberOfThreads) = false
+
+
+# ========================================
+#   Supported constraints and objectives
+# ========================================
+MOI.supports_constraint(::Optimizer,
+    ::Type{MOI.ScalarAffineFunction{Float64}}, ::Type{<:SCALAR_SETS}
+) = true
+
+MOI.supports_constraint(::Optimizer,
+    ::Type{MOI.SingleVariable}, ::Type{<:SCALAR_SETS}
+) = true
+
+MOI.supports(::Optimizer, ::MOI.ObjectiveSense) = true
+
+MOI.supports(::Optimizer,
+    ::MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}
+) = true
+
+# =======================
+#   `copy_to` function
+# =======================
+
+function MOI.copy_to(
+    dest::Optimizer,
+    src::MOI.ModelLike;
+    copy_names=false
+)
+    # Check that all constraints and objectives
+    for (F, S) in MOI.get(src, MOI.ListOfConstraints())
+        MOI.supports_constraint(dest, F, S) || throw(MOI.UnsupportedConstraint{F, S}(
+            "Clp.Optimizer does not support constraints of type $F-in-$S."
+        ))
+    end
+    fobj_type = MOI.get(src, MOI.ObjectiveFunctionType())
+    MOI.supports(dest, MOI.ObjectiveFunction{fobj_type}()) || throw(
+        MOI.UnsupportedAttribute(MOI.ObjectiveFunction(fobj))
+    )
+
+    # Empty dest
+    MOI.empty!(dest)
+
+    # Maps the indices of the 
+    mapping = MOIU.IndexMap()
+
+    # First create variables (including bounds)
+
+    # Create variables
+    # TODO: it may be more efficient to create the problem all at once
+    x_src = MOI.get(src, MOI.ListOfVariableIndices())
+    for (j, x) in enumerate(x_src)
+        # Variable j corresponds to j-th variable of x_src
+        mapping.varmap[x] = MOI.VariableIndex(j)
+        
+        # Possible bound combinations:
+        #=
+            * No bound (default case)
+            * Interval
+            * EqualTo
+            * LessThan
+            * GreaterThan
+            * LessThan && GreaterThan
+        =#
+        lb, ub = -Inf, Inf  # Default case: free variable
+
+        idx_RG = MOI.ConstraintIndex{MOI.SingleVariable, MOI.Interval{Float64}}(x.value)
+        idx_ET = MOI.ConstraintIndex{MOI.SingleVariable, MOI.EqualTo{Float64}}(x.value)
+        idx_LT = MOI.ConstraintIndex{MOI.SingleVariable, MOI.LessThan{Float64}}(x.value)
+        idx_GT = MOI.ConstraintIndex{MOI.SingleVariable, MOI.GreaterThan{Float64}}(x.value)
+        if MOI.is_valid(src, idx_LT)
+            # Get the (upper) bound
+            s = MOI.get(src, MOI.ConstraintSet(), idx_LT)
+            ub = s.upper
+
+            # Track index of upper-bound constraint
+            mapping.conmap[idx_LT] = MOI.ConstraintIndex{MOI.SingleVariable, MOI.LessThan{Float64}}(j)
+        end
+        if MOI.is_valid(src, idx_GT)
+            # Get the (lower) bound
+            s = MOI.get(src, MOI.ConstraintSet(), idx_GT)
+            lb = s.lower
+
+            # Track index of upper-bound constraint
+            mapping.conmap[idx_GT] = MOI.ConstraintIndex{MOI.SingleVariable, MOI.GreaterThan{Float64}}(j)
+        end
+        if MOI.is_valid(src, idx_RG)
+            # Get upper and lower bound
+            s = MOI.get(src, MOI.ConstraintSet(), idx_RG)
+            lb, ub = s.lower, s.upper
+
+            # Track index of upper-bound constraint
+            mapping.conmap[idx_RG] = MOI.ConstraintIndex{MOI.SingleVariable, MOI.Interval{Float64}}(j)
+        end
+        if MOI.is_valid(src, idx_ET)
+            # Get the bounds
+            s = MOI.get(src, MOI.ConstraintSet(), idx_ET)
+            lb, ub = s.value, s.value
+
+            # Track index of upper-bound constraint
+            mapping.conmap[idx_ET] = MOI.ConstraintIndex{MOI.SingleVariable, MOI.EqualTo{Float64}}(j)
+        end
+
+        Clp.add_column(dest.inner, Cint(0), Int32[], Float64[], lb, ub, 0.0)
+    end
+
+    # Create linear constraints
+    nrows = 0  # number of rows in the problem
+    for (F, S) in MOI.get(src, MOI.ListOfConstraints())
+        # Check if constraint is a linear constraint
+        (F == MOI.ScalarAffineFunction{Float64}) || continue
+
+        for index in MOI.get(src, MOI.ListOfConstraintIndices{F, S}())
+            # Retrieve problem data
+            # TODO: ensure that `(f, s)` are in canonical form
+            f = MOIU.canonical(MOI.get(src, MOI.ConstraintFunction(), index))
+            s = MOI.get(src, MOI.ConstraintSet(), index)
+
+            # Extract bounds
+            # Constraint writes a'x + a0 - in - set
+            # So we offset the bounds by -a0
+            lb, ub = _bounds(s) .- f.constant
+
+            # Identify constraint terms
+            coeffs = [t.coefficient for t in f.terms]
+            cols::Vector{Int} = [
+                mapping.varmap[t.variable_index].value
+                for t in f.terms
+            ]
+
+            # Add constraint
+            Clp.add_row(dest.inner, Cint(length(f.terms)), Cint.(cols .- 1), coeffs, lb, ub)
+
+            # Track index
+            mapping.conmap[index] = MOI.ConstraintIndex{F, S}(nrows + 1)
+            nrows += 1
         end
     end
-    chg_column_upper(instance.inner, upperbounds)
-    chg_column_lower(instance.inner, lowerbounds)
-end
 
-function LQOI.get_variable_lowerbound(instance::Optimizer, col::Int)
-    lower = get_col_lower(instance.inner)
-    return replace_inf(lower[col])
-end
-
-function LQOI.get_variable_upperbound(instance::Optimizer, col::Int)
-    upper = get_col_upper(instance.inner)
-    return replace_inf(upper[col])
-end
-
-function LQOI.get_number_linear_constraints(instance::Optimizer)
-    return get_num_rows(instance.inner)
-end
-
-"""
-    append_row(instance::Optimizer, row::Int, lower::Float64, upper::Float64,
-               rows::Vector{Int}, cols::Vector{Int}, coefs::Vector{Float64})
-
-Given a sparse matrix in the triplet-form `(rows, cols, coefs)`, add row `row`
-with upper bound `upper` and lower bound  `lower` to the instance `instance`.
-"""
-function append_row(instance::Optimizer, row::Int, lower::Float64,
-                    upper::Float64, rows::Vector{Int}, cols::Vector{Int},
-                    coefs::Vector{Float64})
-    indices = if row == length(rows)
-        rows[row]:length(cols)
+    # Objective function
+    sense = MOI.get(src, MOI.ObjectiveSense())
+    if sense == MOI.MIN_SENSE
+        Clp.set_obj_sense(dest.inner, 1)   # minimize
+    elseif sense == MOI.MAX_SENSE
+        Clp.set_obj_sense(dest.inner, -1)  # maximize
+    elseif sense == MOI.FEASIBILITY_SENSE
+        Clp.set_obj_sense(dest.inner, 0)   # feasibility
     else
-        rows[row]:(rows[row+1]-1)
+        # Should not be reached, but just in case
+        error("Unexpected optimization sense $sense")
     end
-    add_row(instance.inner, Cint(length(indices)), Cint.(cols[indices] .- 1),
-            coefs[indices], lower, upper)
-end
 
-function LQOI.add_linear_constraints!(instance::Optimizer, A::LQOI.CSRMatrix{Float64},
-        senses::Vector{Cchar}, right_hand_sides::Vector{Float64})
-    rows = A.row_pointers
-    cols = A.columns
-    coefs = A.coefficients
-    for (row, (rhs, sense)) in enumerate(zip(right_hand_sides, senses))
-        if rhs > 1e20
-            error("rhs must always be less than 1e20")
-        elseif rhs < -1e20
-            error("rhs must always be greater than -1e20")
+    fobj = MOI.get(src, MOI.ObjectiveFunction{fobj_type}())
+    obj_coeffs = zeros(length(x_src))
+    obj_offset = 0.0
+
+    if fobj_type == MOI.ScalarAffineFunction{Float64}
+        # Record objective coeffs
+        for term in fobj.terms
+            x = mapping.varmap[term.variable_index]
+            # Here we do += instead of = to accumulate dupplicates
+            obj_coeffs[x.value] += term.coefficient
         end
-        lower = -Inf
-        upper = Inf
-        if sense == Cchar('L')
-            upper = rhs
-        elseif sense == Cchar('G')
-            lower = rhs
-        elseif sense == Cchar('E')
-            upper = lower = rhs
-        else
-            error("sense must be Cchar(x) where x is in ['L','G',E']")
-        end
-        append_row(instance, row, lower, upper, rows, cols, coefs)
-    end
-end
-
-function LQOI.add_ranged_constraints!(instance::Clp.Optimizer,
-        A::LinQuadOptInterface.CSRMatrix{Float64},
-        lb::Vector{Float64}, ub::Vector{Float64})
-    rows = A.row_pointers
-    cols = A.columns
-    coefs = A.coefficients
-    for row in 1:length(lb)
-        append_row(instance, row, lb[row], ub[row], rows, cols, coefs)
-    end
-end
-
-function LQOI.get_rhs(instance::Optimizer, row::Int)
-    lower_bounds = get_row_lower(instance.inner)
-    upper_bounds = get_row_upper(instance.inner)
-    lower_bound = replace_inf(lower_bounds[row])
-    upper_bound = replace_inf(upper_bounds[row])
-    if lower_bound > -Inf
-        return lower_bound
-    elseif upper_bound < Inf
-        return upper_bound
+        obj_offset = fobj.constant
     else
-        error("Either row_lower or row_upper must be of abs less than 1e20")
+        # Should not be reached here, but just in case
+        error("Unexpected objective $fobj")
     end
+
+    # Set objective coefficients
+    Clp.chg_obj_coefficients(dest.inner, obj_coeffs)
+    # Set objective offset
+    # Clp seems to negates the objective offset
+    Clp.set_objective_offset(dest.inner, -obj_offset)
+    
+    return mapping
 end
 
-function LQOI.get_linear_constraint(instance::Optimizer, row::Int)::Tuple{Vector{Int}, Vector{Float64}}
-    A = get_constraint_matrix(instance.inner)
-    A_row = A[row,:]
-    return Array{Int}(A_row.nzind), A_row.nzval
+# ===============================
+#   Optimize and post-optimize
+# ===============================
+
+function MOI.optimize!(model::Optimizer)
+    Clp.initial_solve_with_options(model.inner, model.solver_options)
+    model.optimize_called = true
+    return nothing
 end
 
-function LQOI.change_objective_coefficient!(instance::Optimizer, col, coef)
-    objcoefs = get_obj_coefficients(instance.inner)
-    objcoefs[col] = coef
-    chg_obj_coefficients(instance.inner, objcoefs)
+MOI.get(model::Optimizer, ::MOI.NumberOfVariables) = Clp.get_num_cols(model.inner)
+
+function MOI.get(model::Optimizer, attr::MOI.ObjectiveValue)
+    # Check result index
+    MOI.check_result_index_bounds(model, attr)
+
+    return Clp.get_obj_value(model.inner)
 end
 
-function LQOI.change_rhs_coefficient!(instance::Optimizer, row, coef)
-    lower_bounds = get_row_lower(instance.inner)
-    upper_bounds = get_row_upper(instance.inner)
-    lower_bound = replace_inf(lower_bounds[row])
-    upper_bound = replace_inf(upper_bounds[row])
-    if lower_bound > -Inf
-        lower_bounds[row] = coef
-        chg_row_lower(instance.inner, lower_bounds)
-    elseif upper_bound < Inf
-        upper_bounds[row] = coef
-        chg_row_upper(instance.inner, upper_bounds)
-    else
-        error("Either row_lower or row_upper must be of abs less than 1e20")
-    end
-end
+function MOI.get(model::Optimizer, ::MOI.TerminationStatus)
 
-function LQOI.delete_linear_constraints!(instance::Optimizer, start_row::Int, end_row::Int)
-    delete_rows(instance.inner, [Cint(i-1) for i in start_row:end_row])
-end
+    model.optimize_called || return MOI.OPTIMIZE_NOT_CALLED
 
-function LQOI.change_linear_constraint_sense!(instance::Optimizer, rows::Vector{Int}, senses::Vector{Cchar})
-    lower = replace_inf.(get_row_lower(instance.inner))
-    upper = replace_inf.(get_row_upper(instance.inner))
-    for (sense, row) in zip(senses, rows)
-        lb = lower[row]
-        ub = upper[row]
-        if lb > -Inf
-            rhs = lb
-        elseif ub < Inf
-            rhs = ub
-        else
-            error("Either row_lower or row_upper must be of abs less than 1e20")
-        end
-        if sense == Cchar('G')
-            lower[row] = rhs
-            upper[row] = Inf
-        elseif sense == Cchar('L')
-            lower[row] = -Inf
-            upper[row] = rhs
-        elseif sense == Cchar('E')
-            lower[row] = rhs
-            upper[row] = rhs
-        end
-    end
-    chg_row_upper(instance.inner, upper)
-    chg_row_lower(instance.inner, lower)
-end
+    st = Clp.status(model.inner)
 
-function LQOI.set_linear_objective!(instance::Optimizer, cols::Vector{Int}, coefs::Vector{Float64})
-    objective_coefficients = zeros(Float64, get_num_cols(instance.inner))
-    for (col, coef) in zip(cols, coefs)
-        objective_coefficients[col] += coef
-    end
-    chg_obj_coefficients(instance.inner, objective_coefficients)
-end
-
-function LQOI.change_objective_sense!(instance::Optimizer, sense::Symbol)
-    if sense == :min
-        set_obj_sense(instance.inner, 1.0)
-    elseif sense == :max
-        set_obj_sense(instance.inner, -1.0)
-    else
-        error("sense must be either :min or :max")
-    end
-end
-
-function LQOI.get_linear_objective!(instance::Optimizer, x::Vector{Float64})
-    copyto!(x, get_obj_coefficients(instance.inner))
-end
-
-function LQOI.solve_linear_problem!(instance::Optimizer)
-    solveroptions = ClpSolve()
-    model = instance.inner
-    for (name, value) in instance.params
-        if haskey(optionmap, name)
-            optionmap[name](model, value)
-        elseif haskey(solveoptionmap, name)
-            solveoptionmap[name](solveroptions,value)
-        else
-            error("Unrecognized option: $name")
-        end
-    end
-    initial_solve_with_options(instance.inner, solveroptions)
-end
-
-function LQOI.get_variable_primal_solution!(instance::Optimizer, x::Vector{Float64})
-    copyto!(x, primal_column_solution(instance.inner))
-end
-
-function LQOI.get_linear_primal_solution!(instance::Optimizer, x::Vector{Float64})
-    copyto!(x, primal_row_solution(instance.inner))
-end
-
-function LQOI.get_variable_dual_solution!(instance::Optimizer, x::Vector{Float64})
-    copyto!(x, dual_column_solution(instance.inner))
-end
-
-function LQOI.get_linear_dual_solution!(instance::Optimizer, x::Vector{Float64})
-    copyto!(x, dual_row_solution(instance.inner))
-end
-
-function LQOI.get_objective_value(instance::Optimizer)
-    return objective_value(instance.inner)
-end
-
-function LQOI.get_farkas_dual!(instance::Optimizer, result::Vector{Float64})
-    copyto!(result, infeasibility_ray(instance.inner))
-    LinearAlgebra.rmul!(result, -1.0)
-end
-
-function LQOI.get_unbounded_ray!(instance::Optimizer, result::Vector{Float64})
-    copyto!(result, unbounded_ray(instance.inner))
-end
-
-function LQOI.get_termination_status(instance::Optimizer)
-    status = ClpCInterface.status(instance.inner)
-    if status == 0
+    if st == 0
         return MOI.OPTIMAL
-    elseif status == 1
+    elseif st == 1
         return MOI.INFEASIBLE
-    elseif status == 2
+    elseif st == 2
         return MOI.DUAL_INFEASIBLE
-    elseif status == 3
-        return MOI.OTHER_LIMIT
-    elseif status == 4
+    elseif st == 3
+        # No more granular information that "some limit is reached"
+        return MOI.OTHER_LIMIT  
+    else
         return MOI.OTHER_ERROR
-    else
-        error("status returned was $(status), but it must be in [0,1,2,3,4]")
     end
 end
 
-function LQOI.get_primal_status(instance::Optimizer)
-    if is_proven_dual_infeasible(instance.inner)
+function MOI.get(model::Optimizer, ::MOI.RawStatusString)
+    model.optimize_called || return "MOI.OPTIMIZE_NOT_CALLED"
+
+    st = Clp.status(model.inner)
+    if st == 0
+        return "0 - optimal"
+    elseif st == 1
+        return "1 - primal infeasible"
+    elseif st == 2
+        return "2 - dual infeasible"
+    elseif st == 3
+        return "3 - stopped on iterations etc"  
+    elseif st == 4
+        return "4 - stopped due to errors"
+    else
+        error("Expected integer in [0, 4] but got $st")
+    end
+end
+
+function MOI.get(model::Optimizer, ::MOI.ResultCount)
+    st = MOI.get(model, MOI.TerminationStatus())
+
+    # TODO: check that this is correct
+    if st == MOI.OPTIMIZE_NOT_CALLED || st == MOI.OTHER_ERROR
+        return 0
+    end
+    return 1
+end
+
+# Solution status
+function MOI.get(model::Optimizer, attr::MOI.PrimalStatus)
+    # Check result index
+    attr.N == 1 || return MOI.NO_SOLUTION
+
+    if Clp.is_proven_dual_infeasible(model.inner)
         return MOI.INFEASIBILITY_CERTIFICATE
-    elseif primal_feasible(instance.inner)
+    elseif Clp.primal_feasible(model.inner)
         return MOI.FEASIBLE_POINT
     else
         return MOI.UNKNOWN_RESULT_STATUS
     end
 end
 
-function LQOI.get_dual_status(instance::Optimizer)
-    if is_proven_primal_infeasible(instance.inner)
+function MOI.get(model::Optimizer, attr::MOI.DualStatus)
+    # Check result index
+    attr.N == 1 || return MOI.NO_SOLUTION
+
+    if Clp.is_proven_primal_infeasible(model.inner)
         return MOI.INFEASIBILITY_CERTIFICATE
-    elseif dual_feasible(instance.inner)
+    elseif Clp.dual_feasible(model.inner)
         return MOI.FEASIBLE_POINT
     else
         return MOI.UNKNOWN_RESULT_STATUS
     end
 end
 
-function LQOI.get_number_variables(instance::Optimizer)
-    return get_num_cols(instance.inner)
-end
+# ===================
+#   Primal solution
+# ===================
+function MOI.get(model::Optimizer, attr::MOI.VariablePrimal, x::MOI.VariableIndex)
+    # Check result index
+    MOI.check_result_index_bounds(model, attr)
 
-function LQOI.add_variables!(instance::Optimizer, number_of_variables::Int)
-    for i in 1:number_of_variables
-        add_column(instance.inner, Cint(0), Int32[], Float64[], -Inf, Inf, 0.0)
+    # We assume the variable index is valid,
+    # since Clp should be accessed via a CachingOptimizer
+    primal_status = MOI.get(model, MOI.PrimalStatus())
+    if primal_status == MOI.INFEASIBILITY_CERTIFICATE
+        sol = Clp.unbounded_ray(model.inner)
+        return sol[x.value]
+    elseif primal_status == MOI.FEASIBLE_POINT
+        sol = Clp.get_col_solution(model.inner)
+        return sol[x.value]
+    else
+        error("Primal solution not available")
     end
 end
 
-function LQOI.delete_variables!(instance::Optimizer, start_col::Int, end_col::Int)
-    delete_columns(instance.inner, [Cint(i-1) for i in start_col:end_col])
+function MOI.get(model::Optimizer, attr::MOI.VariablePrimal, xs::Vector{MOI.VariableIndex})
+    # Check result index
+    MOI.check_result_index_bounds(model, attr)
+
+    col_indices = [idx.value for idx in xs]
+    
+    # We assume all variable indices is valid,
+    # since Clp should be accessed via a CachingOptimizer
+    primal_status = MOI.get(model, MOI.PrimalStatus())
+    if primal_status == MOI.INFEASIBILITY_CERTIFICATE
+        sol = Clp.unbounded_ray(model.inner)
+        return sol[col_indices]
+    elseif primal_status == MOI.FEASIBLE_POINT
+        sol = Clp.get_col_solution(model.inner)
+        return sol[col_indices]
+    else
+        error("Primal solution not available")
+    end
 end
 
-# Corresponds to the `Status` struct defined in https://github.com/coin-or/Clp/blob/8419e63/Clp/src/ClpSimplex.hpp#L114.
-const STATMAP = Dict(0x00 => MOI.BASIC, 0x01 => MOI.BASIC, 0x02 => MOI.NONBASIC_AT_UPPER,
-                    0x03 => MOI.NONBASIC_AT_LOWER, 0x04 => MOI.SUPER_BASIC, 0x05 => MOI.NONBASIC)
+function MOI.get(model::Optimizer, attr::MOI.ConstraintPrimal,
+    c::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64}, S}
+) where{S <:SCALAR_SETS}
+    # Check result index
+    MOI.check_result_index_bounds(model, attr)
 
-function MOI.get(instance::Optimizer, ::MOI.ConstraintBasisStatus,
-        ci::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64}, S}) where S <: Union{LQOI.LE, LQOI.GE, LQOI.EQ}
-    row = instance[ci]
-    stat = STATMAP[get_row_status(instance.inner, row)]
-    # Single sided constraints should not specify `NONBASIC_AT_X` but only `NONBASIC`.
-    if stat == MOI.NONBASIC_AT_LOWER || stat == MOI.NONBASIC_AT_UPPER
-        return MOI.NONBASIC
-    end
-    return stat
+    # We assume that the constraint index is valid,
+    # since Clp should be accessed via a CachingOptimizer
+    # TODO: What happens if model is unbounded / infeasible?
+
+    # Get primal row solution
+    sol = Clp.get_row_activity(model.inner)
+    return sol[c.value]
 end
 
-function MOI.get(instance::Optimizer, ::MOI.ConstraintBasisStatus,
-        vi::MOI.ConstraintIndex{MOI.SingleVariable, S}) where S <: Union{LQOI.LE, LQOI.GE, LQOI.EQ, LQOI.IV}
-    col = instance.variable_mapping[instance[vi]]
-    stat = STATMAP[get_column_status(instance.inner, col)]
-    # If, e.g., a column is `NONBASIC_AT_LOWER` then the ≤ constraint is `BASIC`.
-    if (S <: LQOI.LE && stat == MOI.NONBASIC_AT_LOWER) || (S <: LQOI.GE && stat == MOI.NONBASIC_AT_UPPER)
-        return MOI.BASIC
+function MOI.get(model::Optimizer, attr::MOI.ConstraintPrimal,
+    c::MOI.ConstraintIndex{MOI.SingleVariable, S}
+) where{S <: SCALAR_SETS}
+    # Check result index
+    MOI.check_result_index_bounds(model, attr)
+
+    # TODO: What happens if model is unbounded / infeasible?
+    return MOI.get(model, MOI.VariablePrimal(), MOI.VariableIndex(c.value))
+end
+
+
+# =================
+#   Dual solution
+# =================
+# If sense is maximize, we negate all the duals to follow MOI conventions
+# Feasibility problems are treated as a minimization
+function MOI.get(model::Optimizer, attr::MOI.ConstraintDual,
+    c::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64}, S}
+) where{S <: SCALAR_SETS}
+    # Check result index
+    MOI.check_result_index_bounds(model, attr)
+
+    sense = (Clp.get_obj_sense(model.inner) == -1) ? -1 : 1
+
+    dual_status = MOI.get(model, MOI.DualStatus())
+    if dual_status == MOI.FEASIBLE_POINT
+        # Return dual solution
+        dsol = Clp.get_row_price(model.inner)
+        return sense * dsol[c.value]
+    elseif dual_status == MOI.INFEASIBILITY_CERTIFICATE
+        # Return infeasibility ray
+        dsol = Clp.infeasibility_ray(model.inner)
+        return sense * dsol[c.value]
+    else
+        # Throw error if dual solution is not available
+        error("Dual solution not available")
     end
-    # Single sided constraints should not specify `NONBASIC_AT_X` but only `NONBASIC`.
-    if !(S <: LQOI.IV) && (stat == MOI.NONBASIC_AT_LOWER || stat == MOI.NONBASIC_AT_UPPER)
-        return MOI.NONBASIC
+end
+
+# Reduced costs
+# TODO: what happens if problem is unbounded / infeasible?
+function MOI.get(model::Optimizer, attr::MOI.ConstraintDual,
+    c::MOI.ConstraintIndex{MOI.SingleVariable, MOI.LessThan{Float64}}   
+)
+    # Check result index
+    MOI.check_result_index_bounds(model, attr)
+
+    rc = Clp.get_reduced_cost(model.inner)[c.value]
+    sense = (Clp.get_obj_sense(model.inner) == -1) ? -1 : 1
+
+    # Dual should be non-positive
+    if sense == 1 && rc <= 0.0
+        return rc
+    elseif sense == -1 && rc >= 0.0
+        return -rc
+    else
+        return 0.0
     end
-    return stat
+end
+
+function MOI.get(model::Optimizer, attr::MOI.ConstraintDual,
+    c::MOI.ConstraintIndex{MOI.SingleVariable, MOI.GreaterThan{Float64}}   
+)
+    # Check result index
+    MOI.check_result_index_bounds(model, attr)
+
+    rc = Clp.get_reduced_cost(model.inner)[c.value]
+    sense = (Clp.get_obj_sense(model.inner) == -1) ? -1 : 1
+
+    # Dual should be non-negative   
+    if sense == 1 && rc >= 0.0
+        return rc
+    elseif sense == -1 && rc <= 0.0
+        return -rc
+    else
+        return 0.0
+    end
+end
+
+function MOI.get(model::Optimizer, attr::MOI.ConstraintDual,
+    c::MOI.ConstraintIndex{MOI.SingleVariable, S}   
+) where{S <: Union{MOI.Interval{Float64}, MOI.EqualTo{Float64}}}
+    # Check result index
+    MOI.check_result_index_bounds(model, attr)
+    
+    sense = (Clp.get_obj_sense(model.inner) == -1) ? -1 : 1
+    return sense * Clp.get_reduced_cost(model.inner)[c.value]
 end

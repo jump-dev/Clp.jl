@@ -37,6 +37,30 @@ If you do not want BinaryProvider to download the default binaries on install, s
 
 To switch back to the default binaries clear `JULIA_CLP_LIBRARY_PATH` and call `import Pkg; Pkg.build("Clp")`.
 
+### Using with **[JuMP]**
+[JuMP]: https://github.com/JuliaOpt/JuMP.jl
+
+Due to some restrictions in Clp's C api, the Clp's MathOptInterface wrapper does not support directly modifying a problem after it has been created, e.g., changing variable bounds or modifying constraints coefficients.
+
+Therefore, we highly recommend that you use the `Clp.jl` package with higher-level package such as [JuMP.jl](https://github.com/JuliaOpt/JuMP.jl).
+This can be done with following syntax:
+```julia
+using JuMP, Clp
+
+model = Model(with_optimizer(Clp.Optimizer, LogLevel=1, Algorithm=4))
+```
+
+See the list of options below.
+
+Furthermore, the following features are not supported:
+* Querying the dual bound via `JuMP.objective_bound` (not in the C API)
+* Setting a time limit (the C API behaves inconsistently, see [#65](https://github.com/JuliaOpt/Clp.jl/issues/65))
+* Setting the number of threads used (not in the C API)
+* Quadratic objective (not supported yet)
+* Querying infeasibility certificates (bug in Clp)
+
+
+
 ### Using with **[MathProgBase]**
 
 
@@ -48,9 +72,21 @@ using MathProgBase
 linprog(..., ClpSolver(Option1=value1,Option2=value2,...))
 ```
 
-see the MathProgBase documentation for further information.
+See the list of options below, and the MathProgBase documentation for further information.
 
 [MathProgBase]: https://github.com/JuliaOpt/MathProgBase.jl
+
+### Using the C interface
+
+The low-level C interface is available in the ``ClpCInterface`` submodule:
+```julia
+using Clp.ClpCInterface
+```
+
+Using this interface is only recommended for advanced users. The Julia API is essentially a thin wrapper around the interface exported by ``Clp/src/Clp_C_Interface.h``, which is documented in-line.
+
+
+### Solver options
 
 Options are solver-dependent. The following options are the most useful (and well documented):
 
@@ -70,12 +106,3 @@ Options are solver-dependent. The following options are the most useful (and wel
 	- 5 - automatic
 
 * ``InfeasibleReturn`` - set to 1 to return as soon as the problem is found to be infeasible (by default, an infeasibility proof is computed as well)
-
-### Using the C interface
-
-The low-level C interface is available in the ``ClpCInterface`` submodule:
-```julia
-using Clp.ClpCInterface
-```
-
-Using this interface is only recommended for advanced users. The Julia API is essentially a thin wrapper around the interface exported by ``Clp/src/Clp_C_Interface.h``, which is documented in-line.
