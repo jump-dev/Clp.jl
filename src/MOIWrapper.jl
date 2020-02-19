@@ -20,21 +20,21 @@ const SCALAR_SETS = Union{
 
 # Maps Clp's parameters to getter/setter function
 const CLP_OPTION_MAP = Dict(
-    :PrimalTolerance => (Clp.primal_tolerance, Clp.set_primal_tolerance),
-    :DualTolerance => (Clp.dual_tolerance, Clp.set_dual_tolerance),
-    :DualObjectiveLimit => (Clp.dual_objective_limit, Clp.set_dual_objective_limit),
-    :MaximumIterations => (Clp.maximum_iterations, Clp.set_maximum_iterations),
-    :MaximumSeconds => (Clp.maximum_seconds, Clp.set_maximum_seconds),
-    :LogLevel => (Clp.log_level, Clp.set_log_level),
-    :Scaling => (Clp.scaling_flag, Clp.scaling),
-    :Perturbation => (Clp.perturbation, Clp.set_perturbation),
-    :Algorithm => (Clp.algorithm, Clp.set_algorithm)
+    "PrimalTolerance" => (Clp.primal_tolerance, Clp.set_primal_tolerance),
+    "DualTolerance" => (Clp.dual_tolerance, Clp.set_dual_tolerance),
+    "DualObjectiveLimit" => (Clp.dual_objective_limit, Clp.set_dual_objective_limit),
+    "MaximumIterations" => (Clp.maximum_iterations, Clp.set_maximum_iterations),
+    "MaximumSeconds" => (Clp.maximum_seconds, Clp.set_maximum_seconds),
+    "LogLevel" => (Clp.log_level, Clp.set_log_level),
+    "Scaling" => (Clp.scaling_flag, Clp.scaling),
+    "Perturbation" => (Clp.perturbation, Clp.set_perturbation),
+    "Algorithm" => (Clp.algorithm, Clp.set_algorithm)
 )
 
 const SOLVE_OPTION_MAP = Dict(
-   :PresolveType => (Clp.get_presolve_type, Clp.set_presolve_type),
-   :SolveType => (Clp.get_solve_type, Clp.set_solve_type),
-   :InfeasibleReturn => (Clp.infeasible_return, Clp.set_infeasible_return)
+   "PresolveType" => (Clp.get_presolve_type, Clp.set_presolve_type),
+   "SolveType" => (Clp.get_solve_type, Clp.set_solve_type),
+   "InfeasibleReturn" => (Clp.infeasible_return, Clp.set_infeasible_return)
 )
 
 mutable struct Optimizer <: MOI.AbstractOptimizer
