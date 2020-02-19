@@ -190,7 +190,6 @@ function MOI.copy_to(
     # Empty dest
     MOI.empty!(dest)
 
-    # Maps the indices of the
     mapping = MOIU.IndexMap()
 
     # First create variables (including bounds)
