@@ -98,3 +98,13 @@ end
         @test status == MOI.DUAL_INFEASIBLE
     end
 end
+
+@testset "RawParameter" begin
+    model = Clp.Optimizer()
+    MOI.set(model, MOI.RawParameter("LogLevel"), 1)
+    @test MOI.get(model, MOI.RawParameter("LogLevel")) == 1
+    @test MOI.get(model, MOI.RawParameter(:LogLevel)) == 1
+    MOI.set(model, MOI.RawParameter(:LogLevel), 2)
+    @test MOI.get(model, MOI.RawParameter("LogLevel")) == 2
+    @test MOI.get(model, MOI.RawParameter(:LogLevel)) == 2
+end

@@ -53,7 +53,7 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
         model = new(inner_model, solver_options, false)
 
         for (key, value) in kwargs
-            MOI.set(model, MOI.RawParameter(key), value)
+            MOI.set(model, MOI.RawParameter(String(key)), value)
         end
 
         return model
@@ -68,7 +68,7 @@ function MOI.is_empty(model::Optimizer)
     return (Clp.get_num_rows(model.inner) == 0) && (Clp.get_num_cols(model.inner) == 0)
 end
 
-function MOI.empty!(model::Optimizer)    
+function MOI.empty!(model::Optimizer)
     old_model = model.inner
 
     # Create new Clp object
@@ -95,11 +95,11 @@ MOI.get(::Optimizer, ::MOI.SolverName) = "Clp"
 MOI.supports(::Optimizer, param::MOI.RawParameter) = true
 
 function MOI.set(model::Optimizer, param::MOI.RawParameter, value)
-    
-    if haskey(CLP_OPTION_MAP, param.name)
-        CLP_OPTION_MAP[param.name][2](model.inner, value)
-    elseif haskey(SOLVE_OPTION_MAP, param.name)
-        SOLVE_OPTION_MAP[param.name][2](model.solver_options, value)
+    key = Symbol(param.name)
+    if haskey(CLP_OPTION_MAP, key)
+        CLP_OPTION_MAP[key][2](model.inner, value)
+    elseif haskey(SOLVE_OPTION_MAP, key)
+        SOLVE_OPTION_MAP[key][2](model.solver_options, value)
     else
         throw(MOI.UnsupportedAttribute(param))
     end
@@ -108,10 +108,11 @@ function MOI.set(model::Optimizer, param::MOI.RawParameter, value)
 end
 
 function MOI.get(model::Optimizer, param::MOI.RawParameter)
-    if haskey(CLP_OPTION_MAP, param.name)
-        return CLP_OPTION_MAP[param.name][1](model.inner)
-    elseif haskey(SOLVE_OPTION_MAP, param.name)
-        return SOLVE_OPTION_MAP[param.name][1](model.solver_options)
+    key = Symbol(param.name)
+    if haskey(CLP_OPTION_MAP, key)
+        return CLP_OPTION_MAP[key][1](model.inner)
+    elseif haskey(SOLVE_OPTION_MAP, key)
+        return SOLVE_OPTION_MAP[key][1](model.solver_options)
     else
         throw(MOI.UnsupportedAttribute(param))
     end
@@ -189,7 +190,6 @@ function MOI.copy_to(
     # Empty dest
     MOI.empty!(dest)
 
-    # Maps the indices of the 
     mapping = MOIU.IndexMap()
 
     # First create variables (including bounds)
@@ -200,7 +200,7 @@ function MOI.copy_to(
     for (j, x) in enumerate(x_src)
         # Variable j corresponds to j-th variable of x_src
         mapping.varmap[x] = MOI.VariableIndex(j)
-        
+
         # Possible bound combinations:
         #=
             * No bound (default case)
@@ -320,7 +320,7 @@ function MOI.copy_to(
     # Set objective offset
     # Clp seems to negates the objective offset
     Clp.set_objective_offset(dest.inner, -obj_offset)
-    
+
     return mapping
 end
 
@@ -357,7 +357,7 @@ function MOI.get(model::Optimizer, ::MOI.TerminationStatus)
         return MOI.DUAL_INFEASIBLE
     elseif st == 3
         # No more granular information that "some limit is reached"
-        return MOI.OTHER_LIMIT  
+        return MOI.OTHER_LIMIT
     else
         return MOI.OTHER_ERROR
     end
@@ -374,7 +374,7 @@ function MOI.get(model::Optimizer, ::MOI.RawStatusString)
     elseif st == 2
         return "2 - dual infeasible"
     elseif st == 3
-        return "3 - stopped on iterations etc"  
+        return "3 - stopped on iterations etc"
     elseif st == 4
         return "4 - stopped due to errors"
     else
@@ -445,7 +445,7 @@ function MOI.get(model::Optimizer, attr::MOI.VariablePrimal, xs::Vector{MOI.Vari
     MOI.check_result_index_bounds(model, attr)
 
     col_indices = [idx.value for idx in xs]
-    
+
     # We assume all variable indices is valid,
     # since Clp should be accessed via a CachingOptimizer
     primal_status = MOI.get(model, MOI.PrimalStatus())
@@ -517,7 +517,7 @@ end
 # Reduced costs
 # TODO: what happens if problem is unbounded / infeasible?
 function MOI.get(model::Optimizer, attr::MOI.ConstraintDual,
-    c::MOI.ConstraintIndex{MOI.SingleVariable, MOI.LessThan{Float64}}   
+    c::MOI.ConstraintIndex{MOI.SingleVariable, MOI.LessThan{Float64}}
 )
     # Check result index
     MOI.check_result_index_bounds(model, attr)
@@ -536,7 +536,7 @@ function MOI.get(model::Optimizer, attr::MOI.ConstraintDual,
 end
 
 function MOI.get(model::Optimizer, attr::MOI.ConstraintDual,
-    c::MOI.ConstraintIndex{MOI.SingleVariable, MOI.GreaterThan{Float64}}   
+    c::MOI.ConstraintIndex{MOI.SingleVariable, MOI.GreaterThan{Float64}}
 )
     # Check result index
     MOI.check_result_index_bounds(model, attr)
@@ -544,7 +544,7 @@ function MOI.get(model::Optimizer, attr::MOI.ConstraintDual,
     rc = Clp.get_reduced_cost(model.inner)[c.value]
     sense = (Clp.get_obj_sense(model.inner) == -1) ? -1 : 1
 
-    # Dual should be non-negative   
+    # Dual should be non-negative
     if sense == 1 && rc >= 0.0
         return rc
     elseif sense == -1 && rc <= 0.0
@@ -555,11 +555,11 @@ function MOI.get(model::Optimizer, attr::MOI.ConstraintDual,
 end
 
 function MOI.get(model::Optimizer, attr::MOI.ConstraintDual,
-    c::MOI.ConstraintIndex{MOI.SingleVariable, S}   
+    c::MOI.ConstraintIndex{MOI.SingleVariable, S}
 ) where{S <: Union{MOI.Interval{Float64}, MOI.EqualTo{Float64}}}
     # Check result index
     MOI.check_result_index_bounds(model, attr)
-    
+
     sense = (Clp.get_obj_sense(model.inner) == -1) ? -1 : 1
     return sense * Clp.get_reduced_cost(model.inner)[c.value]
 end
