@@ -13,6 +13,11 @@ MOI.set(OPTIMIZER, MOI.Silent(), true)
     @test MOI.get(OPTIMIZER, MOI.SolverName()) == "Clp"
 end
 
+@testset "Set params" begin 
+    @test  isnothing(MOI.set(OPTIMIZER, MOI.RawParameter("LogLevel"), 0))
+        
+end
+
 @testset "supports_default_copy_to" begin
     @test !MOIU.supports_allocate_load(OPTIMIZER, false)
     @test !MOIU.supports_allocate_load(OPTIMIZER, true)
