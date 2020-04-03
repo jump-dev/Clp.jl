@@ -181,12 +181,15 @@ export
 
 import Base.pointer
 
-if isfile(joinpath(dirname(@__FILE__),"..","deps","deps.jl"))
-    include("../deps/deps.jl")
+if haskey(ENV,"JULIA_CLP_LIBRARY_PATH") || VERSION < v"1.3"
+    if isfile(joinpath(dirname(@__FILE__),"..","deps","deps.jl"))
+        include("../deps/deps.jl")
+    else
+        error("Clp not properly installed. Please run import Pkg; Pkg.build(\"Clp\")")
+    end
 else
-    error("Clp not properly installed. Please run import Pkg; Pkg.build(\"Clp\")")
+    import Clp_jll: libClp
 end
-
 ## Shared library interface setup
 #{{{
 
