@@ -14,7 +14,7 @@ SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 
 [compat]
 BinaryProvider = "0.5"
-Clp_jll = "1.16.11"
+Clp_jll = "1.17.5"
 MathOptInterface = "0.9.6"
 MathProgBase = "0.7"
 julia = "1"
