@@ -859,8 +859,9 @@ function infeasibility_ray(model::ClpModel)
         infeasibilityRay, Ptr{Float64}, (Ptr{Cvoid},), model.p
     )
     if infeas_ray_p == C_NULL
-        return Array{Float64}(undef, 0)
+        return Float64[]
     end
+    ccall(:jl_, Cvoid, (Any,), "infeasibility_ray: $(infeas_ray_p)")
     num_rows = convert(Int, get_num_rows(model))
     return unsafe_wrap(Array, infeas_ray_p, (num_rows,); own = true)
 end
@@ -870,8 +871,9 @@ function unbounded_ray(model::ClpModel)
     _jl__check_model(model)
     unbd_ray_p = @clp_ccall(unboundedRay, Ptr{Float64}, (Ptr{Cvoid},), model.p)
     if unbd_ray_p == C_NULL
-        return Array{Float64}(undef, 0)
+        return Float64[]
     end
+    ccall(:jl_, Cvoid, (Any,), "unbounded_ray: $(unbd_ray_p)")
     num_cols = convert(Int, get_num_cols(model))
     return unsafe_wrap(Array, unbd_ray_p, (num_cols,); own = true)
 end
