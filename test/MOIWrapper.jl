@@ -35,29 +35,25 @@ const CONFIG = MOIT.TestConfig(
     MOIT.basic_constraint_tests(CACHED, CONFIG)
 end
 
-@testset "solve_with_lowerbound" begin
-    MOIT.solve_with_lowerbound(BRIDGED, CONFIG)
+@testset "Unit Tests" begin
+    MOIT.unittest(BRIDGED, CONFIG, [
+        # Unsupported attributes
+        "number_threads",  # not supported by Clp
+        "time_limit_sec",  # Weird behaviour of Clp
+        "solve_time",  # not supported by Clp
+        # Tests that require integer variables
+        "solve_integer_edge_cases",
+        "solve_zero_one_with_bounds_1",
+        "solve_zero_one_with_bounds_2",
+        "solve_zero_one_with_bounds_3",
+        "solve_objbound_edge_cases",
+        # Tests that require quadratic objective / constraints
+        "solve_qcp_edge_cases",
+        "solve_qp_edge_cases",
+        # Tests that require SOC
+        "delete_soc_variables",
+    ])
 end
-# @testset "Unit Tests" begin
-#     MOIT.unittest(BRIDGED, CONFIG, [
-#         # Unsupported attributes
-#         "number_threads",  # not supported by Clp
-#         "time_limit_sec",  # Weird behaviour of Clp
-#         "solve_time",  # not supported by Clp
-#         # Tests that require integer variables
-#         "solve_integer_edge_cases",
-#         "solve_zero_one_with_bounds_1",
-#         "solve_zero_one_with_bounds_2",
-#         "solve_zero_one_with_bounds_3",
-#         "solve_objbound_edge_cases",
-#         # Tests that require quadratic objective / constraints
-#         "solve_qcp_edge_cases",
-#         "solve_qp_edge_cases",
-#         # Tests that require SOC
-#         "delete_soc_variables",
-#     ])
-# end
-
 
 @testset "Linear tests" begin
     MOIT.contlineartest(BRIDGED, CONFIG, [

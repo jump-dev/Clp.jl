@@ -70,22 +70,13 @@ end
 
 function MOI.empty!(model::Optimizer)
     old_model = model.inner
-
-    # Create new Clp object
     model.inner = Clp.ClpModel()
-
     # Copy parameters from old model into new model
-    for (option, (getter, setter)) in CLP_OPTION_MAP
-        value = getter(old_model)
-        setter(model.inner, value)
+    for (_, (getter, setter)) in CLP_OPTION_MAP
+        setter(model.inner, getter(old_model))
     end
-
     model.optimize_called = false
-
-    # Free old Clp object
-    Clp.ClpCInterface.delete_model(old_model)
-
-    return nothing
+    return
 end
 
 

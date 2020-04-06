@@ -231,6 +231,7 @@ mutable struct ClpModel
 end
 
 function delete_model(model::ClpModel)
+    println("Finalizing model: $(model.p)")
     if model.p == C_NULL
         return
     end

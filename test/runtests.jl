@@ -7,6 +7,6 @@ import Compat.Pkg
     include("mathprog.jl")
 end
 
-# @testset "MathOptInterface" begin
+@testset "MathOptInterface" begin
     include("MOIWrapper.jl")
-# end
+end
