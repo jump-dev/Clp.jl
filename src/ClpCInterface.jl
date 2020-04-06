@@ -224,6 +224,7 @@ mutable struct ClpModel
     p::Ptr{Cvoid}
     function ClpModel()
         p = @clp_ccall newModel Ptr{Cvoid} ()
+        println("Creating model: $(p)")
         prob = new(p)
         finalizer(delete_model, prob)
         return prob
@@ -245,12 +246,14 @@ mutable struct ClpSolve
     function ClpSolve()
         p = @clpsolve_ccall new Ptr{Cvoid} ()
         prob = new(p)
+        println("Creating ClpSolve: $(p)")
         finalizer(delete_solve, prob)
         return prob
     end
 end
 
 function delete_solve(solve::ClpSolve)
+    println("Finalizing ClpSolve: $(solve.p)")
     if solve.p == C_NULL
         return
     end
