@@ -1,5 +1,3 @@
-ENV["OPENBLAS_NUM_THREADS"] = 1
-
 using Clp
 using Compat
 using Compat.Test
