@@ -232,7 +232,7 @@ mutable struct ClpModel
 end
 
 function delete_model(model::ClpModel)
-    println("Finalizing model: $(model.p)")
+    ccall(:jl_, Cvoid, (Any,), "Finalizing model: $(model.p)")
     if model.p == C_NULL
         return
     end
@@ -253,7 +253,7 @@ mutable struct ClpSolve
 end
 
 function delete_solve(solve::ClpSolve)
-    println("Finalizing ClpSolve: $(solve.p)")
+    ccall(:jl_, Cvoid, (Any,), "Finalizing ClpSolve: $(solve.p)")
     if solve.p == C_NULL
         return
     end
