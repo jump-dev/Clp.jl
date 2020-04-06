@@ -855,31 +855,25 @@ end
 # Get an infeasibility ray (empty vector returned if none/wrong).
 function infeasibility_ray(model::ClpModel)
     _jl__check_model(model)
-    infeas_ray_p = @clp_ccall infeasibilityRay Ptr{Float64} (Ptr{Cvoid},) model.p
-    num_rows = convert(Int,get_num_rows(model))
-    local infeas_ray::Vector{Float64}
-    if infeas_ray_p != C_NULL
-        infeas_ray = copy(unsafe_wrap(Array,infeas_ray_p,(num_rows,)))
-        ccall(:free,Cvoid,(Ptr{Cvoid},),infeas_ray_p)
-    else
-        infeas_ray = Array{Float64}(undef, 0)
+    infeas_ray_p = @clp_ccall(
+        infeasibilityRay, Ptr{Float64}, (Ptr{Cvoid},), model.p
+    )
+    if infeas_ray_p == C_NULL
+        return Array{Float64}(undef, 0)
     end
-    return infeas_ray
+    num_rows = convert(Int, get_num_rows(model))
+    return unsafe_wrap(Array, infeas_ray_p, (num_rows,); own = true)
 end
 
 # Get an unbounded ray (empty vector returned if none/wrong).
 function unbounded_ray(model::ClpModel)
     _jl__check_model(model)
-    unbd_ray_p = @clp_ccall unboundedRay Ptr{Float64} (Ptr{Cvoid},) model.p
-    num_cols = convert(Int,get_num_cols(model))
-    local unbd_ray::Vector{Float64}
-    if unbd_ray_p != C_NULL
-        unbd_ray = copy(unsafe_wrap(Array,unbd_ray_p,(num_cols,)))
-        ccall(:free,Cvoid,(Ptr{Cvoid},),unbd_ray_p)
-    else
-        unbd_ray = Array{Float64}(undef, 0)
+    unbd_ray_p = @clp_ccall(unboundedRay, Ptr{Float64}, (Ptr{Cvoid},), model.p)
+    if unbd_ray_p == C_NULL
+        return Array{Float64}(undef, 0)
     end
-    return unbd_ray
+    num_cols = convert(Int, get_num_cols(model))
+    return unsafe_wrap(Array, unbd_ray_p, (num_cols,); own = true)
 end
 
 # Query whether the status array exists (partly for OsiClp).
