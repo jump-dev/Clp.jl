@@ -43,14 +43,14 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
 
     # Clp solve options
     solver_options::Clp.ClpSolve
-
+    options_set::Set{Symbol}
     # To handle MOI.OPTIMIZE_NOT_CALLED status
     optimize_called::Bool
 
     function Optimizer(;kwargs...)
         inner_model = Clp.ClpModel()
         solver_options = Clp.ClpSolve()
-        model = new(inner_model, solver_options, false)
+        model = new(inner_model, solver_options, Set{Symbol}(), false)
 
         for (key, value) in kwargs
             MOI.set(model, MOI.RawParameter(String(key)), value)
@@ -72,7 +72,8 @@ function MOI.empty!(model::Optimizer)
     old_model = model.inner
     model.inner = Clp.ClpModel()
     # Copy parameters from old model into new model
-    for (_, (getter, setter)) in CLP_OPTION_MAP
+    for key in model.options_set
+        getter, setter = CLP_OPTION_MAP[key]
         setter(model.inner, getter(old_model))
     end
     model.optimize_called = false
@@ -88,14 +89,14 @@ MOI.supports(::Optimizer, param::MOI.RawParameter) = true
 function MOI.set(model::Optimizer, param::MOI.RawParameter, value)
     key = Symbol(param.name)
     if haskey(CLP_OPTION_MAP, key)
+        push!(model.options_set, key)
         CLP_OPTION_MAP[key][2](model.inner, value)
     elseif haskey(SOLVE_OPTION_MAP, key)
         SOLVE_OPTION_MAP[key][2](model.solver_options, value)
     else
         throw(MOI.UnsupportedAttribute(param))
     end
-
-    return nothing
+    return
 end
 
 function MOI.get(model::Optimizer, param::MOI.RawParameter)
@@ -111,6 +112,7 @@ end
 
 MOI.supports(::Optimizer, ::MOI.Silent) = true
 function MOI.set(model::Optimizer, ::MOI.Silent, value::Bool)
+    push!(model.options_set, :LogLevel)
     if value
         Clp.set_log_level(model.inner, 0)
     else
@@ -126,6 +128,7 @@ end
 MOI.supports(::Optimizer, ::MOI.TimeLimitSec) = true
 
 function MOI.set(model::Optimizer, ::MOI.TimeLimitSec, value)
+    push!(model.options_set, :MaximumSeconds)
     if value === nothing
         # De-activate time limit
         Clp.set_maximum_seconds(model.inner, -1.0)

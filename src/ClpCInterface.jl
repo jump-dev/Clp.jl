@@ -196,7 +196,9 @@ end
 macro clp_ccall(func, args...)
     args = [esc(ex) for ex in args]
     f = "Clp_$(func)"
+    s = "Calling: $(f)"
     quote
+        ccall(:jl_, Cvoid, (Any,), $s)
         ccall(($f,libClp), $(args...))
     end
 end
@@ -204,7 +206,9 @@ end
 macro clpsolve_ccall(func, args...)
     args = [esc(ex) for ex in args]
     f = "ClpSolve_$(func)"
+    s = "Calling: $(f)"
     quote
+        ccall(:jl_, Cvoid, (Any,), $s)
         ccall(($f,libClp), $(args...))
     end
 end
@@ -858,10 +862,10 @@ function infeasibility_ray(model::ClpModel)
     infeas_ray_p = @clp_ccall(
         infeasibilityRay, Ptr{Float64}, (Ptr{Cvoid},), model.p
     )
+    ccall(:jl_, Cvoid, (Any,), "infeasibility_ray: $(infeas_ray_p)")
     if infeas_ray_p == C_NULL
         return Float64[]
     end
-    ccall(:jl_, Cvoid, (Any,), "infeasibility_ray: $(infeas_ray_p)")
     num_rows = convert(Int, get_num_rows(model))
     return unsafe_wrap(Array, infeas_ray_p, (num_rows,); own = true)
 end
@@ -870,10 +874,10 @@ end
 function unbounded_ray(model::ClpModel)
     _jl__check_model(model)
     unbd_ray_p = @clp_ccall(unboundedRay, Ptr{Float64}, (Ptr{Cvoid},), model.p)
+    ccall(:jl_, Cvoid, (Any,), "unbounded_ray: $(unbd_ray_p)")
     if unbd_ray_p == C_NULL
         return Float64[]
     end
-    ccall(:jl_, Cvoid, (Any,), "unbounded_ray: $(unbd_ray_p)")
     num_cols = convert(Int, get_num_cols(model))
     return unsafe_wrap(Array, unbd_ray_p, (num_cols,); own = true)
 end

@@ -52,6 +52,8 @@ end
         "solve_qp_edge_cases",
         # Tests that require SOC
         "delete_soc_variables",
+        # Is this the reason for the double free()?
+        "solve_unbounded_model",
     ])
 end
 
