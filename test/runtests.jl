@@ -50,7 +50,7 @@ function double_free_bug()
         (Ptr{Cvoid}, Int32, Ptr{Float64}, Ptr{Float64}, Ptr{Float64}, Ptr{Int32}, Ptr{Int32}, Ptr{Float64}),
         model, 1, [-Inf], [Inf], [0.0], Int32[0, 0], Int32[], Float64[]
     )
-    C.@clp_ccall(setObjSense, Cvoid, (Ptr{Cvoid}, Float64), model, -1)
+    C.@clp_ccall(setObjSense, Cvoid, (Ptr{Cvoid}, Float64), model, 1)
     n = C.@clp_ccall(getNumCols, Cint, (Ptr{Cvoid},), model)
     C.@clp_ccall(chgObjCoefficients, Cvoid, (Ptr{Cvoid}, Ptr{Float64}), model, fill(1.0, n))
     C.@clp_ccall(setObjectiveOffset, Cvoid, (Ptr{Cvoid}, Float64), model, 0.0)
