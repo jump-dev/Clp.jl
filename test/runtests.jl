@@ -3,6 +3,8 @@ using Compat
 using Compat.Test
 import Compat.Pkg
 
+const MOI = Clp.MOI
+
 # @testset "MathProgBase" begin
 #     include("mathprog.jl")
 # end
@@ -10,6 +12,14 @@ const C = Clp.ClpCInterface
 function double_free_bug()
     model = C.@clp_ccall(newModel, Ptr{Cvoid}, ())
     options = C.@clpsolve_ccall(new, Ptr{Cvoid}, ())
+
+    C.@clp_ccall(getNumRows, Cint, (Ptr{Cvoid},), model)
+    C.@clp_ccall(getNumCols, Cint, (Ptr{Cvoid},), model)
+
+    model = C.@clp_ccall(newModel, Ptr{Cvoid}, ())
+    model = C.@clp_ccall(newModel, Ptr{Cvoid}, ())
+    model = C.@clp_ccall(newModel, Ptr{Cvoid}, ())
+
     C.@clp_ccall(
         addColumns,
         Cvoid,
@@ -53,14 +63,32 @@ double_free_bug()
 double_free_bug()
 double_free_bug()
 
-# @testset "solve_unbounded_model (i)" begin
-#     model = Clp.MOIU.CachingOptimizer(
-#         Clp.MOIU.UniversalFallback(Clp.MOIU.Model{Float64}()),
-#         Clp.Optimizer()
-#     )
-#     config = Clp.MOI.Test.TestConfig()
-#     Clp.MOI.Test.solve_unbounded_model(model, config)
-# end
+@testset "solve_unbounded_model (i)" begin
+    model = Clp.MOIU.CachingOptimizer(
+        Clp.MOIU.UniversalFallback(Clp.MOIU.Model{Float64}()),
+        Clp.Optimizer()
+    )
+
+    config = Clp.MOI.Test.TestConfig()
+    Clp.MOI.Test.solve_unbounded_model(model, config)
+end
+
+@testset "solve_unbounded_model (i)" begin
+    model = Clp.MOIU.CachingOptimizer(
+        Clp.MOIU.UniversalFallback(Clp.MOIU.Model{Float64}()),
+        Clp.Optimizer()
+    )
+    MOI.empty!(model)
+    x = MOI.add_variables(model, 5)
+    MOI.set(
+        model,
+        MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}(),
+        MOI.ScalarAffineFunction(MOI.ScalarAffineTerm.(1.0, x), 0.0)
+    )
+    MOI.set(model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
+    MOI.optimize!(model)
+    @test MOI.get(model, MOI.TerminationStatus()) == MOI.DUAL_INFEASIBLE
+end
 
 # @testset "solve_unbounded_model (ii)" begin
 #     model = Clp.MOIU.CachingOptimizer(
