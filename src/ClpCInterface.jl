@@ -196,9 +196,7 @@ end
 macro clp_ccall(func, args...)
     args = [esc(ex) for ex in args]
     f = "Clp_$(func)"
-    s = "Calling: $(f)"
     quote
-        ccall(:jl_, Cvoid, (Any,), $s)
         ccall(($f,libClp), $(args...))
     end
 end
@@ -206,9 +204,7 @@ end
 macro clpsolve_ccall(func, args...)
     args = [esc(ex) for ex in args]
     f = "ClpSolve_$(func)"
-    s = "Calling: $(f)"
     quote
-        ccall(:jl_, Cvoid, (Any,), $s)
         ccall(($f,libClp), $(args...))
     end
 end
@@ -228,7 +224,6 @@ mutable struct ClpModel
     p::Ptr{Cvoid}
     function ClpModel()
         p = @clp_ccall newModel Ptr{Cvoid} ()
-        println("Creating model: $(p)")
         prob = new(p)
         finalizer(delete_model, prob)
         return prob
@@ -236,7 +231,6 @@ mutable struct ClpModel
 end
 
 function delete_model(model::ClpModel)
-    ccall(:jl_, Cvoid, (Any,), "Finalizing model: $(model.p)")
     if model.p == C_NULL
         return
     end
@@ -250,14 +244,12 @@ mutable struct ClpSolve
     function ClpSolve()
         p = @clpsolve_ccall new Ptr{Cvoid} ()
         prob = new(p)
-        println("Creating ClpSolve: $(p)")
         finalizer(delete_solve, prob)
         return prob
     end
 end
 
 function delete_solve(solve::ClpSolve)
-    ccall(:jl_, Cvoid, (Any,), "Finalizing ClpSolve: $(solve.p)")
     if solve.p == C_NULL
         return
     end
@@ -862,7 +854,6 @@ function infeasibility_ray(model::ClpModel)
     infeas_ray_p = @clp_ccall(
         infeasibilityRay, Ptr{Float64}, (Ptr{Cvoid},), model.p
     )
-    ccall(:jl_, Cvoid, (Any,), "infeasibility_ray: $(infeas_ray_p)")
     if infeas_ray_p == C_NULL
         return Float64[]
     end
@@ -874,7 +865,6 @@ end
 function unbounded_ray(model::ClpModel)
     _jl__check_model(model)
     unbd_ray_p = @clp_ccall(unboundedRay, Ptr{Float64}, (Ptr{Cvoid},), model.p)
-    ccall(:jl_, Cvoid, (Any,), "unbounded_ray: $(unbd_ray_p)")
     if unbd_ray_p == C_NULL
         return Float64[]
     end
