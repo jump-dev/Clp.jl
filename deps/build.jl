@@ -1,4 +1,8 @@
-using BinaryProvider # requires BinaryProvider 0.3.0 or later
+if VERSION >= v"1.3" && !haskey(ENV, "JULIA_CLP_LIBRARY_PATH")
+    exit()  # Use Clp_jll instead.
+end
+
+using BinaryProvider
 
 # Parse some basic command-line arguments
 const verbose = "--verbose" in ARGS
@@ -37,25 +41,24 @@ download_info = Dict(
 # To fix gcc4 bug in Windows
 # https://sourceforge.net/p/mingw-w64/bugs/727/
 this_platform = platform_key_abi()
-if typeof(this_platform)==Windows && this_platform.compiler_abi.gcc_version == :gcc4
-   this_platform = Windows(arch(this_platform), libc=libc(this_platform), compiler_abi=CompilerABI(:gcc6))
+if typeof(this_platform) == Windows && this_platform.compiler_abi.gcc_version == :gcc4
+   this_platform = Windows(
+       arch(this_platform);
+       libc = libc(this_platform),
+       compiler_abi = CompilerABI(:gcc6)
+    )
 end
 
-# no dynamic dependencies until Pkg3 support for binaries
-dependencies = [
-#    "https://github.com/JuliaOpt/OsiBuilder/releases/download/v0.107.9-1/build_OsiBuilder.v0.107.9.jl",
-#     "https://github.com/JuliaOpt/CoinUtilsBuilder/releases/download/v2.10.14-1/build_CoinUtilsBuilder.v2.10.14.jl",
-#     "https://github.com/JuliaOpt/COINMumpsBuilder/releases/download/v1.6.0-1/build_COINMumpsBuilder.v1.6.0.jl",
-#     "https://github.com/JuliaOpt/COINMetisBuilder/releases/download/v1.3.5-1/build_COINMetisBuilder.v1.3.5.jl",
-#     "https://github.com/JuliaOpt/COINLapackBuilder/releases/download/v1.5.6-1/build_COINLapackBuilder.v1.5.6.jl",
-#     "https://github.com/JuliaOpt/COINBLASBuilder/releases/download/v1.4.6-1/build_COINBLASBuilder.v1.4.6.jl",
-#     "https://github.com/JuliaOpt/ASLBuilder/releases/download/v3.1.0-1/build_ASLBuilder.v3.1.0.jl"
-]
-
 custom_library = false
-if haskey(ENV,"JULIA_CLP_LIBRARY_PATH")
-    custom_products = [LibraryProduct(ENV["JULIA_CLP_LIBRARY_PATH"],product.libnames,product.variable_name) for product in products]
-    if all(satisfied(p; verbose=verbose) for p in custom_products)
+if haskey(ENV, "JULIA_CLP_LIBRARY_PATH")
+    custom_products = [
+        LibraryProduct(
+            ENV["JULIA_CLP_LIBRARY_PATH"],
+            product.libnames,
+            product.variable_name
+        ) for product in products
+    ]
+    if all(satisfied(p; verbose = verbose) for p in custom_products)
         products = custom_products
         custom_library = true
     else
@@ -79,14 +82,9 @@ if !custom_library
     # trying to install is not itself installed) then load it up!
     if unsatisfied || !isinstalled(dl_info...; prefix=prefix)
         # Download and install binaries
-        # no dynamic dependencies until Pkg3 support for binaries
-        # for dependency in reverse(dependencies)          # We do not check for already installed dependencies
-        #    download(dependency,basename(dependency))
-        #    evalfile(basename(dependency))
-        # end
         install(dl_info...; prefix=prefix, force=true, verbose=verbose)
     end
  end
 
 # Write out a deps.jl file that will contain mappings for our products
-write_deps_file(joinpath(@__DIR__, "deps.jl"), products, verbose=verbose)# using BinaryProvider # requires BinaryProvider 0.3.0 or later
+write_deps_file(joinpath(@__DIR__, "deps.jl"), products, verbose=verbose)

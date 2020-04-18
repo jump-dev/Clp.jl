@@ -2,14 +2,13 @@ language: julia
 os:
   - linux
   - osx
-  - windows
 julia:
   - 1.0
   - 1.2
+  - 1.3
+  - 1.4
 
 notifications:
   email: false
-
-after_success:
-    - julia -e 'import Pkg; cd(Pkg.dir("Clp")); Pkg.add("Coverage"); import Coverage; Codecov.submit(Codecov.process_folder())'
+codecov: true
 

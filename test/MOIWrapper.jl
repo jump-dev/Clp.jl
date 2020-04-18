@@ -55,7 +55,6 @@ end
     ])
 end
 
-
 @testset "Linear tests" begin
     MOIT.contlineartest(BRIDGED, CONFIG, [
         # Queries an infeasibility certificate
