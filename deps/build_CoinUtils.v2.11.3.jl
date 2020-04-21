@@ -1,4 +1,4 @@
-using BinaryProvider # requires BinaryProvider 0.3.0 or later
+using BinaryProvider
 
 # Parse some basic command-line arguments
 const verbose = "--verbose" in ARGS
@@ -37,7 +37,9 @@ download_info = Dict(
 )
 
 # Install unsatisfied or updated dependencies:
-unsatisfied = any(!satisfied(p; verbose=verbose) for p in products)
+# We added `, isolate=true` as otherwise, it would segfault when closing `OpenBLAS32`,
+# probably because it is conflicting with Julia openblas.
+unsatisfied = any(!satisfied(p; verbose=verbose, isolate=true) for p in products)
 dl_info = choose_download(download_info, platform_key_abi())
 if dl_info === nothing && unsatisfied
     # If we don't have a compatible .tar.gz to download, complain.
@@ -52,6 +54,3 @@ if unsatisfied || !isinstalled(dl_info...; prefix=prefix)
     # Download and install binaries
     install(dl_info...; prefix=prefix, force=true, verbose=verbose)
 end
-
-# Write out a deps.jl file that will contain mappings for our products
-write_deps_file(joinpath(@__DIR__, "deps.jl"), products, verbose=verbose)

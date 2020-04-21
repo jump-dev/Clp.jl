@@ -116,7 +116,9 @@ end
 
 if !custom_library
     # Install unsatisfied or updated dependencies:
-    unsatisfied = any(!satisfied(p; verbose=verbose) for p in products)
+    # We added `, isolate=true` as otherwise, it would segfault when closing `OpenBLAS32`,
+    # probably because it is conflicting with Julia openblas.
+    unsatisfied = any(!satisfied(p; verbose=verbose, isolate=true) for p in products)
 
     dl_info = choose_download(download_info, this_platform)
     if dl_info === nothing && unsatisfied

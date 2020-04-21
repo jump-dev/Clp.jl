@@ -3,7 +3,7 @@
 # in the root the the source tree of https://github.com/JuliaPackaging/Yggdrasil/
 # by first replacing the `include` by its content, see https://github.com/JuliaPackaging/Yggdrasil/issues/858
 # and commenting out `build_info = autobuild(...)`, `tarball_path, ...` and replace `sources = ...` by `sources = nothing`.
-using BinaryProvider # requires BinaryProvider 0.3.0 or later
+using BinaryProvider
 
 # Parse some basic command-line arguments
 const verbose = "--verbose" in ARGS
@@ -69,11 +69,4 @@ if dl_info === nothing && unsatisfied
     # Alternatively, you could attempt to install from a separate provider,
     # build from source or something even more ambitious here.
     error("Your platform (\"$(Sys.MACHINE)\", parsed as \"$(triplet(platform_key_abi()))\") is not supported by this package!")
-end
-
-# If we have a download, and we are unsatisfied (or the version we're
-# trying to install is not itself installed) then load it up!
-if unsatisfied || !isinstalled(dl_info...; prefix=prefix)
-    # Download and install binaries
-    install(dl_info...; prefix=prefix, force=true, verbose=verbose)
 end
