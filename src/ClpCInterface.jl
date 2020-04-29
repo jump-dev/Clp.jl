@@ -369,12 +369,12 @@ function load_quadratic_objective(model::ClpModel,
         num_cols::Integer, start::Vector{CoinBigIndex},
         col::Vector{Int32}, element::Vector{Float64})
     _jl__check_model(model)
-    @clp_ccall loadQuadraticObjective Cvoid (Ptr{Cvoid},Int32,Ptr{CoinBigIndex},Ptr{Int32},Ptr{Float64}) model.p num_cols start column element
+    @clp_ccall loadQuadraticObjective Cvoid (Ptr{Cvoid},Int32,Ptr{CoinBigIndex},Ptr{Int32},Ptr{Float64}) model.p num_cols start col element
 end
 
 function load_quadratic_objective(model::ClpModel,
     hessian_matrix::SparseMatrixCSC{Float64,Int32})
-    load_quadratic_objective(model, hessian_matrix.n, hessian_matrix.colptr-convert(Int32,1), hessian_matrix.rowval-convert(Int32,1),hessian_matrix.nzval)
+    load_quadratic_objective(model, hessian_matrix.n, hessian_matrix.colptr .- convert(Int32,1), hessian_matrix.rowval .- convert(Int32,1),hessian_matrix.nzval)
 end
 
 # Read an mps file from the given filename.
