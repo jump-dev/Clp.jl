@@ -136,9 +136,9 @@ if !custom_library
         evalfile("build_OpenBLAS32.v0.3.9.jl")
         evalfile("build_CoinUtils.v2.11.3.jl")
         evalfile("build_Osi.v0.108.5.jl")
-        install(dl_info...; prefix=prefix, force=true, verbose=true)
+        install(dl_info...; prefix=prefix, force=true, verbose=verbose)
     end
  end
 
 # Write out a deps.jl file that will contain mappings for our products
-write_deps_file(joinpath(@__DIR__, "deps.jl"), products, verbose=true)
+write_deps_file(joinpath(@__DIR__, "deps.jl"), products, verbose=verbose)
