@@ -136,8 +136,8 @@ MOI.supports(::Optimizer, ::MOI.NumberOfThreads) = false
 # ========================================
 
 function MOI.supports_constraint(
-    ::Optimizer, ::Type{MOI.ScalarAffineFunction{Float64}}, ::Type{S}
-) where {S<:SCALAR_SETS}
+    ::Optimizer, ::Type{MOI.ScalarAffineFunction{Float64}}, ::Type{<:SCALAR_SETS}
+)
     return true
 end
 
@@ -336,7 +336,6 @@ function MOI.get(model::Optimizer, ::MOI.RawStatusString)
 end
 
 function MOI.get(model::Optimizer, ::MOI.ResultCount)
-    st = MOI.get(model, MOI.TerminationStatus())
     if Clp.primal_feasible(model.inner)
         return 1
     elseif Clp.dual_feasible(model.inner)
@@ -414,8 +413,8 @@ end
 function MOI.get(
     model::Optimizer,
     attr::MOI.ConstraintPrimal,
-    c::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64}, S}
-) where {S<:SCALAR_SETS}
+    c::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64}, <:SCALAR_SETS}
+)
     MOI.check_result_index_bounds(model, attr)
     sol = Clp.get_row_activity(model.inner)
     return sol[c.value]
@@ -425,8 +424,8 @@ end
 function MOI.get(
     model::Optimizer,
     attr::MOI.ConstraintPrimal,
-    c::MOI.ConstraintIndex{MOI.SingleVariable, S}
-) where {S<:SCALAR_SETS}
+    c::MOI.ConstraintIndex{MOI.SingleVariable, <:SCALAR_SETS}
+)
     MOI.check_result_index_bounds(model, attr)
     return MOI.get(model, MOI.VariablePrimal(), MOI.VariableIndex(c.value))
 end
@@ -442,8 +441,8 @@ end
 function MOI.get(
     model::Optimizer,
     attr::MOI.ConstraintDual,
-    c::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64}, S}
-) where {S<:SCALAR_SETS}
+    c::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64}, <:SCALAR_SETS}
+)
     MOI.check_result_index_bounds(model, attr)
     sense = (Clp.get_obj_sense(model.inner) == -1) ? -1 : 1
     dual_status = MOI.get(model, MOI.DualStatus())
@@ -496,8 +495,11 @@ end
 function MOI.get(
     model::Optimizer,
     attr::MOI.ConstraintDual,
-    c::MOI.ConstraintIndex{MOI.SingleVariable, S}
-) where {S<:Union{MOI.Interval{Float64}, MOI.EqualTo{Float64}}}
+    c::MOI.ConstraintIndex{
+        MOI.SingleVariable,
+        <:Union{MOI.Interval{Float64}, MOI.EqualTo{Float64}}
+    }
+)
     MOI.check_result_index_bounds(model, attr)
     sense = (Clp.get_obj_sense(model.inner) == -1) ? -1 : 1
     return sense * Clp.get_reduced_cost(model.inner)[c.value]
