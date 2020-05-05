@@ -4,9 +4,9 @@
 
 module Clp
 
-include("ClpCInterface.jl")
-include("ClpSolverInterface.jl")
-include("MOIWrapper.jl")
+include("C_interface.jl")
+include("MPB_wrapper.jl")
+include("MOI_wrapper.jl")
 
 using Clp.ClpMathProgSolverInterface
 export ClpSolver
