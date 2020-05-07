@@ -1,11 +1,5 @@
 using Clp
-using Compat
-using Compat.Test
-import Compat.Pkg
-
-@testset "MathProgBase" begin
-    include("MPB_wrapper.jl")
-end
+using Test
 
 @testset "MathOptInterface" begin
     include("MOI_wrapper.jl")
