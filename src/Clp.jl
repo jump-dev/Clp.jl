@@ -20,13 +20,15 @@ const _CLP_VERSION = VersionNumber(
     "$(Clp_VersionMajor()).$(Clp_VersionMinor()).$(Clp_VersionRelease())"
 )
 
-if v"1.17.6" <= _CLP_VERSION <= v"1.17.6"
-    include("moi/MOI_wrapper.jl")
-else
-    @warn(
-        "MOI wrapper not loaded because the version of Clp you have, " *
-        "$_CLP_VERSION, is not supported by Clp.jl."
+if !(v"1.17.6" <= _CLP_VERSION <= v"1.17.6")
+    error(
+        "You have installed version $_CLP_VERSION of Clp, which is not " *
+        "supported by Clp.jl. If the version change was breaking, changes " *
+        "will need to be made to the Julia code. Please open an issue at " *
+        "https://github.com/JuliaOpt/Clp.jl."
     )
 end
+
+include("moi/MOI_wrapper.jl")
 
 end
