@@ -16,8 +16,17 @@ include("gen/ctypes.jl")
 include("gen/libclp_common.jl")
 include("gen/libclp_api.jl")
 
-import MathOptInterface
-const MOI = MathOptInterface
-include("moi/MOI_wrapper.jl")
+const _CLP_VERSION = VersionNumber(
+    "$(Clp_VersionMajor()).$(Clp_VersionMinor()).$(Clp_VersionRelease())"
+)
+
+if v"1.17.6" <= _CLP_VERSION <= v"1.17.6"
+    include("moi/MOI_wrapper.jl")
+else
+    @warn(
+        "MOI wrapper not loaded because the version of Clp you have, " *
+        "$_CLP_VERSION, is not supported by Clp.jl."
+    )
+end
 
 end
