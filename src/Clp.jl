@@ -20,7 +20,7 @@ const _CLP_VERSION = VersionNumber(
     "$(Clp_VersionMajor()).$(Clp_VersionMinor()).$(Clp_VersionRelease())"
 )
 
-if !(v"1.17.6" <= _CLP_VERSION <= v"1.17.6")
+if !(v"1.17.2" <= _CLP_VERSION <= v"1.17.6")
     error(
         "You have installed version $_CLP_VERSION of Clp, which is not " *
         "supported by Clp.jl. If the version change was breaking, changes " *
