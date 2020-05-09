@@ -34,9 +34,12 @@ include("moi/MOI_wrapper.jl")
 # TODO(odow): remove at Clp.jl v1.0.0.
 function ClpSolver(args...; kwargs...)
     error(
-        "`ClpSolver` is no longer supported. Upgrade to JuMP 0.20 or greater," *
-        " and use `Clp.Optimizer` instead."
+        "`ClpSolver` is no longer supported. If you are using JuMP, upgrade " *
+        "to the latest version and use `Clp.Optimizer` instead. If you are " *
+        "using MathProgBase (e.g., via `lingprog`), you will need to upgrade " *
+        "to MathOptInterface (https://github.com/JuliaOpt/MathOptInterface.jl)."
     )
 end
+export ClpSolver
 
 end
