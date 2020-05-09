@@ -62,21 +62,16 @@ Furthermore, the following features are not supported:
 
 ### Solver options
 
-Options are solver-dependent. The following options are the most useful (and well documented):
+The following options are the most useful (and well documented):
 
-* ``PrimalTolerance`` - primal feasibility tolerance (default 1e-7)
-* ``DualTolerance`` - dual feasibility tolerance (default 1e-7)
-* ``DualObjectiveLimit`` - when using dual simplex (where the objective is monotonically changing), terminate when the objective exceeds this limit
-* ``MaximumIterations`` - terminate after performing this number of simplex iterations
-* ``MaximumSeconds`` - terminate after this many seconds have passed
-* ``LogLevel`` - set to 1, 2, 3, or 4 for increasing output (default 0)
-* ``PresolveType`` - set to 1 to disable presolve
-* ``SolveType`` - choose the solution method:
-
-    - 0 - dual simplex
-	- 1 - primal simplex
-	- 3 - barrier with crossover to optimal basis
-	- 4 - barrier without crossover to optimal basis
-	- 5 - automatic
-
-* ``InfeasibleReturn`` - set to 1 to return as soon as the problem is found to be infeasible (by default, an infeasibility proof is computed as well)
+| Parameter | Default value | Description |
+|:----------|:--------------|:----------|
+| `PrimalTolerance` | `1e-7` | Primal feasibility tolerance |
+| `DualTolerance`   | `1e-7` | Dual feasibility tolerance |
+| `DualObjectiveLimit` | `1e308` | When using dual simplex (where the objective is monotonically changing), terminate when the objective exceeds this limit |
+| `MaximumIterations` | `2147483647` | Terminate after performing this number of simplex iterations |
+| `MaximumSeconds` | `-1.0` | Terminate after this many seconds have passed. A negative value means no time limit |
+| `LogLevel` | `1` | Set to 1, 2, 3, or 4 for increasing output. Set to `0` to disable output |
+| `PresolveType` | `0` | Set to 1 to disable presolve |
+| `SolveType` | `5` | Solution method: dual simplex (`0`), primal simplex (`1`), sprint (`2`), barrier with crossover (`3`), barrier without crossover (`4`), automatic (`5`) |
+| `InfeasibleReturn` | `0` | Set to 1 to return as soon as the problem is found to be infeasible (by default, an infeasibility proof is computed as well) |
