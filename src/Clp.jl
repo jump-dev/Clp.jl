@@ -31,4 +31,12 @@ end
 
 include("moi/MOI_wrapper.jl")
 
+# TODO(odow): remove at Clp.jl v1.0.0.
+function ClpSolver(args...; kwargs...)
+    error(
+        "`ClpSolver` is no longer supported. Upgrade to JuMP 0.20 or greater," *
+        " and use `Clp.Optimizer` instead."
+    )
+end
+
 end

@@ -37,9 +37,13 @@ end
     MOI.Test.unittest(BRIDGED, CONFIG, [
         # Attributes not yet implemented.
         # TODO(odow): implement these attributes.
-        "number_threads",
-        "time_limit_sec",
         "solve_time",
+
+        # Not supported by upstream.
+        "number_threads",
+
+        # Upstream bug in maximumSeconds.
+        "time_limit_sec",
 
         # Tests that require integer variables
         "solve_integer_edge_cases",

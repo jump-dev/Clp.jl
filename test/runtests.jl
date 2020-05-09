@@ -1,4 +1,3 @@
-using Clp
 using Test
 
 @testset "MathOptInterface" begin
