@@ -1,10 +1,11 @@
 module Clp
 
 if haskey(ENV,"JULIA_CLP_LIBRARY_PATH") || VERSION < v"1.3"
-    if isfile(joinpath(dirname(@__FILE__),"..","deps","deps.jl"))
-        include("../deps/deps.jl")
+    deps_file = joinpath(dirname(@__DIR__), "deps", "deps.jl")
+    if isfile(deps_file)
+        include(deps_file)
     else
-        error("Clp not properly installed. Please run import Pkg; Pkg.build(\"Clp\")")
+        error("Clp not properly installed. Please run import `Pkg; Pkg.build(\"Clp\")`.")
     end
 else
     import Clp_jll: libClp
@@ -29,7 +30,7 @@ if !(v"1.17.2" <= _CLP_VERSION <= v"1.17.6")
     )
 end
 
-include("moi/MOI_wrapper.jl")
+include("MOI_wrapper/MOI_wrapper.jl")
 
 # TODO(odow): remove at Clp.jl v1.0.0.
 function ClpSolver(args...; kwargs...)
