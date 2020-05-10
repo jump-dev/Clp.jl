@@ -35,15 +35,8 @@ end
 
 @testset "Unit Tests" begin
     MOI.Test.unittest(BRIDGED, CONFIG, [
-        # Attributes not yet implemented.
-        # TODO(odow): implement these attributes.
-        "solve_time",
-
         # Not supported by upstream.
         "number_threads",
-
-        # Upstream bug in maximumSeconds.
-        "time_limit_sec",
 
         # Tests that require integer variables
         "solve_integer_edge_cases",
@@ -61,14 +54,11 @@ end
 
 @testset "Linear tests" begin
     MOI.Test.contlineartest(BRIDGED, CONFIG, [
-        # TODO(odow): investigate error.
-        "linear8a",
-
         # The linear12 test requires the InfeasibilityCertificate for variable
         # bounds. These are available through C++, but not via the C interface.
         "linear12",
 
-        # MOI.VariablePrimalStart not implemented.
+        # MOI.VariablePrimalStart not supported.
         "partial_start"
     ])
 end
