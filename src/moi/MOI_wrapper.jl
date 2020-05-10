@@ -38,10 +38,19 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
     solver_options::Ptr{Cvoid}
     options_set::Set{Symbol}
     optimize_called::Bool
-    function Optimizer(;kwargs...)
-        inner_model = Clp_newModel()
-        solver_options = ClpSolve_new()
-        model = new(inner_model, solver_options, Set{Symbol}(), false)
+    solve_time::Float64
+    # Work-around for upstream bug in Clp:
+    maximumSeconds::Float64
+
+    function Optimizer(; kwargs...)
+        model = new(
+            Clp_newModel(),
+            ClpSolve_new(),
+            Set{Symbol}(),
+            false,
+            0.0,
+            -1.0,
+        )
         for (key, value) in kwargs
             MOI.set(model, MOI.RawParameter(String(key)), value)
         end
@@ -65,13 +74,16 @@ end
 function MOI.empty!(model::Optimizer)
     old_model = model.inner
     model.inner = Clp_newModel()
+    model.optimize_called = false
+    model.solve_time = 0.0
     # Copy parameters from old model into new model
     for key in model.options_set
         getter, setter = CLP_OPTION_MAP[key]
         setter(model.inner, getter(old_model))
     end
     Clp_deleteModel(old_model)
-    model.optimize_called = false
+    # Work-around for maximumSeconds
+    Clp_setMaximumSeconds(model.inner, model.maximumSeconds)
     return
 end
 
@@ -119,13 +131,16 @@ MOI.supports(::Optimizer, ::MOI.TimeLimitSec) = true
 
 function MOI.set(model::Optimizer, ::MOI.TimeLimitSec, value)
     push!(model.options_set, :MaximumSeconds)
-    Clp_setMaximumSeconds(model.inner, value === nothing ? -1.0 : value)
+    value = value === nothing ? -1.0 : value
+    Clp_setMaximumSeconds(model.inner, value)
+    model.maximumSeconds = value
     return
 end
 
 function MOI.get(model::Optimizer, ::MOI.TimeLimitSec)
-    # TODO(odow): Clp behaves weird here
-    return Clp_maximumSeconds(model.inner)
+    # TODO(odow): replace with `Clp_maximumSeconds(model.inner)` when upstream
+    # is fixed.
+    return model.maximumSeconds
 end
 
 MOI.supports(::Optimizer, ::MOI.NumberOfThreads) = false
@@ -281,9 +296,15 @@ end
 # ===============================
 
 function MOI.optimize!(model::Optimizer)
+    t = time()
     Clp_initialSolveWithOptions(model.inner, model.solver_options)
+    model.solve_time = time() - t
     model.optimize_called = true
     return
+end
+
+function MOI.get(model::Optimizer, ::MOI.SolveTime)
+    return model.solve_time
 end
 
 function MOI.get(model::Optimizer, ::MOI.NumberOfVariables)
@@ -500,7 +521,7 @@ function MOI.get(
             c.value;
             own = true,
         )
-        return sense * dsol
+        return -sense * dsol
     else
         error("Dual solution not available")
     end
