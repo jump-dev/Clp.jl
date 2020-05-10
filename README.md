@@ -5,7 +5,7 @@
 `Clp.jl` is an interface to the **[COIN-OR Linear
 Programming](https://projects.coin-or.org/Clp)** solver. It provides a complete
 interface to the low-level C API, as well as an implementation of the
-solver-independent `MathProgBase` and `MathOptInterface` API's.   
+solver-independent `MathOptInterface` API.
 
 *Note: This wrapper is maintained by the JuliaOpt community and is not a COIN-OR
 project.*
@@ -18,7 +18,7 @@ project.*
 
 ## Installation
 
-The package is registered in `METADATA.jl` and so can be installed with `Pkg.add`.
+The package can be installed with `Pkg.add`.
 
 ```
 julia> import Pkg; Pkg.add("Clp")
@@ -47,7 +47,9 @@ This can be done with following syntax:
 ```julia
 using JuMP, Clp
 
-model = Model(with_optimizer(Clp.Optimizer, LogLevel=1, Algorithm=4))
+model = Model(Clp.Optimizer)
+set_optimizer_attribute(model, "LogLevel", 1)
+set_optimizer_attribute(model, "Algorithm", 4)
 ```
 
 See the list of options below.
@@ -57,34 +59,6 @@ Furthermore, the following features are not supported:
 * Setting a time limit (the C API behaves inconsistently, see [#65](https://github.com/JuliaOpt/Clp.jl/issues/65))
 * Setting the number of threads used (not in the C API)
 * Quadratic objective (not supported yet)
-* Querying infeasibility certificates (bug in Clp)
-
-
-
-### Using with **[MathProgBase]**
-
-
-Clp provides a solver object that can be passed to ``linprog`` in MathProgBase (and used to create instances of the solver-independent ``AbstractMathProgModel`` type):
-
-```julia
-using Clp
-using MathProgBase
-linprog(..., ClpSolver(Option1=value1,Option2=value2,...))
-```
-
-See the list of options below, and the MathProgBase documentation for further information.
-
-[MathProgBase]: https://github.com/JuliaOpt/MathProgBase.jl
-
-### Using the C interface
-
-The low-level C interface is available in the ``ClpCInterface`` submodule:
-```julia
-using Clp.ClpCInterface
-```
-
-Using this interface is only recommended for advanced users. The Julia API is essentially a thin wrapper around the interface exported by ``Clp/src/Clp_C_Interface.h``, which is documented in-line.
-
 
 ### Solver options
 
@@ -99,5 +73,5 @@ The following options are the most useful (and well documented):
 | `MaximumSeconds` | `-1.0` | Terminate after this many seconds have passed. A negative value means no time limit |
 | `LogLevel` | `1` | Set to 1, 2, 3, or 4 for increasing output. Set to `0` to disable output |
 | `PresolveType` | `0` | Set to 1 to disable presolve |
-| `SolveType` | `5` | Solution method: dual simplex (`0`), primal simplex (`1`), sprint (`2`) barrier with crossover (`3`), barrier without crossover (`4`), automatic (`5`) |
+| `SolveType` | `5` | Solution method: dual simplex (`0`), primal simplex (`1`), sprint (`2`), barrier with crossover (`3`), barrier without crossover (`4`), automatic (`5`) |
 | `InfeasibleReturn` | `0` | Set to 1 to return as soon as the problem is found to be infeasible (by default, an infeasibility proof is computed as well) |
