@@ -98,7 +98,15 @@ function MOI.set(model::Optimizer, param::MOI.RawParameter, value)
         push!(model.options_set, key)
         CLP_OPTION_MAP[key][2](model.inner, value)
     elseif haskey(SOLVE_OPTION_MAP, key)
-        SOLVE_OPTION_MAP[key][2](model.solver_options, value)
+        # Setters for `SolveType` and `PresolveType` are handled separately,
+        # as they have a third `extraInfo` argument
+        if key == :SolveType
+            ClpSolve_setSolveType(model.solver_options, value, -1)
+        elseif key == :PresolveType
+            ClpSolve_setPresolveType(model.solver_options, value, -1)
+        else
+            SOLVE_OPTION_MAP[key][2](model.solver_options, value)
+        end
     else
         throw(MOI.UnsupportedAttribute(param))
     end
