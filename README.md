@@ -7,11 +7,11 @@ Programming](https://projects.coin-or.org/Clp)** solver. It provides a complete
 interface to the low-level C API, as well as an implementation of the
 solver-independent `MathOptInterface` API.
 
-*Note: This wrapper is maintained by the JuliaOpt community and is not a COIN-OR
+*Note: This wrapper is maintained by the JuMP community and is not a COIN-OR
 project.*
 
-[![Build Status](https://travis-ci.org/JuliaOpt/Clp.jl.svg?branch=master)](https://travis-ci.org/JuliaOpt/Clp.jl)
-[![codecov](https://codecov.io/gh/JuliaOpt/Clp.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/JuliaOpt/Clp.jl)
+[![Build Status](https://travis-ci.org/jump-dev/Clp.jl.svg?branch=master)](https://travis-ci.org/jump-dev/Clp.jl)
+[![codecov](https://codecov.io/gh/jump-dev/Clp.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/jump-dev/Clp.jl)
 
 [Clp]: https://projects.coin-or.org/Clp
 [Cbc]: https://github.com/JuliaOpt/Cbc.jl
@@ -38,11 +38,11 @@ If you do not want BinaryProvider to download the default binaries on install, s
 To switch back to the default binaries clear `JULIA_CLP_LIBRARY_PATH` and call `import Pkg; Pkg.build("Clp")`.
 
 ### Using with **[JuMP]**
-[JuMP]: https://github.com/JuliaOpt/JuMP.jl
+[JuMP]: https://github.com/jump-dev/JuMP.jl
 
 Due to some restrictions in Clp's C api, the Clp's MathOptInterface wrapper does not support directly modifying a problem after it has been created, e.g., changing variable bounds or modifying constraints coefficients.
 
-Therefore, we highly recommend that you use the `Clp.jl` package with higher-level package such as [JuMP.jl](https://github.com/JuliaOpt/JuMP.jl).
+Therefore, we highly recommend that you use the `Clp.jl` package with higher-level package such as [JuMP.jl](https://github.com/jump-dev/JuMP.jl).
 This can be done with following syntax:
 ```julia
 using JuMP, Clp
@@ -56,7 +56,7 @@ See the list of options below.
 
 Furthermore, the following features are not supported:
 * Querying the dual bound via `JuMP.objective_bound` (not in the C API)
-* Setting a time limit (the C API behaves inconsistently, see [#65](https://github.com/JuliaOpt/Clp.jl/issues/65))
+* Setting a time limit (the C API behaves inconsistently, see [#65](https://github.com/jump-dev/Clp.jl/issues/65))
 * Setting the number of threads used (not in the C API)
 * Quadratic objective (not supported yet)
 
