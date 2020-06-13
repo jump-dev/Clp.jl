@@ -26,7 +26,7 @@ if !(v"1.17.2" <= _CLP_VERSION <= v"1.17.6")
         "You have installed version $_CLP_VERSION of Clp, which is not " *
         "supported by Clp.jl. If the version change was breaking, changes " *
         "will need to be made to the Julia code. Please open an issue at " *
-        "https://github.com/JuliaOpt/Clp.jl."
+        "https://github.com/jump-dev/Clp.jl."
     )
 end
 
@@ -38,7 +38,7 @@ function ClpSolver(args...; kwargs...)
         "`ClpSolver` is no longer supported. If you are using JuMP, upgrade " *
         "to the latest version and use `Clp.Optimizer` instead. If you are " *
         "using MathProgBase (e.g., via `lingprog`), you will need to upgrade " *
-        "to MathOptInterface (https://github.com/JuliaOpt/MathOptInterface.jl)."
+        "to MathOptInterface (https://github.com/jump-dev/MathOptInterface.jl)."
     )
 end
 export ClpSolver
