@@ -97,4 +97,18 @@ end
     MOI.set(model, MOI.RawParameter(:LogLevel), 2)
     @test MOI.get(model, MOI.RawParameter("LogLevel")) == 2
     @test MOI.get(model, MOI.RawParameter(:LogLevel)) == 2
+
+    MOI.set(model, MOI.RawParameter("SolveType"), 1)
+    @test MOI.get(model, MOI.RawParameter("SolveType")) == 1
+    @test MOI.get(model, MOI.RawParameter(:SolveType)) == 1
+    MOI.set(model, MOI.RawParameter("SolveType"), 4)
+    @test MOI.get(model, MOI.RawParameter("SolveType")) == 4
+    @test MOI.get(model, MOI.RawParameter(:SolveType)) == 4
+
+    MOI.set(model, MOI.RawParameter("PresolveType"), 1)
+    @test MOI.get(model, MOI.RawParameter("PresolveType")) == 1
+    @test MOI.get(model, MOI.RawParameter(:PresolveType)) == 1
+    MOI.set(model, MOI.RawParameter("PresolveType"), 0)
+    @test MOI.get(model, MOI.RawParameter("PresolveType")) == 0
+    @test MOI.get(model, MOI.RawParameter(:PresolveType)) == 0
 end

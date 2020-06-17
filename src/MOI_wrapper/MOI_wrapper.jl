@@ -94,11 +94,18 @@ MOI.supports(::Optimizer, param::MOI.RawParameter) = true
 
 function MOI.set(model::Optimizer, param::MOI.RawParameter, value)
     key = Symbol(param.name)
+    
+    # Setters for `SolveType`, `PresolveType` and `InfeasibleReturn`
+    # are handled separately, see https://github.com/jump-dev/Clp.jl/issues/91
     if haskey(CLP_OPTION_MAP, key)
         push!(model.options_set, key)
         CLP_OPTION_MAP[key][2](model.inner, value)
-    elseif haskey(SOLVE_OPTION_MAP, key)
-        SOLVE_OPTION_MAP[key][2](model.solver_options, value)
+    elseif key == :SolveType
+        ClpSolve_setSolveType(model.solver_options, value, -1)
+    elseif key == :PresolveType
+        ClpSolve_setPresolveType(model.solver_options, value, -1)
+    elseif key == :InfeasibleReturn
+        ClpSolve_setInfeasibleReturn(model.solver_options, value)
     else
         throw(MOI.UnsupportedAttribute(param))
     end
