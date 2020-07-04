@@ -13,14 +13,6 @@ struct RadomLP
     dens::Float64
 end
 
-time_limit_sec=Inf
-model = MOI.Bridges.full_bridge_optimizer(MOI.Utilities.CachingOptimizer(
-    MOI.Utilities.UniversalFallback(MOI.Utilities.Model{Float64}()),
-    Clp.Optimizer()), Float64)
-if isfinite(time_limit_sec)
-    MOI.set(model, MOI.TimeLimitSec(), time_limit_sec)
-end
-
 function generate_moi_problem(model, At, b, c;
     var_bounds = false, scalar = true)
     cols, rows = size(At)
@@ -153,14 +145,4 @@ function solve_clp(seed, data; time_limit_sec=Inf)
 
 end
 
-# function solve_scs(data::PMedianData)
-#     model = MOI.Bridges.full_bridge_optimizer(MOI.Utilities.CachingOptimizer(
-#         MOI.Utilities.UniversalFallback(MOI.Utilities.Model{Float64}()),
-#         SCS.Optimizer()), Float64)
-#     @time x, y = generate_moi_problem(model, data)
-#     @time MOI.optimize!(model)
-#     @show MOI.get(model, MOI.ObjectiveValue())
-# end
-
 solve_clp(10, RadomLP(10000, 20000, 0.01); time_limit_sec=5)
-# solve_scs(data)
