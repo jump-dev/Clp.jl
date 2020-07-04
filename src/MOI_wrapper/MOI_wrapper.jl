@@ -233,8 +233,10 @@ function _extract_row_data(src, mapping, lb, ub, I, J, V, ::Type{S}) where S
     add_sizehint!(lb, length(list))
     add_sizehint!(ub, length(list))
     n_terms = 0
-    for c_index in list
+    fs = Array{MOI.ScalarAffineFunction{Float64}}(undef, length(list))
+    for (i,c_index) in enumerate(list)
         f = MOI.get(src, MOI.ConstraintFunction(), c_index)
+        fs[i] = f
         l, u = _bounds(MOI.get(src, MOI.ConstraintSet(), c_index))
         push!(lb, l - f.constant)
         push!(ub, u - f.constant)
@@ -243,8 +245,8 @@ function _extract_row_data(src, mapping, lb, ub, I, J, V, ::Type{S}) where S
     add_sizehint!(I, n_terms)
     add_sizehint!(J, n_terms)
     add_sizehint!(V, n_terms)
-    for c_index in list
-        f = MOI.get(src, MOI.ConstraintFunction(), c_index)
+    for (i,c_index) in enumerate(list)
+        f = fs[i]#MOI.get(src, MOI.ConstraintFunction(), c_index)
         for term in f.terms
             push!(I, row)
             push!(J, Cint(mapping.varmap[term.variable_index].value))
