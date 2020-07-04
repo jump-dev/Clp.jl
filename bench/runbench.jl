@@ -7,7 +7,7 @@ const MOI = MathOptInterface
 
 using TimerOutputs
 
-struct RadomLP
+struct RandomLP
     rows::Int
     cols::Int
     dens::Float64
@@ -145,4 +145,4 @@ function solve_clp(seed, data; time_limit_sec=Inf)
 
 end
 
-solve_clp(10, RadomLP(10000, 20000, 0.01); time_limit_sec=5)
+solve_clp(10, RandomLP(10000, 20000, 0.01); time_limit_sec=5)
