@@ -185,7 +185,7 @@ _add_bounds(lb, ::Vector{Float64}, i, s::MOI.GreaterThan{Float64}) = lb[i] = s.l
 _add_bounds(lb, ub, i, s::MOI.EqualTo{Float64}) = lb[i], ub[i] = s.value, s.value
 _add_bounds(lb, ub, i, s::MOI.Interval{Float64}) = lb[i], ub[i] = s.lower, s.upper
 
-function _extract_bound_data(src, mapping, lb, ub, S)
+function _extract_bound_data(src, mapping, lb, ub, ::Type{S}) where S
     for con_index in MOI.get(
         src, MOI.ListOfConstraintIndices{MOI.SingleVariable, S}()
     )
@@ -220,15 +220,33 @@ _bounds(s::MOI.LessThan{Float64}) = (-Inf, s.upper)
 _bounds(s::MOI.EqualTo{Float64}) = (s.value, s.value)
 _bounds(s::MOI.Interval{Float64}) = (s.lower, s.upper)
 
-function _extract_row_data(src, mapping, lb, ub, I, J, V, S)
+function add_sizehint!(vec, n)
+    len = length(vec)
+    return sizehint!(vec, len + n)
+end
+
+function _extract_row_data(src, mapping, lb, ub, I, J, V, ::Type{S}) where S
     row = length(I) == 0 ? 1 : I[end] + 1
-    for c_index in MOI.get(
+    list = MOI.get(
         src, MOI.ListOfConstraintIndices{MOI.ScalarAffineFunction{Float64}, S}()
     )
+    add_sizehint!(lb, length(list))
+    add_sizehint!(ub, length(list))
+    n_terms = 0
+    fs = Array{MOI.ScalarAffineFunction{Float64}}(undef, length(list))
+    for (i,c_index) in enumerate(list)
         f = MOI.get(src, MOI.ConstraintFunction(), c_index)
+        fs[i] = f
         l, u = _bounds(MOI.get(src, MOI.ConstraintSet(), c_index))
         push!(lb, l - f.constant)
         push!(ub, u - f.constant)
+        n_terms += length(f.terms)
+    end
+    add_sizehint!(I, n_terms)
+    add_sizehint!(J, n_terms)
+    add_sizehint!(V, n_terms)
+    for (i,c_index) in enumerate(list)
+        f = fs[i]#MOI.get(src, MOI.ConstraintFunction(), c_index)
         for term in f.terms
             push!(I, row)
             push!(J, Cint(mapping.varmap[term.variable_index].value))
@@ -242,12 +260,7 @@ function _extract_row_data(src, mapping, lb, ub, I, J, V, S)
     return
 end
 
-function MOI.copy_to(
-    dest::Optimizer,
-    src::MOI.ModelLike;
-    copy_names::Bool = false
-)
-    @assert MOI.is_empty(dest)
+function test_data(src, dest)
     for (F, S) in MOI.get(src, MOI.ListOfConstraints())
         if !MOI.supports_constraint(dest, F, S)
             throw(MOI.UnsupportedConstraint{F, S}("Clp.Optimizer does not support constraints of type $F-in-$S."))
@@ -257,19 +270,30 @@ function MOI.copy_to(
     if !MOI.supports(dest, MOI.ObjectiveFunction{fobj_type}())
         throw(MOI.UnsupportedAttribute(MOI.ObjectiveFunction(fobj_type)))
     end
+end
+
+function MOI.copy_to(
+    dest::Optimizer,
+    src::MOI.ModelLike;
+    copy_names::Bool = false
+)
+    @assert MOI.is_empty(dest)
+    test_data(src, dest)
+
     mapping = MOI.Utilities.IndexMap()
     N, c = _copy_to_columns(dest, src, mapping)
     cl, cu = fill(-Inf, N), fill(Inf, N)
     rl, ru, I, J, V = Float64[], Float64[], Cint[], Cint[], Float64[]
-    for S in (
-        MOI.GreaterThan{Float64},
-        MOI.LessThan{Float64},
-        MOI.EqualTo{Float64},
-        MOI.Interval{Float64},
-    )
-        _extract_bound_data(src, mapping, cl, cu, S)
-        _extract_row_data(src, mapping, rl, ru, I, J, V, S)
-    end
+
+    _extract_bound_data(src, mapping, cl, cu, MOI.GreaterThan{Float64})
+    _extract_row_data(src, mapping, rl, ru, I, J, V, MOI.GreaterThan{Float64})
+    _extract_bound_data(src, mapping, cl, cu, MOI.LessThan{Float64})
+    _extract_row_data(src, mapping, rl, ru, I, J, V, MOI.LessThan{Float64})
+    _extract_bound_data(src, mapping, cl, cu, MOI.EqualTo{Float64})
+    _extract_row_data(src, mapping, rl, ru, I, J, V, MOI.EqualTo{Float64})
+    _extract_bound_data(src, mapping, cl, cu, MOI.Interval{Float64})
+    _extract_row_data(src, mapping, rl, ru, I, J, V, MOI.Interval{Float64})
+
     M = Cint(length(rl))
     A = SparseArrays.sparse(I, J, V, M, N)
     Clp_loadProblem(
