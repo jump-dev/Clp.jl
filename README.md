@@ -73,5 +73,6 @@ The following options are the most useful (and well documented):
 | `MaximumSeconds` | `-1.0` | Terminate after this many seconds have passed. A negative value means no time limit |
 | `LogLevel` | `1` | Set to 1, 2, 3, or 4 for increasing output. Set to `0` to disable output |
 | `PresolveType` | `0` | Set to 1 to disable presolve |
-| `SolveType` | `5` | Solution method: dual simplex (`0`), primal simplex (`1`), sprint (`2`), barrier with crossover (`3`), barrier without crossover (`4`), automatic (`5`) |
+| `Algorithm` | `5` | Solution method: dual simplex (`0`), primal simplex (`1`), sprint (`2`), barrier with crossover (`3`), barrier without crossover (`4`), automatic (`5`) | 
+| `Scaling` |   | off (`0`), equilibrium (`1`), geometric (`2`), auto (`3`), auto-but-as-initialSolve-in-bab (`4`) |
 | `InfeasibleReturn` | `0` | Set to 1 to return as soon as the problem is found to be infeasible (by default, an infeasibility proof is computed as well) |
