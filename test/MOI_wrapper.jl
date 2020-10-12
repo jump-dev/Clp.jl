@@ -112,3 +112,12 @@ end
     @test MOI.get(model, MOI.RawParameter("PresolveType")) == 0
     @test MOI.get(model, MOI.RawParameter(:PresolveType)) == 0
 end
+
+@testset "All parameters" begin
+    model = Clp.Optimizer()
+    for key in Clp.SUPPORTED_PARAMETERS
+        value = MOI.get(model, MOI.RawParameter(key))
+        MOI.set(model, MOI.RawParameter(key), value)
+        @test MOI.get(model, MOI.RawParameter(key)) == value
+    end
+end
