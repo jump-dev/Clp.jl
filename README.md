@@ -78,4 +78,3 @@ or `MOI.RawParameter`.
 | `InfeasibleReturn` | `0` | Set to 1 to return as soon as the problem is found to be infeasible (by default, an infeasibility proof is computed as well) |
 | `Scaling` | `3` | `0` -off, `1` equilibrium, `2` geometric, `3` auto, `4` dynamic(later) |
 | `Perturbation` | `100` | switch on perturbation (`50`), automatic (`100`), don't try perturbing (`102`) |
-| `Algorithm` | `0` | Get current algorithm |

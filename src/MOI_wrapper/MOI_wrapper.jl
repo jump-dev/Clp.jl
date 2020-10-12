@@ -103,6 +103,8 @@ const SUPPORTED_PARAMETERS = (
     "LogLevel",
     "Scaling",
     "Perturbation",
+    # TODO(odow): `Algorithm` is excluded from the README because it isn't
+    # apparent what it controls. Use `SolveType` instead.
     "Algorithm",
     "PresolveType",
     "SolveType",
