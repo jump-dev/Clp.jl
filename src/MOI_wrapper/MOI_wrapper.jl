@@ -8,49 +8,51 @@ const SCALAR_SETS = Union{
     MOI.GreaterThan{Float64},
     MOI.LessThan{Float64},
     MOI.EqualTo{Float64},
-    MOI.Interval{Float64}
+    MOI.Interval{Float64},
 }
-
-# Maps Clp's parameters to getter/setter function
-const CLP_OPTION_MAP = Dict(
-    :PrimalTolerance => (Clp_primalTolerance, Clp_setPrimalTolerance),
-    :DualTolerance => (Clp_dualTolerance, Clp_setDualTolerance),
-    :DualObjectiveLimit => (Clp_dualObjectiveLimit, Clp_setDualObjectiveLimit),
-    :MaximumIterations => (
-        # TODO(odow): Clp doesn't follow convention with maximumIterations.
-        maximumIterations, Clp_setMaximumIterations
-    ),
-    :MaximumSeconds => (Clp_maximumSeconds, Clp_setMaximumSeconds),
-    :LogLevel => (Clp_logLevel, Clp_setLogLevel),
-    :Scaling => (Clp_scalingFlag, Clp_scaling),
-    :Perturbation => (Clp_perturbation, Clp_setPerturbation),
-    :Algorithm => (Clp_algorithm, Clp_setAlgorithm)
-)
-
-const SOLVE_OPTION_MAP = Dict(
-   :PresolveType => (ClpSolve_getPresolveType, ClpSolve_setPresolveType),
-   :SolveType => (ClpSolve_getSolveType, ClpSolve_setSolveType),
-   :InfeasibleReturn => (ClpSolve_infeasibleReturn, ClpSolve_setInfeasibleReturn)
-)
 
 mutable struct Optimizer <: MOI.AbstractOptimizer
     inner::Ptr{Cvoid}
     solver_options::Ptr{Cvoid}
-    options_set::Set{Symbol}
+    options_set::Set{String}
     optimize_called::Bool
     solve_time::Float64
     # Work-around for upstream bug in Clp:
     maximumSeconds::Float64
 
+    """
+        Optimizer()
+
+    Create a new Optimizer object.
+
+    Set optimizer attributes using `MOI.RawParameter` or
+    `JuMP.set_optimizer_atttribute`. For a list of supported parameter names,
+    see `Clp.SUPPORTED_PARAMETERS`.
+
+    ## Example
+
+        using JuMP, Clp
+        model = JuMP.Model(Clp.Optimizer)
+        set_optimizer_attribute(model, "LogLevel", 0)
+    """
     function Optimizer(; kwargs...)
         model = new(
             Clp_newModel(),
             ClpSolve_new(),
-            Set{Symbol}(),
+            Set{String}(),
             false,
             0.0,
             -1.0,
         )
+        if length(kwargs) > 0
+            @warn("""Passing optimizer attributes as keyword arguments to
+            Clp.Optimizer is deprecated. Use
+                MOI.set(model, MOI.RawParameter("key"), value)
+            or
+                JuMP.set_optimizer_attribute(model, "key", value)
+            instead.
+            """)
+        end
         for (key, value) in kwargs
             MOI.set(model, MOI.RawParameter(String(key)), value)
         end
@@ -77,9 +79,11 @@ function MOI.empty!(model::Optimizer)
     model.optimize_called = false
     model.solve_time = 0.0
     # Copy parameters from old model into new model
-    for key in model.options_set
-        getter, setter = CLP_OPTION_MAP[key]
-        setter(model.inner, getter(old_model))
+    old_options = copy(model.options_set)
+    empty!(model.options_set)
+    for key in old_options
+        value = MOI.get(model, MOI.RawParameter(key))
+        MOI.set(model, MOI.RawParameter(key), value)
     end
     Clp_deleteModel(old_model)
     # Work-around for maximumSeconds
@@ -89,22 +93,54 @@ end
 
 MOI.get(::Optimizer, ::MOI.SolverName) = "Clp"
 
-# TODO: improve type-stability of `MOI.RawParameter`-related methods.
-MOI.supports(::Optimizer, param::MOI.RawParameter) = true
+# If you update this list, remember to update the README documentation!
+const SUPPORTED_PARAMETERS = (
+    "PrimalTolerance",
+    "DualTolerance",
+    "DualObjectiveLimit",
+    "MaximumIterations",
+    "MaximumSeconds",
+    "LogLevel",
+    "Scaling",
+    "Perturbation",
+    # TODO(odow): `Algorithm` is excluded from the README because it isn't
+    # apparent what it controls. Use `SolveType` instead.
+    "Algorithm",
+    "PresolveType",
+    "SolveType",
+    "InfeasibleReturn",
+)
+
+function MOI.supports(::Optimizer, param::MOI.RawParameter)
+    return param.name in SUPPORTED_PARAMETERS
+end
 
 function MOI.set(model::Optimizer, param::MOI.RawParameter, value)
-    key = Symbol(param.name)
-    
-    # Setters for `SolveType`, `PresolveType` and `InfeasibleReturn`
-    # are handled separately, see https://github.com/jump-dev/Clp.jl/issues/91
-    if haskey(CLP_OPTION_MAP, key)
-        push!(model.options_set, key)
-        CLP_OPTION_MAP[key][2](model.inner, value)
-    elseif key == :SolveType
-        ClpSolve_setSolveType(model.solver_options, value, -1)
-    elseif key == :PresolveType
+    name = String(param.name)
+    push!(model.options_set, name)
+    if name == "PrimalTolerance"
+        Clp_setPrimalTolerance(model.inner, value)
+    elseif name == "DualTolerance"
+        Clp_setDualTolerance(model.inner, value)
+    elseif name == "DualObjectiveLimit"
+        Clp_setDualObjectiveLimit(model.inner, value)
+    elseif name == "MaximumIterations"
+        Clp_setMaximumIterations(model.inner, value)
+    elseif name == "MaximumSeconds"
+        Clp_setMaximumSeconds(model.inner, value)
+    elseif name == "LogLevel"
+        Clp_setLogLevel(model.inner, value)
+    elseif name == "Scaling"
+        Clp_scaling(model.inner, value)
+    elseif name == "Perturbation"
+        Clp_setPerturbation(model.inner, value)
+    elseif name == "Algorithm"
+        Clp_setAlgorithm(model.inner, value)
+    elseif name == "PresolveType"
         ClpSolve_setPresolveType(model.solver_options, value, -1)
-    elseif key == :InfeasibleReturn
+    elseif name == "SolveType"
+        ClpSolve_setSolveType(model.solver_options, value, -1)
+    elseif name == "InfeasibleReturn"
         ClpSolve_setInfeasibleReturn(model.solver_options, value)
     else
         throw(MOI.UnsupportedAttribute(param))
@@ -113,11 +149,32 @@ function MOI.set(model::Optimizer, param::MOI.RawParameter, value)
 end
 
 function MOI.get(model::Optimizer, param::MOI.RawParameter)
-    key = Symbol(param.name)
-    if haskey(CLP_OPTION_MAP, key)
-        return CLP_OPTION_MAP[key][1](model.inner)
-    elseif haskey(SOLVE_OPTION_MAP, key)
-        return SOLVE_OPTION_MAP[key][1](model.solver_options)
+    name = String(param.name)
+    if name == "PrimalTolerance"
+        return Clp_primalTolerance(model.inner)
+    elseif name == "DualTolerance"
+        return Clp_dualTolerance(model.inner)
+    elseif name == "DualObjectiveLimit"
+        return Clp_dualObjectiveLimit(model.inner)
+    elseif name == "MaximumIterations"
+        # TODO(odow): Clp doesn't follow convention with maximumIterations!
+        return maximumIterations(model.inner)
+    elseif name == "MaximumSeconds"
+        return Clp_maximumSeconds(model.inner)
+    elseif name == "LogLevel"
+        return Clp_logLevel(model.inner)
+    elseif name == "Scaling"
+        return Clp_scalingFlag(model.inner)
+    elseif name == "Perturbation"
+        return Clp_perturbation(model.inner)
+    elseif name == "Algorithm"
+        return Clp_algorithm(model.inner)
+    elseif name == "PresolveType"
+        return ClpSolve_getPresolveType(model.solver_options)
+    elseif name == "SolveType"
+        return ClpSolve_getSolveType(model.solver_options)
+    elseif name == "InfeasibleReturn"
+        return ClpSolve_infeasibleReturn(model.solver_options)
     else
         throw(MOI.UnsupportedAttribute(param))
     end
@@ -125,7 +182,7 @@ end
 
 MOI.supports(::Optimizer, ::MOI.Silent) = true
 function MOI.set(model::Optimizer, ::MOI.Silent, value::Bool)
-    push!(model.options_set, :LogLevel)
+    push!(model.options_set, "LogLevel")
     Clp_setLogLevel(model.inner, value ? 0 : 1)
     return
 end
@@ -137,7 +194,7 @@ end
 MOI.supports(::Optimizer, ::MOI.TimeLimitSec) = true
 
 function MOI.set(model::Optimizer, ::MOI.TimeLimitSec, value)
-    push!(model.options_set, :MaximumSeconds)
+    push!(model.options_set, "MaximumSeconds")
     value = value === nothing ? -1.0 : value
     Clp_setMaximumSeconds(model.inner, value)
     model.maximumSeconds = value

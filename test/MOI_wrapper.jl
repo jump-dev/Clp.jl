@@ -112,3 +112,17 @@ end
     @test MOI.get(model, MOI.RawParameter("PresolveType")) == 0
     @test MOI.get(model, MOI.RawParameter(:PresolveType)) == 0
 end
+
+@testset "All parameters" begin
+    model = Clp.Optimizer()
+    param = MOI.RawParameter("NotAnOption")
+    @test !MOI.supports(model, param)
+    @test_throws MOI.UnsupportedAttribute(param) MOI.get(model, param)
+    @test_throws MOI.UnsupportedAttribute(param) MOI.set(model, param, false)
+    for key in Clp.SUPPORTED_PARAMETERS
+        @test MOI.supports(model, MOI.RawParameter(key))
+        value = MOI.get(model, MOI.RawParameter(key))
+        MOI.set(model, MOI.RawParameter(key), value)
+        @test MOI.get(model, MOI.RawParameter(key)) == value
+    end
+end
