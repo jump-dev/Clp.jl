@@ -311,7 +311,7 @@ function _extract_row_data(src, mapping, lb, ub, I, J, V, ::Type{S}) where S
         end
         mapping.conmap[c_index] = MOI.ConstraintIndex{
             MOI.ScalarAffineFunction{Float64}, S
-        }(length(ub))
+        }(row)
         row += 1
     end
     return
