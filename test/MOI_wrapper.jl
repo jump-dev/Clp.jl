@@ -126,3 +126,19 @@ end
         @test MOI.get(model, MOI.RawParameter(key)) == value
     end
 end
+
+@testset "copy_to bug" begin
+    model = MOI.Utilities.Model{Float64}()
+    x = MOI.add_variable(model)
+    con = [
+        MOI.add_constraint(
+            model,
+            MOI.ScalarAffineFunction([MOI.ScalarAffineTerm(1.0, x)], 0.0),
+            MOI.EqualTo(1.0),
+        )
+        for i = 1:2
+    ]
+    clp = Clp.Optimizer()
+    index_map = MOI.copy_to(clp, model)
+    @test index_map[con[1]] != index_map[con[2]]
+end
