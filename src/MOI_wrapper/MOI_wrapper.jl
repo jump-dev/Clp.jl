@@ -74,18 +74,19 @@ function MOI.is_empty(model::Optimizer)
 end
 
 function MOI.empty!(model::Optimizer)
-    old_model = model.inner
+    # Copy parameters from old model into new model
+    old_options = Dict(
+        key => MOI.get(model, MOI.RawParameter(key))
+        for key in model.options_set
+    )
+    empty!(model.options_set)
+    Clp_deleteModel(model.inner)
     model.inner = Clp_newModel()
     model.optimize_called = false
     model.solve_time = 0.0
-    # Copy parameters from old model into new model
-    old_options = copy(model.options_set)
-    empty!(model.options_set)
-    for key in old_options
-        value = MOI.get(model, MOI.RawParameter(key))
+    for (key, value) in old_options
         MOI.set(model, MOI.RawParameter(key), value)
     end
-    Clp_deleteModel(old_model)
     # Work-around for maximumSeconds
     Clp_setMaximumSeconds(model.inner, model.maximumSeconds)
     return
