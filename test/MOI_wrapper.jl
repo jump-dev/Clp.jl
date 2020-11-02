@@ -142,3 +142,12 @@ end
     index_map = MOI.copy_to(clp, model)
     @test index_map[con[1]] != index_map[con[2]]
 end
+
+@testset "Options after empty!" begin
+    model = Clp.Optimizer()
+    @test MOI.get(model, MOI.Silent()) == false
+    MOI.set(model, MOI.Silent(), true)
+    @test MOI.get(model, MOI.Silent()) == true
+    MOI.empty!(model)
+    @test MOI.get(model, MOI.Silent()) == true
+end
