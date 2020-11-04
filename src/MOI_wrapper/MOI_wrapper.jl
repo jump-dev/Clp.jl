@@ -492,7 +492,7 @@ function _unsafe_wrap_clp_array(
     model::Optimizer,
     f::Function,
     n::Integer,
-    indices;
+    indices = nothing;
     own::Bool = false
 )
     p = f(model)
@@ -500,7 +500,7 @@ function _unsafe_wrap_clp_array(
         return map(x -> NaN, indices)
     end
     x = unsafe_wrap(Array, p, (n,); own = own)
-    return x[indices]
+    return indices === nothing ? x : x[indices]
 end
 
 function MOI.get(
@@ -588,80 +588,81 @@ end
 # If sense is maximize, we negate all the duals to follow MOI conventions
 # Feasibility problems are treated as a minimization
 
+"""
+    _farkas_variable_dual(model::Optimizer, col::Cint)
+
+Return a Farkas dual associated with the variable bounds of `col`.
+
+Compute the Farkas dual as:
+
+    ā * x = λ' * A * x <= λ' * b = -β + sum(āᵢ * Uᵢ | āᵢ < 0) + sum(āᵢ * Lᵢ | āᵢ > 0)
+
+The Farkas dual of the variable is ā, and it applies to the upper bound if ā < 0,
+and it applies to the lower bound if ā > 0.
+"""
+function _farkas_variable_dual(model::Optimizer, col::Integer)
+    m, n = Clp_getNumRows(model), Clp_getNumCols(model)
+    nnz = Clp_getNumElements(model)
+    vbeg = _unsafe_wrap_clp_array(model, Clp_getVectorStarts, n)
+    vlen = _unsafe_wrap_clp_array(model, Clp_getVectorLengths, n)
+    indices = vbeg[col] .+ (1:vlen[col])
+    vind = _unsafe_wrap_clp_array(model, Clp_getIndices, nnz, indices)
+    vval = _unsafe_wrap_clp_array(model, Clp_getElements, nnz, indices)
+    # We need to claim ownership of the pointer returned by Clp_infeasibilityRay.
+    λ = _unsafe_wrap_clp_array(model, Clp_infeasibilityRay, m; own = true)
+    return sum(v * λ[i + 1] for (i, v) in zip(vind, vval))
+end
+
 function MOI.get(
     model::Optimizer,
     attr::MOI.ConstraintDual,
-    c::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64}, <:SCALAR_SETS}
+    c::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64}, <:SCALAR_SETS},
 )
     MOI.check_result_index_bounds(model, attr)
-    sense = (Clp_getObjSense(model) == -1) ? -1 : 1
+    n = Clp_getNumRows(model)
     dual_status = MOI.get(model, MOI.DualStatus())
+    sense = Clp_getObjSense(model)
     if dual_status == MOI.FEASIBLE_POINT
-        dsol = _unsafe_wrap_clp_array(
-            model,
-            Clp_getRowPrice,
-            Clp_getNumRows(model),
-            c.value,
-        )
+        dsol = _unsafe_wrap_clp_array(model, Clp_getRowPrice, n, c.value)
         return sense * dsol
     elseif dual_status == MOI.INFEASIBILITY_CERTIFICATE
         # We claim ownership of the pointer returned by Clp_infeasibilityRay.
-        dsol = _unsafe_wrap_clp_array(
-            model,
-            Clp_infeasibilityRay,
-            Clp_getNumRows(model),
-            c.value;
-            own = true,
+        return -_unsafe_wrap_clp_array(
+            model, Clp_infeasibilityRay, n, c.value; own = true,
         )
-        return -sense * dsol
     else
         error("Dual solution not available")
     end
 end
 
-# TODO: what happens if problem is unbounded / infeasible?
 function MOI.get(
     model::Optimizer,
     attr::MOI.ConstraintDual,
-    c::MOI.ConstraintIndex{MOI.SingleVariable, MOI.LessThan{Float64}}
+    c::MOI.ConstraintIndex{MOI.SingleVariable, MOI.LessThan{Float64}},
 )
     MOI.check_result_index_bounds(model, attr)
-    rc = _unsafe_wrap_clp_array(
-        model,
-        Clp_getReducedCost,
-        Clp_getNumCols(model),
-        c.value,
-    )
-    sense = (Clp_getObjSense(model) == -1) ? -1 : 1
-    if sense == 1 && rc <= 0.0
-        return rc
-    elseif sense == -1 && rc >= 0.0
-        return -rc
-    else
-        return 0.0
+    if MOI.get(model, MOI.DualStatus()) == MOI.INFEASIBILITY_CERTIFICATE
+        return min(0.0, _farkas_variable_dual(model, c.value))
     end
+    rc = _unsafe_wrap_clp_array(
+        model, Clp_getReducedCost, Clp_getNumCols(model), c.value,
+    )
+    return min(0.0, Clp_getObjSense(model) * rc)
 end
 
 function MOI.get(
     model::Optimizer,
     attr::MOI.ConstraintDual,
-    c::MOI.ConstraintIndex{MOI.SingleVariable, MOI.GreaterThan{Float64}}
+    c::MOI.ConstraintIndex{MOI.SingleVariable, MOI.GreaterThan{Float64}},
 )
     MOI.check_result_index_bounds(model, attr)
-    rc = _unsafe_wrap_clp_array(
-        model,
-        Clp_getReducedCost,
-        Clp_getNumCols(model),
-        c.value,
-    )
-    sense = (Clp_getObjSense(model) == -1) ? -1 : 1
-    if sense == 1 && rc >= 0.0
-        return rc
-    elseif sense == -1 && rc <= 0.0
-        return -rc
-    else
-        return 0.0
+    if MOI.get(model, MOI.DualStatus()) == MOI.INFEASIBILITY_CERTIFICATE
+        return max(0.0, _farkas_variable_dual(model, c.value))
     end
+    rc = _unsafe_wrap_clp_array(
+        model, Clp_getReducedCost, Clp_getNumCols(model), c.value,
+    )
+    return max(0.0, Clp_getObjSense(model) * rc)
 end
 
 function MOI.get(
@@ -673,12 +674,11 @@ function MOI.get(
     }
 )
     MOI.check_result_index_bounds(model, attr)
-    sense = (Clp_getObjSense(model) == -1) ? -1 : 1
+    if MOI.get(model, MOI.DualStatus()) == MOI.INFEASIBILITY_CERTIFICATE
+        return _farkas_variable_dual(model, c.value)
+    end
     rc = _unsafe_wrap_clp_array(
-        model,
-        Clp_getReducedCost,
-        Clp_getNumCols(model),
-        c.value,
+        model, Clp_getReducedCost, Clp_getNumCols(model), c.value,
     )
-    return sense * rc
+    return Clp_getObjSense(model) * rc
 end
