@@ -1,7 +1,9 @@
 name: CI
 on:
-  - push
-  - pull_request
+  push:
+    branches:
+      - master
+   pull_request:
 jobs:
   test:
     name: Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }} - ${{ github.event_name }}
@@ -10,8 +12,8 @@ jobs:
       fail-fast: false
       matrix:
         version:
-          - '1.0'
-          - '1.5'
+          - '1.0'  # Test against current LTS
+          - '1'    # Test against current minor release
         os:
           - ubuntu-latest
           - macOS-latest
