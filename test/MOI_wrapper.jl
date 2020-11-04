@@ -1,3 +1,5 @@
+module TestMOIWrapper
+
 using Test
 using MathOptInterface
 import Clp
@@ -6,17 +8,6 @@ const MOI  = MathOptInterface
 
 const OPTIMIZER = Clp.Optimizer()
 MOI.set(OPTIMIZER, MOI.Silent(), true)
-
-@testset "SolverName" begin
-    @test MOI.get(OPTIMIZER, MOI.SolverName()) == "Clp"
-end
-
-@testset "supports_default_copy_to" begin
-    @test !MOI.Utilities.supports_allocate_load(OPTIMIZER, false)
-    @test !MOI.Utilities.supports_allocate_load(OPTIMIZER, true)
-    @test !MOI.Utilities.supports_default_copy_to(OPTIMIZER, false)
-    @test !MOI.Utilities.supports_default_copy_to(OPTIMIZER, true)
-end
 
 const CACHED = MOI.Utilities.CachingOptimizer(
     MOI.Utilities.UniversalFallback(MOI.Utilities.Model{Float64}()),
@@ -29,11 +20,23 @@ const CONFIG = MOI.Test.TestConfig(
     dual_objective_value = false,
 )
 
-@testset "basic_constraint_tests" begin
+
+function test_SolverName()
+    @test MOI.get(OPTIMIZER, MOI.SolverName()) == "Clp"
+end
+
+function test_supports_default_copy_to()
+    @test !MOI.Utilities.supports_allocate_load(OPTIMIZER, false)
+    @test !MOI.Utilities.supports_allocate_load(OPTIMIZER, true)
+    @test !MOI.Utilities.supports_default_copy_to(OPTIMIZER, false)
+    @test !MOI.Utilities.supports_default_copy_to(OPTIMIZER, true)
+end
+
+function test_basicconstraint()
     MOI.Test.basic_constraint_tests(CACHED, CONFIG)
 end
 
-@testset "Unit Tests" begin
+function test_unittest()
     MOI.Test.unittest(BRIDGED, CONFIG, [
         # Not supported by upstream.
         "number_threads",
@@ -52,7 +55,7 @@ end
     ])
 end
 
-@testset "Linear tests" begin
+function test_contlinear()
     MOI.Test.contlineartest(BRIDGED, CONFIG, [
         # The linear12 test requires the InfeasibilityCertificate for variable
         # bounds. These are available through C++, but not via the C interface.
@@ -63,19 +66,19 @@ end
     ])
 end
 
-@testset "ModelLike" begin
-    @testset "nametest" begin
-        MOI.Test.nametest(BRIDGED)
-    end
-    @testset "validtest" begin
-        MOI.Test.validtest(BRIDGED)
-    end
-    @testset "emptytest" begin
-        MOI.Test.emptytest(BRIDGED)
-    end
+function test_nametest()
+    MOI.Test.nametest(BRIDGED)
 end
 
-@testset "Nonexistant unbounded ray" begin
+function test_validtest()
+    MOI.Test.validtest(BRIDGED)
+end
+
+function test_emptytest()
+    MOI.Test.emptytest(BRIDGED)
+end
+
+function test_Nonexistant_unbounded_ray()
     MOI.empty!(BRIDGED)
     x = MOI.add_variables(BRIDGED, 5)
     MOI.set(
@@ -89,7 +92,7 @@ end
     @test status == MOI.DUAL_INFEASIBLE
 end
 
-@testset "RawParameter" begin
+function test_RawParameter()
     model = Clp.Optimizer()
     MOI.set(model, MOI.RawParameter("LogLevel"), 1)
     @test MOI.get(model, MOI.RawParameter("LogLevel")) == 1
@@ -113,7 +116,7 @@ end
     @test MOI.get(model, MOI.RawParameter(:PresolveType)) == 0
 end
 
-@testset "All parameters" begin
+function test_All_parameters()
     model = Clp.Optimizer()
     param = MOI.RawParameter("NotAnOption")
     @test !MOI.supports(model, param)
@@ -127,7 +130,7 @@ end
     end
 end
 
-@testset "copy_to bug" begin
+function test_copy_to_bug()
     model = MOI.Utilities.Model{Float64}()
     x = MOI.add_variable(model)
     con = [
@@ -143,7 +146,7 @@ end
     @test index_map[con[1]] != index_map[con[2]]
 end
 
-@testset "Options after empty!" begin
+function test_options_after_empty!()
     model = Clp.Optimizer()
     @test MOI.get(model, MOI.Silent()) == false
     MOI.set(model, MOI.Silent(), true)
@@ -151,3 +154,7 @@ end
     MOI.empty!(model)
     @test MOI.get(model, MOI.Silent()) == true
 end
+
+end  # module TestMOIWrapper
+
+runtests(TestMOIWrapper)
