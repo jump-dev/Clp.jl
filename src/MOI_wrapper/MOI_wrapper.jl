@@ -57,12 +57,15 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
             MOI.set(model, MOI.RawParameter(String(key)), value)
         end
         finalizer(model) do m
-            Clp_deleteModel(m.inner)
+            Clp_deleteModel(m)
             ClpSolve_delete(m.solver_options)
         end
         return model
     end
 end
+
+Base.cconvert(::Type{Ptr{Cvoid}}, model::Optimizer) = model
+Base.unsafe_convert(::Type{Ptr{Cvoid}}, model::Optimizer) = model.inner::Ptr{Cvoid}
 
 # ====================
 #   empty functions
@@ -70,7 +73,7 @@ end
 
 function MOI.is_empty(model::Optimizer)
     # A problem is empty if it has no variable and no linear constraints
-    return (Clp_getNumRows(model.inner) == 0) && (Clp_getNumCols(model.inner) == 0)
+    return (Clp_getNumRows(model) == 0) && (Clp_getNumCols(model) == 0)
 end
 
 function MOI.empty!(model::Optimizer)
@@ -80,7 +83,7 @@ function MOI.empty!(model::Optimizer)
         for key in model.options_set
     )
     empty!(model.options_set)
-    Clp_deleteModel(model.inner)
+    Clp_deleteModel(model)
     model.inner = Clp_newModel()
     model.optimize_called = false
     model.solve_time = 0.0
@@ -88,7 +91,7 @@ function MOI.empty!(model::Optimizer)
         MOI.set(model, MOI.RawParameter(key), value)
     end
     # Work-around for maximumSeconds
-    Clp_setMaximumSeconds(model.inner, model.maximumSeconds)
+    Clp_setMaximumSeconds(model, model.maximumSeconds)
     return
 end
 
@@ -120,23 +123,23 @@ function MOI.set(model::Optimizer, param::MOI.RawParameter, value)
     name = String(param.name)
     push!(model.options_set, name)
     if name == "PrimalTolerance"
-        Clp_setPrimalTolerance(model.inner, value)
+        Clp_setPrimalTolerance(model, value)
     elseif name == "DualTolerance"
-        Clp_setDualTolerance(model.inner, value)
+        Clp_setDualTolerance(model, value)
     elseif name == "DualObjectiveLimit"
-        Clp_setDualObjectiveLimit(model.inner, value)
+        Clp_setDualObjectiveLimit(model, value)
     elseif name == "MaximumIterations"
-        Clp_setMaximumIterations(model.inner, value)
+        Clp_setMaximumIterations(model, value)
     elseif name == "MaximumSeconds"
-        Clp_setMaximumSeconds(model.inner, value)
+        Clp_setMaximumSeconds(model, value)
     elseif name == "LogLevel"
-        Clp_setLogLevel(model.inner, value)
+        Clp_setLogLevel(model, value)
     elseif name == "Scaling"
-        Clp_scaling(model.inner, value)
+        Clp_scaling(model, value)
     elseif name == "Perturbation"
-        Clp_setPerturbation(model.inner, value)
+        Clp_setPerturbation(model, value)
     elseif name == "Algorithm"
-        Clp_setAlgorithm(model.inner, value)
+        Clp_setAlgorithm(model, value)
     elseif name == "PresolveType"
         ClpSolve_setPresolveType(model.solver_options, value, -1)
     elseif name == "SolveType"
@@ -152,24 +155,24 @@ end
 function MOI.get(model::Optimizer, param::MOI.RawParameter)
     name = String(param.name)
     if name == "PrimalTolerance"
-        return Clp_primalTolerance(model.inner)
+        return Clp_primalTolerance(model)
     elseif name == "DualTolerance"
-        return Clp_dualTolerance(model.inner)
+        return Clp_dualTolerance(model)
     elseif name == "DualObjectiveLimit"
-        return Clp_dualObjectiveLimit(model.inner)
+        return Clp_dualObjectiveLimit(model)
     elseif name == "MaximumIterations"
         # TODO(odow): Clp doesn't follow convention with maximumIterations!
-        return maximumIterations(model.inner)
+        return maximumIterations(model)
     elseif name == "MaximumSeconds"
-        return Clp_maximumSeconds(model.inner)
+        return Clp_maximumSeconds(model)
     elseif name == "LogLevel"
-        return Clp_logLevel(model.inner)
+        return Clp_logLevel(model)
     elseif name == "Scaling"
-        return Clp_scalingFlag(model.inner)
+        return Clp_scalingFlag(model)
     elseif name == "Perturbation"
-        return Clp_perturbation(model.inner)
+        return Clp_perturbation(model)
     elseif name == "Algorithm"
-        return Clp_algorithm(model.inner)
+        return Clp_algorithm(model)
     elseif name == "PresolveType"
         return ClpSolve_getPresolveType(model.solver_options)
     elseif name == "SolveType"
@@ -184,12 +187,12 @@ end
 MOI.supports(::Optimizer, ::MOI.Silent) = true
 function MOI.set(model::Optimizer, ::MOI.Silent, value::Bool)
     push!(model.options_set, "LogLevel")
-    Clp_setLogLevel(model.inner, value ? 0 : 1)
+    Clp_setLogLevel(model, value ? 0 : 1)
     return
 end
 
 function MOI.get(model::Optimizer, ::MOI.Silent)
-    return Clp_logLevel(model.inner) == 0
+    return Clp_logLevel(model) == 0
 end
 
 MOI.supports(::Optimizer, ::MOI.TimeLimitSec) = true
@@ -197,13 +200,13 @@ MOI.supports(::Optimizer, ::MOI.TimeLimitSec) = true
 function MOI.set(model::Optimizer, ::MOI.TimeLimitSec, value)
     push!(model.options_set, "MaximumSeconds")
     value = value === nothing ? -1.0 : value
-    Clp_setMaximumSeconds(model.inner, value)
+    Clp_setMaximumSeconds(model, value)
     model.maximumSeconds = value
     return
 end
 
 function MOI.get(model::Optimizer, ::MOI.TimeLimitSec)
-    # TODO(odow): replace with `Clp_maximumSeconds(model.inner)` when upstream
+    # TODO(odow): replace with `Clp_maximumSeconds(model)` when upstream
     # is fixed.
     return model.maximumSeconds
 end
@@ -255,7 +258,7 @@ function _extract_bound_data(src, mapping, lb, ub, ::Type{S}) where S
     end
 end
 
-function _copy_to_columns(dest, src, mapping)
+function _copy_to_columns(dest::Optimizer, src, mapping)
     x_src = MOI.get(src, MOI.ListOfVariableIndices())
     N = Cint(length(x_src))
     for i = 1:N
@@ -269,7 +272,7 @@ function _copy_to_columns(dest, src, mapping)
         c[i] += term.coefficient
     end
     # Clp seems to negates the objective offset
-    Clp_setObjectiveOffset(dest.inner, -fobj.constant)
+    Clp_setObjectiveOffset(dest, -fobj.constant)
     return N, c
 end
 
@@ -355,7 +358,7 @@ function MOI.copy_to(
     M = Cint(length(rl))
     A = SparseArrays.sparse(I, J, V, M, N)
     Clp_loadProblem(
-        dest.inner,
+        dest,
         A.n,
         A.m,
         A.colptr .- Cint(1),
@@ -370,12 +373,12 @@ function MOI.copy_to(
 
     sense = MOI.get(src, MOI.ObjectiveSense())
     if sense == MOI.MIN_SENSE
-        Clp_setObjSense(dest.inner, 1)
+        Clp_setObjSense(dest, 1)
     elseif sense == MOI.MAX_SENSE
-        Clp_setObjSense(dest.inner, -1)
+        Clp_setObjSense(dest, -1)
     else
         @assert sense == MOI.FEASIBILITY_SENSE
-        Clp_setObjSense(dest.inner, 0)
+        Clp_setObjSense(dest, 0)
     end
     return mapping
 end
@@ -386,7 +389,7 @@ end
 
 function MOI.optimize!(model::Optimizer)
     t = time()
-    Clp_initialSolveWithOptions(model.inner, model.solver_options)
+    Clp_initialSolveWithOptions(model, model.solver_options)
     model.solve_time = time() - t
     model.optimize_called = true
     return
@@ -397,19 +400,19 @@ function MOI.get(model::Optimizer, ::MOI.SolveTime)
 end
 
 function MOI.get(model::Optimizer, ::MOI.NumberOfVariables)
-    return Clp_getNumCols(model.inner)
+    return Clp_getNumCols(model)
 end
 
 function MOI.get(model::Optimizer, attr::MOI.ObjectiveValue)
     MOI.check_result_index_bounds(model, attr)
-    return Clp_getObjValue(model.inner)
+    return Clp_getObjValue(model)
 end
 
 function MOI.get(model::Optimizer, ::MOI.TerminationStatus)
     if !model.optimize_called
         return MOI.OPTIMIZE_NOT_CALLED
     end
-    st = Clp_status(model.inner)
+    st = Clp_status(model)
     if st == 0
         return MOI.OPTIMAL
     elseif st == 1
@@ -428,7 +431,7 @@ function MOI.get(model::Optimizer, ::MOI.RawStatusString)
     if !model.optimize_called
         return "MOI.OPTIMIZE_NOT_CALLED"
     end
-    st = Clp_status(model.inner)
+    st = Clp_status(model)
     if st == 0
         return "0 - optimal"
     elseif st == 1
@@ -445,13 +448,13 @@ function MOI.get(model::Optimizer, ::MOI.RawStatusString)
 end
 
 function MOI.get(model::Optimizer, ::MOI.ResultCount)
-    if Clp_primalFeasible(model.inner) != 0
+    if Clp_primalFeasible(model) != 0
         return 1
-    elseif Clp_dualFeasible(model.inner) != 0
+    elseif Clp_dualFeasible(model) != 0
         return 1
-    elseif Clp_isProvenPrimalInfeasible(model.inner) != 0
+    elseif Clp_isProvenPrimalInfeasible(model) != 0
         return 1
-    elseif Clp_isProvenDualInfeasible(model.inner) != 0
+    elseif Clp_isProvenDualInfeasible(model) != 0
         return 1
     end
     return 0
@@ -460,9 +463,9 @@ end
 function MOI.get(model::Optimizer, attr::MOI.PrimalStatus)
     if attr.N != 1
         return MOI.NO_SOLUTION
-    elseif Clp_isProvenDualInfeasible(model.inner) != 0
+    elseif Clp_isProvenDualInfeasible(model) != 0
         return MOI.INFEASIBILITY_CERTIFICATE
-    elseif Clp_primalFeasible(model.inner) != 0
+    elseif Clp_primalFeasible(model) != 0
         return MOI.FEASIBLE_POINT
     else
         return MOI.UNKNOWN_RESULT_STATUS
@@ -472,9 +475,9 @@ end
 function MOI.get(model::Optimizer, attr::MOI.DualStatus)
     if attr.N != 1
         return MOI.NO_SOLUTION
-    elseif Clp_isProvenPrimalInfeasible(model.inner) != 0
+    elseif Clp_isProvenPrimalInfeasible(model) != 0
         return MOI.INFEASIBILITY_CERTIFICATE
-    elseif Clp_dualFeasible(model.inner) != 0
+    elseif Clp_dualFeasible(model) != 0
         return MOI.FEASIBLE_POINT
     else
         return MOI.UNKNOWN_RESULT_STATUS
@@ -486,7 +489,7 @@ end
 # ===================
 
 function _unsafe_wrap_clp_array(
-    model::Ptr{Cvoid},
+    model::Optimizer,
     f::Function,
     n::Integer,
     indices;
@@ -508,17 +511,17 @@ function MOI.get(
     if primal_status == MOI.INFEASIBILITY_CERTIFICATE
         # We claim ownership of the pointer returned by Clp_unboundedRay.
         return _unsafe_wrap_clp_array(
-            model.inner,
+            model,
             Clp_unboundedRay,
-            Clp_getNumCols(model.inner),
+            Clp_getNumCols(model),
             x.value;
             own = true,
         )
     elseif primal_status == MOI.FEASIBLE_POINT
         return _unsafe_wrap_clp_array(
-            model.inner,
+            model,
             Clp_getColSolution,
-            Clp_getNumCols(model.inner),
+            Clp_getNumCols(model),
             x.value,
         )
     else
@@ -535,17 +538,17 @@ function MOI.get(
     if primal_status == MOI.INFEASIBILITY_CERTIFICATE
         # We claim ownership of the pointer returned by Clp_unboundedRay.
         return _unsafe_wrap_clp_array(
-            model.inner,
+            model,
             Clp_unboundedRay,
-            Clp_getNumCols(model.inner),
+            Clp_getNumCols(model),
             col_indices;
             own = true,
         )
     elseif primal_status == MOI.FEASIBLE_POINT
         return _unsafe_wrap_clp_array(
-            model.inner,
+            model,
             Clp_getColSolution,
-            Clp_getNumCols(model.inner),
+            Clp_getNumCols(model),
             col_indices,
         )
     else
@@ -561,9 +564,9 @@ function MOI.get(
 )
     MOI.check_result_index_bounds(model, attr)
     return _unsafe_wrap_clp_array(
-        model.inner,
+        model,
         Clp_getRowActivity,
-        Clp_getNumRows(model.inner),
+        Clp_getNumRows(model),
         c.value,
     )
 end
@@ -591,22 +594,22 @@ function MOI.get(
     c::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64}, <:SCALAR_SETS}
 )
     MOI.check_result_index_bounds(model, attr)
-    sense = (Clp_getObjSense(model.inner) == -1) ? -1 : 1
+    sense = (Clp_getObjSense(model) == -1) ? -1 : 1
     dual_status = MOI.get(model, MOI.DualStatus())
     if dual_status == MOI.FEASIBLE_POINT
         dsol = _unsafe_wrap_clp_array(
-            model.inner,
+            model,
             Clp_getRowPrice,
-            Clp_getNumRows(model.inner),
+            Clp_getNumRows(model),
             c.value,
         )
         return sense * dsol
     elseif dual_status == MOI.INFEASIBILITY_CERTIFICATE
         # We claim ownership of the pointer returned by Clp_infeasibilityRay.
         dsol = _unsafe_wrap_clp_array(
-            model.inner,
+            model,
             Clp_infeasibilityRay,
-            Clp_getNumRows(model.inner),
+            Clp_getNumRows(model),
             c.value;
             own = true,
         )
@@ -624,12 +627,12 @@ function MOI.get(
 )
     MOI.check_result_index_bounds(model, attr)
     rc = _unsafe_wrap_clp_array(
-        model.inner,
+        model,
         Clp_getReducedCost,
-        Clp_getNumCols(model.inner),
+        Clp_getNumCols(model),
         c.value,
     )
-    sense = (Clp_getObjSense(model.inner) == -1) ? -1 : 1
+    sense = (Clp_getObjSense(model) == -1) ? -1 : 1
     if sense == 1 && rc <= 0.0
         return rc
     elseif sense == -1 && rc >= 0.0
@@ -646,12 +649,12 @@ function MOI.get(
 )
     MOI.check_result_index_bounds(model, attr)
     rc = _unsafe_wrap_clp_array(
-        model.inner,
+        model,
         Clp_getReducedCost,
-        Clp_getNumCols(model.inner),
+        Clp_getNumCols(model),
         c.value,
     )
-    sense = (Clp_getObjSense(model.inner) == -1) ? -1 : 1
+    sense = (Clp_getObjSense(model) == -1) ? -1 : 1
     if sense == 1 && rc >= 0.0
         return rc
     elseif sense == -1 && rc <= 0.0
@@ -670,11 +673,11 @@ function MOI.get(
     }
 )
     MOI.check_result_index_bounds(model, attr)
-    sense = (Clp_getObjSense(model.inner) == -1) ? -1 : 1
+    sense = (Clp_getObjSense(model) == -1) ? -1 : 1
     rc = _unsafe_wrap_clp_array(
-        model.inner,
+        model,
         Clp_getReducedCost,
-        Clp_getNumCols(model.inner),
+        Clp_getNumCols(model),
         c.value,
     )
     return sense * rc
