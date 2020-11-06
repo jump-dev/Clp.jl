@@ -18,7 +18,7 @@ jobs:
           # Also test against Windows 32-bit on LTS.
           - version: '1.0'
             os: windows-latest
-            arch: x32
+            arch: x86
     steps:
       - uses: actions/checkout@v2
       - uses: julia-actions/setup-julia@v1
