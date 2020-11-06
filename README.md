@@ -10,7 +10,7 @@ solver-independent `MathOptInterface` API.
 *Note: This wrapper is maintained by the JuMP community and is not a COIN-OR
 project.*
 
-[![Build Status](https://travis-ci.org/jump-dev/Clp.jl.svg?branch=master)](https://travis-ci.org/jump-dev/Clp.jl)
+[![Build Status](https://github.com/jump-dev/Clp.jl/workflows/CI/badge.svg?branch=master)](https://github.com/jump-dev/Clp.jl/actions?query=workflow%3ACI)
 [![codecov](https://codecov.io/gh/jump-dev/Clp.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/jump-dev/Clp.jl)
 
 [Clp]: https://projects.coin-or.org/Clp
@@ -24,7 +24,7 @@ The package can be installed with `Pkg.add`.
 julia> import Pkg; Pkg.add("Clp")
 ```
 
-Clp.jl will use [BinaryProvider.jl](https://github.com/JuliaPackaging/BinaryProvider.jl) to automatically install the Clp binaries. This should work for both the official Julia binaries from `https://julialang.org/downloads/` and source-builds.
+Clp.jl will use [BinaryProvider.jl](https://github.com/JuliaPackaging/BinaryProvider.jl) to automatically install the Clp binaries. This should work for both the [official Julia binaries](https://julialang.org/downloads) and source-builds.
 
 ## Custom Installation
 
