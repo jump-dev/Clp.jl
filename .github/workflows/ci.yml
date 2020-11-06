@@ -1,8 +1,7 @@
 name: CI
 on:
   push:
-    branches:
-      - master
+    branches: [master]
   pull_request:
     types: [opened, synchronize, reopened]
 jobs:
@@ -12,15 +11,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        version:
-          - '1.0'  # Test against current LTS
-          - '1'    # Test against current minor release
-        os:
-          - ubuntu-latest
-          - macOS-latest
-          - windows-latest
-        arch:
-          - x64
+        version: ['1.0', '1']  # Test against LTS and current minor release
+        os: [ubuntu-latest, macOS-latest, windows-latest]
+        arch: [x64]
+        include:
+          # Also test against Windows 32-bit on LTS.
+          - version: '1.0'
+            os: windows-latest
+            arch: x32
     steps:
       - uses: actions/checkout@v2
       - uses: julia-actions/setup-julia@v1
