@@ -57,12 +57,8 @@ end
 
 function test_contlinear()
     MOI.Test.contlineartest(BRIDGED, CONFIG, [
-        # The linear12 test requires the InfeasibilityCertificate for variable
-        # bounds. These are available through C++, but not via the C interface.
-        "linear12",
-
         # MOI.VariablePrimalStart not supported.
-        "partial_start"
+        "partial_start",
     ])
 end
 
@@ -153,6 +149,196 @@ function test_options_after_empty!()
     @test MOI.get(model, MOI.Silent()) == true
     MOI.empty!(model)
     @test MOI.get(model, MOI.Silent()) == true
+end
+
+function test_farkas_dual_min()
+    MOI.empty!(BRIDGED)
+    model = BRIDGED
+    MOI.set(model, MOI.Silent(), true)
+    x = MOI.add_variables(model, 2)
+    MOI.set(model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
+    MOI.set(
+        model,
+        MOI.ObjectiveFunction{MOI.SingleVariable}(),
+        MOI.SingleVariable(x[1]),
+    )
+    clb = MOI.add_constraint.(
+        model, MOI.SingleVariable.(x), MOI.GreaterThan(0.0)
+    )
+    c = MOI.add_constraint(
+        model,
+        MOI.ScalarAffineFunction(MOI.ScalarAffineTerm.([2.0, 1.0], x), 0.0),
+        MOI.LessThan(-1.0),
+    )
+    MOI.optimize!(model)
+    @test MOI.get(model, MOI.TerminationStatus()) == MOI.INFEASIBLE
+    @test MOI.get(model, MOI.DualStatus()) == MOI.INFEASIBILITY_CERTIFICATE
+    clb_dual = MOI.get.(model, MOI.ConstraintDual(), clb)
+    c_dual = MOI.get(model, MOI.ConstraintDual(), c)
+    @show clb_dual, c_dual
+    @test clb_dual[1] > 1e-6
+    @test clb_dual[2] > 1e-6
+    @test c_dual[1] < -1e-6
+    @test clb_dual[1] ≈ -2 * c_dual atol = 1e-6
+    @test clb_dual[2] ≈ -c_dual atol = 1e-6
+end
+
+function test_farkas_dual_min_interval()
+    MOI.empty!(BRIDGED)
+    model = BRIDGED
+    MOI.set(model, MOI.Silent(), true)
+    x = MOI.add_variables(model, 2)
+    MOI.set(model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
+    MOI.set(
+        model,
+        MOI.ObjectiveFunction{MOI.SingleVariable}(),
+        MOI.SingleVariable(x[1]),
+    )
+    clb = MOI.add_constraint.(
+        model, MOI.SingleVariable.(x), MOI.Interval(0.0, 10.0)
+    )
+    c = MOI.add_constraint(
+        model,
+        MOI.ScalarAffineFunction(MOI.ScalarAffineTerm.([2.0, 1.0], x), 0.0),
+        MOI.LessThan(-1.0),
+    )
+    MOI.optimize!(model)
+    @test MOI.get(model, MOI.TerminationStatus()) == MOI.INFEASIBLE
+    @test MOI.get(model, MOI.DualStatus()) == MOI.INFEASIBILITY_CERTIFICATE
+    clb_dual = MOI.get.(model, MOI.ConstraintDual(), clb)
+    c_dual = MOI.get(model, MOI.ConstraintDual(), c)
+    @show clb_dual, c_dual
+    @test clb_dual[1] > 1e-6
+    @test clb_dual[2] > 1e-6
+    @test c_dual[1] < -1e-6
+    @test clb_dual[1] ≈ -2 * c_dual atol = 1e-6
+    @test clb_dual[2] ≈ -c_dual atol = 1e-6
+end
+
+function test_farkas_dual_min_equalto()
+    MOI.empty!(BRIDGED)
+    model = BRIDGED
+    MOI.set(model, MOI.Silent(), true)
+    x = MOI.add_variables(model, 2)
+    MOI.set(model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
+    MOI.set(
+        model,
+        MOI.ObjectiveFunction{MOI.SingleVariable}(),
+        MOI.SingleVariable(x[1]),
+    )
+    clb = MOI.add_constraint.(model, MOI.SingleVariable.(x), MOI.EqualTo(0.0))
+    c = MOI.add_constraint(
+        model,
+        MOI.ScalarAffineFunction(MOI.ScalarAffineTerm.([2.0, 1.0], x), 0.0),
+        MOI.LessThan(-1.0),
+    )
+    MOI.optimize!(model)
+    @test MOI.get(model, MOI.TerminationStatus()) == MOI.INFEASIBLE
+    @test MOI.get(model, MOI.DualStatus()) == MOI.INFEASIBILITY_CERTIFICATE
+    clb_dual = MOI.get.(model, MOI.ConstraintDual(), clb)
+    c_dual = MOI.get(model, MOI.ConstraintDual(), c)
+    @show clb_dual, c_dual
+    @test clb_dual[1] > 1e-6
+    @test clb_dual[2] > 1e-6
+    @test c_dual[1] < -1e-6
+    @test clb_dual[1] ≈ -2 * c_dual atol = 1e-6
+    @test clb_dual[2] ≈ -c_dual atol = 1e-6
+end
+
+function test_farkas_dual_min_ii()
+    MOI.empty!(BRIDGED)
+    model = BRIDGED
+    MOI.set(model, MOI.Silent(), true)
+    x = MOI.add_variables(model, 2)
+    MOI.set(model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
+    MOI.set(
+        model,
+        MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}(),
+        MOI.ScalarAffineFunction([MOI.ScalarAffineTerm(-1.0, x[1])], 0.0),
+    )
+    clb = MOI.add_constraint.(
+        model, MOI.SingleVariable.(x), MOI.LessThan(0.0)
+    )
+    c = MOI.add_constraint(
+        model,
+        MOI.ScalarAffineFunction(MOI.ScalarAffineTerm.([-2.0, -1.0], x), 0.0),
+        MOI.LessThan(-1.0),
+    )
+    MOI.optimize!(model)
+    @test MOI.get(model, MOI.TerminationStatus()) == MOI.INFEASIBLE
+    @test MOI.get(model, MOI.DualStatus()) == MOI.INFEASIBILITY_CERTIFICATE
+    clb_dual = MOI.get.(model, MOI.ConstraintDual(), clb)
+    c_dual = MOI.get(model, MOI.ConstraintDual(), c)
+    @show clb_dual, c_dual
+    @test clb_dual[1] < -1e-6
+    @test clb_dual[2] < -1e-6
+    @test c_dual[1] < -1e-6
+    @test clb_dual[1] ≈ 2 * c_dual atol = 1e-6
+    @test clb_dual[2] ≈ c_dual atol = 1e-6
+end
+
+function test_farkas_dual_max()
+    MOI.empty!(BRIDGED)
+    model = BRIDGED
+    MOI.set(model, MOI.Silent(), true)
+    x = MOI.add_variables(model, 2)
+    MOI.set(model, MOI.ObjectiveSense(), MOI.MAX_SENSE)
+    MOI.set(
+        model,
+        MOI.ObjectiveFunction{MOI.SingleVariable}(),
+        MOI.SingleVariable(x[1]),
+    )
+    clb = MOI.add_constraint.(
+        model, MOI.SingleVariable.(x), MOI.GreaterThan(0.0)
+    )
+    c = MOI.add_constraint(
+        model,
+        MOI.ScalarAffineFunction(MOI.ScalarAffineTerm.([2.0, 1.0], x), 0.0),
+        MOI.LessThan(-1.0),
+    )
+    MOI.optimize!(model)
+    @test MOI.get(model, MOI.TerminationStatus()) == MOI.INFEASIBLE
+    @test MOI.get(model, MOI.DualStatus()) == MOI.INFEASIBILITY_CERTIFICATE
+    clb_dual = MOI.get.(model, MOI.ConstraintDual(), clb)
+    c_dual = MOI.get(model, MOI.ConstraintDual(), c)
+    @show clb_dual, c_dual
+    @test clb_dual[1] > 1e-6
+    @test clb_dual[2] > 1e-6
+    @test c_dual[1] < -1e-6
+    @test clb_dual[1] ≈ -2 * c_dual atol = 1e-6
+    @test clb_dual[2] ≈ -c_dual atol = 1e-6
+end
+
+function test_farkas_dual_max_ii()
+    MOI.empty!(BRIDGED)
+    model = BRIDGED
+    MOI.set(model, MOI.Silent(), true)
+    x = MOI.add_variables(model, 2)
+    MOI.set(model, MOI.ObjectiveSense(), MOI.MAX_SENSE)
+    MOI.set(
+        model,
+        MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}(),
+        MOI.ScalarAffineFunction([MOI.ScalarAffineTerm(-1.0, x[1])], 0.0),
+    )
+    clb = MOI.add_constraint.(
+        model, MOI.SingleVariable.(x), MOI.LessThan(0.0)
+    )
+    c = MOI.add_constraint(
+        model,
+        MOI.ScalarAffineFunction(MOI.ScalarAffineTerm.([-2.0, -1.0], x), 0.0),
+        MOI.LessThan(-1.0),
+    )
+    MOI.optimize!(model)
+    @test MOI.get(model, MOI.TerminationStatus()) == MOI.INFEASIBLE
+    @test MOI.get(model, MOI.DualStatus()) == MOI.INFEASIBILITY_CERTIFICATE
+    clb_dual = MOI.get.(model, MOI.ConstraintDual(), clb)
+    c_dual = MOI.get(model, MOI.ConstraintDual(), c)
+    @show clb_dual, c_dual
+    @test clb_dual[1] < -1e-6
+    @test clb_dual[2] < -1e-6
+    @test c_dual[1] < -1e-6
+    @test clb_dual[1] ≈ 2 * c_dual atol = 1e-6
+    @test clb_dual[2] ≈ c_dual atol = 1e-6
 end
 
 end  # module TestMOIWrapper
