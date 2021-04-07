@@ -3,6 +3,17 @@ import SparseArrays
 
 const MOI = MathOptInterface
 
+MOI.Utilities.@product_of_sets(LP, MOI.EqualTo{T}, MOI.LessThan{T}, MOI.GreaterThan{T})
+const Model = MOI.Utilities.GenericOptimizer{
+    Float64,
+    MOI.Utilities.MatrixOfConstraints{
+        Float64,
+        MOI.Utilities.MutableSparseMatrixCSC{Float64,Cint,MOI.Utilities.ZeroBasedIndexing},
+        MOI.Utilities.Box{Float64},
+        LP{Float64},
+    },
+}
+
 # Supported scalar sets
 const SCALAR_SETS = Union{
     MOI.GreaterThan{Float64},
@@ -241,136 +252,32 @@ end
 #   `copy_to` function
 # =======================
 
-_add_bounds(::Vector{Float64}, ub, i, s::MOI.LessThan{Float64}) = ub[i] = s.upper
-_add_bounds(lb, ::Vector{Float64}, i, s::MOI.GreaterThan{Float64}) = lb[i] = s.lower
-_add_bounds(lb, ub, i, s::MOI.EqualTo{Float64}) = lb[i], ub[i] = s.value, s.value
-_add_bounds(lb, ub, i, s::MOI.Interval{Float64}) = lb[i], ub[i] = s.lower, s.upper
-
-function _extract_bound_data(src, mapping, lb, ub, ::Type{S}) where S
-    for con_index in MOI.get(
-        src, MOI.ListOfConstraintIndices{MOI.SingleVariable, S}()
-    )
-        f = MOI.get(src, MOI.ConstraintFunction(), con_index)
-        s = MOI.get(src, MOI.ConstraintSet(), con_index)
-        column = mapping.varmap[f.variable].value
-        _add_bounds(lb, ub, column, s)
-        mapping.conmap[con_index] = MOI.ConstraintIndex{MOI.SingleVariable, S}(column)
-    end
-end
-
-function _copy_to_columns(dest::Optimizer, src, mapping)
-    x_src = MOI.get(src, MOI.ListOfVariableIndices())
-    N = Cint(length(x_src))
-    for i = 1:N
-        mapping.varmap[x_src[i]] = MOI.VariableIndex(i)
-    end
-
-    fobj = MOI.get(src, MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}())
-    c = fill(0.0, N)
-    for term in fobj.terms
-        i = mapping.varmap[term.variable].value
-        c[i] += term.coefficient
-    end
-    # Clp seems to negates the objective offset
-    Clp_setObjectiveOffset(dest, -fobj.constant)
-    return N, c
-end
-
-_bounds(s::MOI.GreaterThan{Float64}) = (s.lower, Inf)
-_bounds(s::MOI.LessThan{Float64}) = (-Inf, s.upper)
-_bounds(s::MOI.EqualTo{Float64}) = (s.value, s.value)
-_bounds(s::MOI.Interval{Float64}) = (s.lower, s.upper)
-
-function add_sizehint!(vec, n)
-    len = length(vec)
-    return sizehint!(vec, len + n)
-end
-
-function _extract_row_data(src, mapping, lb, ub, I, J, V, ::Type{S}) where S
-    row = length(I) == 0 ? 1 : I[end] + 1
-    list = MOI.get(
-        src, MOI.ListOfConstraintIndices{MOI.ScalarAffineFunction{Float64}, S}()
-    )
-    add_sizehint!(lb, length(list))
-    add_sizehint!(ub, length(list))
-    n_terms = 0
-    fs = Array{MOI.ScalarAffineFunction{Float64}}(undef, length(list))
-    for (i,c_index) in enumerate(list)
-        f = MOI.get(src, MOI.ConstraintFunction(), c_index)
-        fs[i] = f
-        l, u = _bounds(MOI.get(src, MOI.ConstraintSet(), c_index))
-        push!(lb, l - f.constant)
-        push!(ub, u - f.constant)
-        n_terms += length(f.terms)
-    end
-    add_sizehint!(I, n_terms)
-    add_sizehint!(J, n_terms)
-    add_sizehint!(V, n_terms)
-    for (i,c_index) in enumerate(list)
-        f = fs[i]#MOI.get(src, MOI.ConstraintFunction(), c_index)
-        for term in f.terms
-            push!(I, row)
-            push!(J, Cint(mapping.varmap[term.variable].value))
-            push!(V, term.coefficient)
-        end
-        mapping.conmap[c_index] = MOI.ConstraintIndex{
-            MOI.ScalarAffineFunction{Float64}, S
-        }(row)
-        row += 1
-    end
-    return
-end
-
-function test_data(src, dest)
-    for (F, S) in MOI.get(src, MOI.ListOfConstraintTypesPresent())
-        if !MOI.supports_constraint(dest, F, S)
-            throw(MOI.UnsupportedConstraint{F, S}("Clp.Optimizer does not support constraints of type $F-in-$S."))
-        end
-    end
-    fobj_type = MOI.get(src, MOI.ObjectiveFunctionType())
-    if !MOI.supports(dest, MOI.ObjectiveFunction{fobj_type}())
-        throw(MOI.UnsupportedAttribute(MOI.ObjectiveFunction(fobj_type)))
-    end
-end
-
-function MOI.copy_to(
+function _copy_to(
     dest::Optimizer,
-    src::MOI.ModelLike;
-    copy_names::Bool = false
+    src::Model
 )
     @assert MOI.is_empty(dest)
-    test_data(src, dest)
-
-    mapping = MOI.Utilities.IndexMap()
-    N, c = _copy_to_columns(dest, src, mapping)
-    cl, cu = fill(-Inf, N), fill(Inf, N)
-    rl, ru, I, J, V = Float64[], Float64[], Cint[], Cint[], Float64[]
-
-    _extract_bound_data(src, mapping, cl, cu, MOI.GreaterThan{Float64})
-    _extract_row_data(src, mapping, rl, ru, I, J, V, MOI.GreaterThan{Float64})
-    _extract_bound_data(src, mapping, cl, cu, MOI.LessThan{Float64})
-    _extract_row_data(src, mapping, rl, ru, I, J, V, MOI.LessThan{Float64})
-    _extract_bound_data(src, mapping, cl, cu, MOI.EqualTo{Float64})
-    _extract_row_data(src, mapping, rl, ru, I, J, V, MOI.EqualTo{Float64})
-    _extract_bound_data(src, mapping, cl, cu, MOI.Interval{Float64})
-    _extract_row_data(src, mapping, rl, ru, I, J, V, MOI.Interval{Float64})
-
-    M = Cint(length(rl))
-    A = SparseArrays.sparse(I, J, V, M, N)
+    A = src.constraints.coefficients
+    row_bounds = src.constraints.constants
+    obj = MOI.get(src, MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}())
+    c = zeros(A.n)
+    for term in obj.terms
+        c[term.variable.value] += term.coefficient
+    end
+    Clp_setObjectiveOffset(dest, -obj.constant)
     Clp_loadProblem(
         dest,
         A.n,
         A.m,
-        A.colptr .- Cint(1),
-        A.rowval .- Cint(1),
+        A.colptr,
+        A.rowval,
         A.nzval,
-        cl,
-        cu,
+        src.lower_bound,
+        src.upper_bound,
         c,
-        rl,
-        ru
+        row_bounds.lower,
+        row_bounds.upper,
     )
-
     sense = MOI.get(src, MOI.ObjectiveSense())
     if sense == MOI.MIN_SENSE
         Clp_setObjSense(dest, 1)
@@ -380,7 +287,33 @@ function MOI.copy_to(
         @assert sense == MOI.FEASIBILITY_SENSE
         Clp_setObjSense(dest, 0)
     end
-    return mapping
+    return MOI.Utilities.identity_index_map(src)
+end
+function MOI.copy_to(
+    dest::Optimizer,
+    src::Model;
+    copy_names::Bool = false
+)
+    _copy_to(dest, src)
+    return MOI.Utilities.identity_index_map(src)
+end
+function MOI.copy_to(
+    dest::Optimizer,
+    src::MOI.Utilities.UniversalFallback{Model};
+    copy_names::Bool = false
+)
+    return MOI.copy_to(dest, src.model)
+end
+
+function MOI.copy_to(
+    dest::Optimizer,
+    src::MOI.ModelLike;
+    copy_names::Bool = false
+)
+    model = Model()
+    index_map = MOI.copy_to(model, src)
+    _copy_to(dest, model)
+    return index_map
 end
 
 # ===============================
