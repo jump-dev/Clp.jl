@@ -25,7 +25,7 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
 
     Create a new Optimizer object.
 
-    Set optimizer attributes using `MOI.RawParameter` or
+    Set optimizer attributes using `MOI.RawOptimizerAttribute` or
     `JuMP.set_optimizer_atttribute`. For a list of supported parameter names,
     see `Clp.SUPPORTED_PARAMETERS`.
 
@@ -41,14 +41,14 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
         if length(kwargs) > 0
             @warn("""Passing optimizer attributes as keyword arguments to
             Clp.Optimizer is deprecated. Use
-                MOI.set(model, MOI.RawParameter("key"), value)
+                MOI.set(model, MOI.RawOptimizerAttribute("key"), value)
             or
                 JuMP.set_optimizer_attribute(model, "key", value)
             instead.
             """)
         end
         for (key, value) in kwargs
-            MOI.set(model, MOI.RawParameter(String(key)), value)
+            MOI.set(model, MOI.RawOptimizerAttribute(String(key)), value)
         end
         finalizer(model) do m
             Clp_deleteModel(m)
@@ -75,7 +75,7 @@ end
 function MOI.empty!(model::Optimizer)
     # Copy parameters from old model into new model
     old_options = Dict(
-        key => MOI.get(model, MOI.RawParameter(key)) for
+        key => MOI.get(model, MOI.RawOptimizerAttribute(key)) for
         key in model.options_set
     )
     empty!(model.options_set)
@@ -84,7 +84,7 @@ function MOI.empty!(model::Optimizer)
     model.optimize_called = false
     model.solve_time = 0.0
     for (key, value) in old_options
-        MOI.set(model, MOI.RawParameter(key), value)
+        MOI.set(model, MOI.RawOptimizerAttribute(key), value)
     end
     # Work-around for maximumSeconds
     Clp_setMaximumSeconds(model, model.maximumSeconds)
@@ -111,11 +111,11 @@ const SUPPORTED_PARAMETERS = (
     "InfeasibleReturn",
 )
 
-function MOI.supports(::Optimizer, param::MOI.RawParameter)
+function MOI.supports(::Optimizer, param::MOI.RawOptimizerAttribute)
     return param.name in SUPPORTED_PARAMETERS
 end
 
-function MOI.set(model::Optimizer, param::MOI.RawParameter, value)
+function MOI.set(model::Optimizer, param::MOI.RawOptimizerAttribute, value)
     name = String(param.name)
     push!(model.options_set, name)
     if name == "PrimalTolerance"
@@ -148,7 +148,7 @@ function MOI.set(model::Optimizer, param::MOI.RawParameter, value)
     return
 end
 
-function MOI.get(model::Optimizer, param::MOI.RawParameter)
+function MOI.get(model::Optimizer, param::MOI.RawOptimizerAttribute)
     name = String(param.name)
     if name == "PrimalTolerance"
         return Clp_primalTolerance(model)
@@ -260,10 +260,9 @@ function _extract_bound_data(src, mapping, lb, ub, ::Type{S}) where {S}
         MOI.get(src, MOI.ListOfConstraintIndices{MOI.SingleVariable,S}())
         f = MOI.get(src, MOI.ConstraintFunction(), con_index)
         s = MOI.get(src, MOI.ConstraintSet(), con_index)
-        column = mapping.varmap[f.variable].value
+        column = mapping[f.variable].value
         _add_bounds(lb, ub, column, s)
-        mapping.conmap[con_index] =
-            MOI.ConstraintIndex{MOI.SingleVariable,S}(column)
+        mapping[con_index] = MOI.ConstraintIndex{MOI.SingleVariable,S}(column)
     end
 end
 
@@ -271,14 +270,14 @@ function _copy_to_columns(dest::Optimizer, src, mapping)
     x_src = MOI.get(src, MOI.ListOfVariableIndices())
     N = Cint(length(x_src))
     for i in 1:N
-        mapping.varmap[x_src[i]] = MOI.VariableIndex(i)
+        mapping[x_src[i]] = MOI.VariableIndex(i)
     end
 
     fobj =
         MOI.get(src, MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}())
     c = fill(0.0, N)
     for term in fobj.terms
-        i = mapping.varmap[term.variable_index].value
+        i = mapping[term.variable].value
         c[i] += term.coefficient
     end
     # Clp seems to negates the objective offset
@@ -321,10 +320,10 @@ function _extract_row_data(src, mapping, lb, ub, I, J, V, ::Type{S}) where {S}
         f = fs[i]#MOI.get(src, MOI.ConstraintFunction(), c_index)
         for term in f.terms
             push!(I, row)
-            push!(J, Cint(mapping.varmap[term.variable_index].value))
+            push!(J, Cint(mapping[term.variable].value))
             push!(V, term.coefficient)
         end
-        mapping.conmap[c_index] =
+        mapping[c_index] =
             MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},S}(row)
         row += 1
     end
@@ -332,7 +331,7 @@ function _extract_row_data(src, mapping, lb, ub, I, J, V, ::Type{S}) where {S}
 end
 
 function test_data(src, dest)
-    for (F, S) in MOI.get(src, MOI.ListOfConstraints())
+    for (F, S) in MOI.get(src, MOI.ListOfConstraintTypesPresent())
         if !MOI.supports_constraint(dest, F, S)
             throw(
                 MOI.UnsupportedConstraint{F,S}(
@@ -409,7 +408,7 @@ function MOI.optimize!(model::Optimizer)
     return
 end
 
-function MOI.get(model::Optimizer, ::MOI.SolveTime)
+function MOI.get(model::Optimizer, ::MOI.SolveTimeSec)
     return model.solve_time
 end
 
@@ -475,7 +474,7 @@ function MOI.get(model::Optimizer, ::MOI.ResultCount)
 end
 
 function MOI.get(model::Optimizer, attr::MOI.PrimalStatus)
-    if attr.N != 1
+    if attr.result_index != 1
         return MOI.NO_SOLUTION
     elseif Clp_isProvenDualInfeasible(model) != 0
         return MOI.INFEASIBILITY_CERTIFICATE
@@ -487,7 +486,7 @@ function MOI.get(model::Optimizer, attr::MOI.PrimalStatus)
 end
 
 function MOI.get(model::Optimizer, attr::MOI.DualStatus)
-    if attr.N != 1
+    if attr.result_index != 1
         return MOI.NO_SOLUTION
     elseif Clp_isProvenPrimalInfeasible(model) != 0
         return MOI.INFEASIBILITY_CERTIFICATE
