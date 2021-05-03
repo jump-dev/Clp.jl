@@ -268,7 +268,7 @@ function _copy_to_columns(dest::Optimizer, src, mapping)
     fobj = MOI.get(src, MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}())
     c = fill(0.0, N)
     for term in fobj.terms
-        i = mapping.varmap[term.variable_index].value
+        i = mapping.varmap[term.variable].value
         c[i] += term.coefficient
     end
     # Clp seems to negates the objective offset
@@ -310,7 +310,7 @@ function _extract_row_data(src, mapping, lb, ub, I, J, V, ::Type{S}) where S
         f = fs[i]#MOI.get(src, MOI.ConstraintFunction(), c_index)
         for term in f.terms
             push!(I, row)
-            push!(J, Cint(mapping.varmap[term.variable_index].value))
+            push!(J, Cint(mapping.varmap[term.variable].value))
             push!(V, term.coefficient)
         end
         mapping.conmap[c_index] = MOI.ConstraintIndex{
@@ -322,7 +322,7 @@ function _extract_row_data(src, mapping, lb, ub, I, J, V, ::Type{S}) where S
 end
 
 function test_data(src, dest)
-    for (F, S) in MOI.get(src, MOI.ListOfConstraints())
+    for (F, S) in MOI.get(src, MOI.ListOfConstraintTypesPresent())
         if !MOI.supports_constraint(dest, F, S)
             throw(MOI.UnsupportedConstraint{F, S}("Clp.Optimizer does not support constraints of type $F-in-$S."))
         end
@@ -395,7 +395,7 @@ function MOI.optimize!(model::Optimizer)
     return
 end
 
-function MOI.get(model::Optimizer, ::MOI.SolveTime)
+function MOI.get(model::Optimizer, ::MOI.SolveTimeSec)
     return model.solve_time
 end
 
@@ -461,7 +461,7 @@ function MOI.get(model::Optimizer, ::MOI.ResultCount)
 end
 
 function MOI.get(model::Optimizer, attr::MOI.PrimalStatus)
-    if attr.N != 1
+    if attr.result_index != 1
         return MOI.NO_SOLUTION
     elseif Clp_isProvenDualInfeasible(model) != 0
         return MOI.INFEASIBILITY_CERTIFICATE
@@ -473,7 +473,7 @@ function MOI.get(model::Optimizer, attr::MOI.PrimalStatus)
 end
 
 function MOI.get(model::Optimizer, attr::MOI.DualStatus)
-    if attr.N != 1
+    if attr.result_index != 1
         return MOI.NO_SOLUTION
     elseif Clp_isProvenPrimalInfeasible(model) != 0
         return MOI.INFEASIBILITY_CERTIFICATE
