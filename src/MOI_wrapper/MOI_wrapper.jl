@@ -36,7 +36,8 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
         set_optimizer_attribute(model, "LogLevel", 0)
     """
     function Optimizer(; kwargs...)
-        model = new(Clp_newModel(), ClpSolve_new(), Set{String}(), false, 0.0, -1.0)
+        model =
+            new(Clp_newModel(), ClpSolve_new(), Set{String}(), false, 0.0, -1.0)
         if length(kwargs) > 0
             @warn("""Passing optimizer attributes as keyword arguments to
             Clp.Optimizer is deprecated. Use
@@ -51,14 +52,16 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
         end
         finalizer(model) do m
             Clp_deleteModel(m)
-            ClpSolve_delete(m.solver_options)
+            return ClpSolve_delete(m.solver_options)
         end
         return model
     end
 end
 
 Base.cconvert(::Type{Ptr{Cvoid}}, model::Optimizer) = model
-Base.unsafe_convert(::Type{Ptr{Cvoid}}, model::Optimizer) = model.inner::Ptr{Cvoid}
+function Base.unsafe_convert(::Type{Ptr{Cvoid}}, model::Optimizer)
+    return model.inner::Ptr{Cvoid}
+end
 
 # ====================
 #   empty functions
@@ -71,8 +74,10 @@ end
 
 function MOI.empty!(model::Optimizer)
     # Copy parameters from old model into new model
-    old_options =
-        Dict(key => MOI.get(model, MOI.RawParameter(key)) for key in model.options_set)
+    old_options = Dict(
+        key => MOI.get(model, MOI.RawParameter(key)) for
+        key in model.options_set
+    )
     empty!(model.options_set)
     Clp_deleteModel(model)
     model.inner = Clp_newModel()
@@ -237,29 +242,40 @@ end
 #   `copy_to` function
 # =======================
 
-_add_bounds(::Vector{Float64}, ub, i, s::MOI.LessThan{Float64}) = ub[i] = s.upper
-_add_bounds(lb, ::Vector{Float64}, i, s::MOI.GreaterThan{Float64}) = lb[i] = s.lower
-_add_bounds(lb, ub, i, s::MOI.EqualTo{Float64}) = lb[i], ub[i] = s.value, s.value
-_add_bounds(lb, ub, i, s::MOI.Interval{Float64}) = lb[i], ub[i] = s.lower, s.upper
+function _add_bounds(::Vector{Float64}, ub, i, s::MOI.LessThan{Float64})
+    return ub[i] = s.upper
+end
+function _add_bounds(lb, ::Vector{Float64}, i, s::MOI.GreaterThan{Float64})
+    return lb[i] = s.lower
+end
+function _add_bounds(lb, ub, i, s::MOI.EqualTo{Float64})
+    return lb[i], ub[i] = s.value, s.value
+end
+function _add_bounds(lb, ub, i, s::MOI.Interval{Float64})
+    return lb[i], ub[i] = s.lower, s.upper
+end
 
 function _extract_bound_data(src, mapping, lb, ub, ::Type{S}) where {S}
-    for con_index in MOI.get(src, MOI.ListOfConstraintIndices{MOI.SingleVariable,S}())
+    for con_index in
+        MOI.get(src, MOI.ListOfConstraintIndices{MOI.SingleVariable,S}())
         f = MOI.get(src, MOI.ConstraintFunction(), con_index)
         s = MOI.get(src, MOI.ConstraintSet(), con_index)
         column = mapping.varmap[f.variable].value
         _add_bounds(lb, ub, column, s)
-        mapping.conmap[con_index] = MOI.ConstraintIndex{MOI.SingleVariable,S}(column)
+        mapping.conmap[con_index] =
+            MOI.ConstraintIndex{MOI.SingleVariable,S}(column)
     end
 end
 
 function _copy_to_columns(dest::Optimizer, src, mapping)
     x_src = MOI.get(src, MOI.ListOfVariableIndices())
     N = Cint(length(x_src))
-    for i = 1:N
+    for i in 1:N
         mapping.varmap[x_src[i]] = MOI.VariableIndex(i)
     end
 
-    fobj = MOI.get(src, MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}())
+    fobj =
+        MOI.get(src, MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}())
     c = fill(0.0, N)
     for term in fobj.terms
         i = mapping.varmap[term.variable_index].value
@@ -282,7 +298,10 @@ end
 
 function _extract_row_data(src, mapping, lb, ub, I, J, V, ::Type{S}) where {S}
     row = length(I) == 0 ? 1 : I[end] + 1
-    list = MOI.get(src, MOI.ListOfConstraintIndices{MOI.ScalarAffineFunction{Float64},S}())
+    list = MOI.get(
+        src,
+        MOI.ListOfConstraintIndices{MOI.ScalarAffineFunction{Float64},S}(),
+    )
     add_sizehint!(lb, length(list))
     add_sizehint!(ub, length(list))
     n_terms = 0
@@ -328,7 +347,11 @@ function test_data(src, dest)
     end
 end
 
-function MOI.copy_to(dest::Optimizer, src::MOI.ModelLike; copy_names::Bool = false)
+function MOI.copy_to(
+    dest::Optimizer,
+    src::MOI.ModelLike;
+    copy_names::Bool = false,
+)
     @assert MOI.is_empty(dest)
     test_data(src, dest)
 
@@ -494,7 +517,11 @@ function _unsafe_wrap_clp_array(
     return indices === nothing ? x : x[indices]
 end
 
-function MOI.get(model::Optimizer, attr::MOI.VariablePrimal, x::MOI.VariableIndex)
+function MOI.get(
+    model::Optimizer,
+    attr::MOI.VariablePrimal,
+    x::MOI.VariableIndex,
+)
     MOI.check_result_index_bounds(model, attr)
     primal_status = MOI.get(model, MOI.PrimalStatus())
     if primal_status == MOI.INFEASIBILITY_CERTIFICATE
@@ -518,7 +545,11 @@ function MOI.get(model::Optimizer, attr::MOI.VariablePrimal, x::MOI.VariableInde
     end
 end
 
-function MOI.get(model::Optimizer, attr::MOI.VariablePrimal, xs::Vector{MOI.VariableIndex})
+function MOI.get(
+    model::Optimizer,
+    attr::MOI.VariablePrimal,
+    xs::Vector{MOI.VariableIndex},
+)
     MOI.check_result_index_bounds(model, attr)
     col_indices = [idx.value for idx in xs]
     primal_status = MOI.get(model, MOI.PrimalStatus())
@@ -550,7 +581,12 @@ function MOI.get(
     c::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},<:SCALAR_SETS},
 )
     MOI.check_result_index_bounds(model, attr)
-    return _unsafe_wrap_clp_array(model, Clp_getRowActivity, Clp_getNumRows(model), c.value)
+    return _unsafe_wrap_clp_array(
+        model,
+        Clp_getRowActivity,
+        Clp_getNumRows(model),
+        c.value,
+    )
 end
 
 # TODO: What happens if model is unbounded / infeasible?
@@ -609,7 +645,13 @@ function MOI.get(
         return sense * dsol
     elseif dual_status == MOI.INFEASIBILITY_CERTIFICATE
         # We claim ownership of the pointer returned by Clp_infeasibilityRay.
-        return -_unsafe_wrap_clp_array(model, Clp_infeasibilityRay, n, c.value; own = true)
+        return -_unsafe_wrap_clp_array(
+            model,
+            Clp_infeasibilityRay,
+            n,
+            c.value;
+            own = true,
+        )
     else
         error("Dual solution not available")
     end
@@ -624,7 +666,12 @@ function MOI.get(
     if MOI.get(model, MOI.DualStatus()) == MOI.INFEASIBILITY_CERTIFICATE
         return min(0.0, _farkas_variable_dual(model, c.value))
     end
-    rc = _unsafe_wrap_clp_array(model, Clp_getReducedCost, Clp_getNumCols(model), c.value)
+    rc = _unsafe_wrap_clp_array(
+        model,
+        Clp_getReducedCost,
+        Clp_getNumCols(model),
+        c.value,
+    )
     return min(0.0, Clp_getObjSense(model) * rc)
 end
 
@@ -637,7 +684,12 @@ function MOI.get(
     if MOI.get(model, MOI.DualStatus()) == MOI.INFEASIBILITY_CERTIFICATE
         return max(0.0, _farkas_variable_dual(model, c.value))
     end
-    rc = _unsafe_wrap_clp_array(model, Clp_getReducedCost, Clp_getNumCols(model), c.value)
+    rc = _unsafe_wrap_clp_array(
+        model,
+        Clp_getReducedCost,
+        Clp_getNumCols(model),
+        c.value,
+    )
     return max(0.0, Clp_getObjSense(model) * rc)
 end
 
@@ -653,6 +705,11 @@ function MOI.get(
     if MOI.get(model, MOI.DualStatus()) == MOI.INFEASIBILITY_CERTIFICATE
         return _farkas_variable_dual(model, c.value)
     end
-    rc = _unsafe_wrap_clp_array(model, Clp_getReducedCost, Clp_getNumCols(model), c.value)
+    rc = _unsafe_wrap_clp_array(
+        model,
+        Clp_getReducedCost,
+        Clp_getNumCols(model),
+        c.value,
+    )
     return Clp_getObjSense(model) * rc
 end
