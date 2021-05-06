@@ -21,7 +21,7 @@ jobs:
           Pkg.add(PackageSpec(name="JuliaFormatter", version="0.13.2"))
           using JuliaFormatter
           format("src/MOI_wrapper", verbose=true)
-          format_file("src/GLPK.jl")
+          format_file("src/Clp.jl")
           format("test", verbose=true)
           out = String(read(Cmd(`git diff`)))
           if isempty(out)
