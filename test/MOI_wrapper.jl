@@ -4,21 +4,19 @@ using Test
 using MathOptInterface
 import Clp
 
-const MOI  = MathOptInterface
+const MOI = MathOptInterface
 
 const OPTIMIZER = Clp.Optimizer()
 MOI.set(OPTIMIZER, MOI.Silent(), true)
 
 const CACHED = MOI.Utilities.CachingOptimizer(
     MOI.Utilities.UniversalFallback(MOI.Utilities.Model{Float64}()),
-    OPTIMIZER
+    OPTIMIZER,
 )
 
 const BRIDGED = MOI.Bridges.full_bridge_optimizer(CACHED, Float64)
 
-const CONFIG = MOI.Test.TestConfig(
-    dual_objective_value = false,
-)
+const CONFIG = MOI.Test.TestConfig(dual_objective_value = false)
 
 
 function test_SolverName()
@@ -37,22 +35,26 @@ function test_basicconstraint()
 end
 
 function test_unittest()
-    MOI.Test.unittest(BRIDGED, CONFIG, [
-        # Not supported by upstream.
-        "number_threads",
+    MOI.Test.unittest(
+        BRIDGED,
+        CONFIG,
+        [
+            # Not supported by upstream.
+            "number_threads",
 
-        # Tests that require integer variables
-        "solve_integer_edge_cases",
-        "solve_zero_one_with_bounds_1",
-        "solve_zero_one_with_bounds_2",
-        "solve_zero_one_with_bounds_3",
-        "solve_objbound_edge_cases",
+            # Tests that require integer variables
+            "solve_integer_edge_cases",
+            "solve_zero_one_with_bounds_1",
+            "solve_zero_one_with_bounds_2",
+            "solve_zero_one_with_bounds_3",
+            "solve_objbound_edge_cases",
 
-        # Tests that require quadratic objective / constraints
-        "solve_qcp_edge_cases",
-        "solve_qp_edge_cases",
-        "delete_soc_variables",
-    ])
+            # Tests that require quadratic objective / constraints
+            "solve_qcp_edge_cases",
+            "solve_qp_edge_cases",
+            "delete_soc_variables",
+        ],
+    )
 end
 
 function test_contlinear()
@@ -80,7 +82,7 @@ function test_Nonexistant_unbounded_ray()
     MOI.set(
         BRIDGED,
         MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}(),
-        MOI.ScalarAffineFunction(MOI.ScalarAffineTerm.(1.0, x), 0.0)
+        MOI.ScalarAffineFunction(MOI.ScalarAffineTerm.(1.0, x), 0.0),
     )
     MOI.set(BRIDGED, MOI.ObjectiveSense(), MOI.MAX_SENSE)
     MOI.optimize!(BRIDGED)
@@ -134,8 +136,7 @@ function test_copy_to_bug()
             model,
             MOI.ScalarAffineFunction([MOI.ScalarAffineTerm(1.0, x)], 0.0),
             MOI.EqualTo(1.0),
-        )
-        for i = 1:2
+        ) for i = 1:2
     ]
     clp = Clp.Optimizer()
     index_map = MOI.copy_to(clp, model)
@@ -157,14 +158,8 @@ function test_farkas_dual_min()
     MOI.set(model, MOI.Silent(), true)
     x = MOI.add_variables(model, 2)
     MOI.set(model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
-    MOI.set(
-        model,
-        MOI.ObjectiveFunction{MOI.SingleVariable}(),
-        MOI.SingleVariable(x[1]),
-    )
-    clb = MOI.add_constraint.(
-        model, MOI.SingleVariable.(x), MOI.GreaterThan(0.0)
-    )
+    MOI.set(model, MOI.ObjectiveFunction{MOI.SingleVariable}(), MOI.SingleVariable(x[1]))
+    clb = MOI.add_constraint.(model, MOI.SingleVariable.(x), MOI.GreaterThan(0.0))
     c = MOI.add_constraint(
         model,
         MOI.ScalarAffineFunction(MOI.ScalarAffineTerm.([2.0, 1.0], x), 0.0),
@@ -189,14 +184,8 @@ function test_farkas_dual_min_interval()
     MOI.set(model, MOI.Silent(), true)
     x = MOI.add_variables(model, 2)
     MOI.set(model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
-    MOI.set(
-        model,
-        MOI.ObjectiveFunction{MOI.SingleVariable}(),
-        MOI.SingleVariable(x[1]),
-    )
-    clb = MOI.add_constraint.(
-        model, MOI.SingleVariable.(x), MOI.Interval(0.0, 10.0)
-    )
+    MOI.set(model, MOI.ObjectiveFunction{MOI.SingleVariable}(), MOI.SingleVariable(x[1]))
+    clb = MOI.add_constraint.(model, MOI.SingleVariable.(x), MOI.Interval(0.0, 10.0))
     c = MOI.add_constraint(
         model,
         MOI.ScalarAffineFunction(MOI.ScalarAffineTerm.([2.0, 1.0], x), 0.0),
@@ -221,11 +210,7 @@ function test_farkas_dual_min_equalto()
     MOI.set(model, MOI.Silent(), true)
     x = MOI.add_variables(model, 2)
     MOI.set(model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
-    MOI.set(
-        model,
-        MOI.ObjectiveFunction{MOI.SingleVariable}(),
-        MOI.SingleVariable(x[1]),
-    )
+    MOI.set(model, MOI.ObjectiveFunction{MOI.SingleVariable}(), MOI.SingleVariable(x[1]))
     clb = MOI.add_constraint.(model, MOI.SingleVariable.(x), MOI.EqualTo(0.0))
     c = MOI.add_constraint(
         model,
@@ -256,9 +241,7 @@ function test_farkas_dual_min_ii()
         MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}(),
         MOI.ScalarAffineFunction([MOI.ScalarAffineTerm(-1.0, x[1])], 0.0),
     )
-    clb = MOI.add_constraint.(
-        model, MOI.SingleVariable.(x), MOI.LessThan(0.0)
-    )
+    clb = MOI.add_constraint.(model, MOI.SingleVariable.(x), MOI.LessThan(0.0))
     c = MOI.add_constraint(
         model,
         MOI.ScalarAffineFunction(MOI.ScalarAffineTerm.([-2.0, -1.0], x), 0.0),
@@ -283,14 +266,8 @@ function test_farkas_dual_max()
     MOI.set(model, MOI.Silent(), true)
     x = MOI.add_variables(model, 2)
     MOI.set(model, MOI.ObjectiveSense(), MOI.MAX_SENSE)
-    MOI.set(
-        model,
-        MOI.ObjectiveFunction{MOI.SingleVariable}(),
-        MOI.SingleVariable(x[1]),
-    )
-    clb = MOI.add_constraint.(
-        model, MOI.SingleVariable.(x), MOI.GreaterThan(0.0)
-    )
+    MOI.set(model, MOI.ObjectiveFunction{MOI.SingleVariable}(), MOI.SingleVariable(x[1]))
+    clb = MOI.add_constraint.(model, MOI.SingleVariable.(x), MOI.GreaterThan(0.0))
     c = MOI.add_constraint(
         model,
         MOI.ScalarAffineFunction(MOI.ScalarAffineTerm.([2.0, 1.0], x), 0.0),
@@ -320,9 +297,7 @@ function test_farkas_dual_max_ii()
         MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}(),
         MOI.ScalarAffineFunction([MOI.ScalarAffineTerm(-1.0, x[1])], 0.0),
     )
-    clb = MOI.add_constraint.(
-        model, MOI.SingleVariable.(x), MOI.LessThan(0.0)
-    )
+    clb = MOI.add_constraint.(model, MOI.SingleVariable.(x), MOI.LessThan(0.0))
     c = MOI.add_constraint(
         model,
         MOI.ScalarAffineFunction(MOI.ScalarAffineTerm.([-2.0, -1.0], x), 0.0),
