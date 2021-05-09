@@ -3,7 +3,11 @@ import SparseArrays
 
 const MOI = MathOptInterface
 
-MOI.Utilities.@product_of_sets(LP, MOI.EqualTo{T}, MOI.LessThan{T}, MOI.GreaterThan{T})
+# In comparison to `@mix_of_scalar_sets`, `@product_of_scalar_sets` sorts the
+# rows grouping the same sets together. Therefore, `ListOfConstraintIndices`
+# is a contiguous range from 1 to the number of rows which makes it more friendly
+# with `CleverDict` hence speed up the copy as creating the `IndexMap` is cheaper.
+MOI.Utilities.@product_of_scalar_sets(LP, MOI.EqualTo{T}, MOI.LessThan{T}, MOI.GreaterThan{T})
 const Model = MOI.Utilities.GenericOptimizer{
     Float64,
     MOI.Utilities.MatrixOfConstraints{
@@ -287,7 +291,7 @@ function _copy_to(
         @assert sense == MOI.FEASIBILITY_SENSE
         Clp_setObjSense(dest, 0)
     end
-    return MOI.Utilities.identity_index_map(src)
+    return
 end
 function MOI.copy_to(
     dest::Optimizer,
