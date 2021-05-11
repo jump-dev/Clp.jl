@@ -713,3 +713,60 @@ function MOI.get(
     )
     return Clp_getObjSense(model) * rc
 end
+
+# Corresponds to the `Status` enum defined in
+# https://github.com/coin-or/Clp/blob/8419e63/Clp/src/ClpSimplex.hpp#L114
+const _CLP_BASIS_STATUS = Dict(
+    # isFree
+    0x00 => MOI.BASIC,
+    # basic
+    0x01 => MOI.BASIC,
+    # atUpperBound
+    0x02 => MOI.NONBASIC_AT_UPPER,
+    # atLowerBound
+    0x03 => MOI.NONBASIC_AT_LOWER,
+    # superBasic
+    0x04 => MOI.SUPER_BASIC,
+    # isFixed
+    0x05 => MOI.NONBASIC,
+)
+
+function _nonbasic_status(status, ::Type{<:MOI.LessThan})
+    return status == MOI.NONBASIC_AT_LOWER ? MOI.BASIC : MOI.NONBASIC
+end
+
+function _nonbasic_status(status, ::Type{<:MOI.GreaterThan})
+    return status == MOI.NONBASIC_AT_LOWER ? MOI.NONBASIC : MOI.BASIC
+end
+
+_nonbasic_status(::Any, ::Type{<:MOI.EqualTo}) = MOI.NONBASIC
+
+_nonbasic_status(status, ::Type{<:MOI.Interval}) = status
+
+function MOI.get(
+    model::Optimizer,
+    ::MOI.ConstraintBasisStatus,
+    c::MOI.ConstraintIndex{F,S},
+) where {F,S}
+    code = Clp_getRowStatus(model, c.value - 1)
+    status = _CLP_BASIS_STATUS[code]
+    if status == MOI.NONBASIC_AT_UPPER || status == MOI.NONBASIC_AT_LOWER
+        return _nonbasic_status(status, S)
+    else
+        return status
+    end
+end
+
+function MOI.get(
+    model::Optimizer,
+    ::MOI.ConstraintBasisStatus,
+    c::MOI.ConstraintIndex{MOI.SingleVariable,S},
+) where {S}
+    code = Clp_getColumnStatus(model, c.value - 1)
+    status = _CLP_BASIS_STATUS[code]
+    if status == MOI.NONBASIC_AT_UPPER || status == MOI.NONBASIC_AT_LOWER
+        return _nonbasic_status(status, S)
+    else
+        return status
+    end
+end

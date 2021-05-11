@@ -16,7 +16,10 @@ const CACHED = MOI.Utilities.CachingOptimizer(
 
 const BRIDGED = MOI.Bridges.full_bridge_optimizer(CACHED, Float64)
 
-const CONFIG = MOI.Test.TestConfig(dual_objective_value = false)
+const CONFIG = MOI.Test.TestConfig(
+    dual_objective_value = false,
+    basis = true,
+)
 
 function test_SolverName()
     @test MOI.get(OPTIMIZER, MOI.SolverName()) == "Clp"
