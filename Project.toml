@@ -1,7 +1,7 @@
 name = "Clp"
 uuid = "e2554f3b-3117-50c0-817c-e040a3ddf72d"
 repo = "https://github.com/jump-dev/Clp.jl.git"
-version = "0.8.4"
+version = "0.8.5"
 
 [deps]
 BinaryProvider = "b99e7846-7c00-51b0-8f62-c81ae34c0232"
