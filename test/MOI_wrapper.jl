@@ -11,6 +11,7 @@ MOI.set(OPTIMIZER, MOI.Silent(), true)
 
 const CACHED = MOI.Utilities.CachingOptimizer(
     MOI.Utilities.UniversalFallback(MOI.Utilities.Model{Float64}()),
+    # MOI.Utilities.UniversalFallback(Clp.ModelCache()),
     OPTIMIZER,
 )
 
@@ -25,8 +26,8 @@ end
 function test_supports_default_copy_to()
     @test !MOI.Utilities.supports_allocate_load(OPTIMIZER, false)
     @test !MOI.Utilities.supports_allocate_load(OPTIMIZER, true)
-    @test !MOI.Utilities.supports_default_copy_to(OPTIMIZER, false)
-    @test !MOI.Utilities.supports_default_copy_to(OPTIMIZER, true)
+    @test !MOI.supports_incremental_interface(OPTIMIZER, false)
+    @test !MOI.supports_incremental_interface(OPTIMIZER, true)
 end
 
 function test_basicconstraint()
