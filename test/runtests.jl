@@ -1,5 +1,7 @@
-import Pkg
-Pkg.add(PackageSpec(name="MathOptInterface", rev="master"))
+if get(ENV, "GITHUB_ACTIONS", "") == "true"
+    import Pkg
+    Pkg.add(PackageSpec(name="MathOptInterface", rev="master"))
+end
 
 using Test
 
