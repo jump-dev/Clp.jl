@@ -293,10 +293,8 @@ function _copy_to(dest::Optimizer, src::OptimizerCache)
     @assert MOI.is_empty(dest)
     A = src.constraints.coefficients
     row_bounds = src.constraints.constants
-    obj = MOI.get(
-        src,
-        MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}(),
-    )
+    obj =
+        MOI.get(src, MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}())
     c = zeros(A.n)
     for term in obj.terms
         c[term.variable.value] += term.coefficient
@@ -346,7 +344,7 @@ end
 function MOI.copy_to(
     dest::Optimizer,
     src::MOI.ModelLike;
-    copy_names::Bool = false
+    copy_names::Bool = false,
 )
     cache = OptimizerCache()
     src_cache = MOI.copy_to(cache, src)
