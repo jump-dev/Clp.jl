@@ -1,3 +1,6 @@
+import Pkg
+Pkg.add(PackageSpec(name="MathOptInterface", rev="master"))
+
 using Test
 
 function runtests(mod)
