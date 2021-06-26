@@ -80,6 +80,10 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
     end
 end
 
+function MOI.default_cache(::Optimizer, ::Type{Float64})
+    return MOI.Utilities.UniversalFallback(OptimizerCache())
+end
+
 Base.cconvert(::Type{Ptr{Cvoid}}, model::Optimizer) = model
 function Base.unsafe_convert(::Type{Ptr{Cvoid}}, model::Optimizer)
     return model.inner::Ptr{Cvoid}
@@ -290,7 +294,7 @@ function _index_map(src::OptimizerCache)
 end
 
 function _copy_to(dest::Optimizer, src::OptimizerCache)
-    @assert MOI.is_empty(dest)
+    MOI.empty!(dest)
     A = src.constraints.coefficients
     row_bounds = src.constraints.constants
     obj =
