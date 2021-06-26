@@ -36,7 +36,7 @@ function generate_moi_problem(model, At, b, c;
     else
         for row in 1:rows
             MOI.add_constraint(model, MOI.VectorAffineFunction(
-                [MOI.VectorAffineTerm(1, 
+                [MOI.VectorAffineTerm(1,
                     MOI.ScalarAffineTerm(A_vals[i], x[A_cols[i]])
                 ) for i in nzrange(At, row)], [-b[row]]),
                 MOI.Nonpositives(1))
@@ -112,7 +112,7 @@ function time_build_and_solve(to_build, to_solve, At, b, c, scalar = true)
     end
     @time @timeit "opt" MOI.optimize!(to_solve)
     MOI.get(to_solve, MOI.ObjectiveValue())
-    val = MOI.get(to_solve, MOI.SolveTime())
+    val = MOI.get(to_solve, MOI.SolveTimeSec())
     println(val)
 end
 
