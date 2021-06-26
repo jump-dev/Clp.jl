@@ -9,13 +9,13 @@ const MOI = MathOptInterface
 const OPTIMIZER = Clp.Optimizer()
 MOI.set(OPTIMIZER, MOI.Silent(), true)
 
+const BRIDGED = MOI.instantiate(Clp.Optimizer, with_bridge_type=Float64)
+MOI.set(BRIDGED, MOI.Silent(), true)
+
 const CACHED = MOI.Utilities.CachingOptimizer(
     MOI.Utilities.UniversalFallback(MOI.Utilities.Model{Float64}()),
-    # MOI.Utilities.UniversalFallback(Clp.ModelCache()),
-    OPTIMIZER,
+    BRIDGED,
 )
-
-const BRIDGED = MOI.Bridges.full_bridge_optimizer(CACHED, Float64)
 
 const CONFIG = MOI.DeprecatedTest.Config(dual_objective_value = false, basis = true)
 
@@ -30,13 +30,20 @@ function test_supports_default_copy_to()
     @test !MOI.supports_incremental_interface(OPTIMIZER, true)
 end
 
+function test_cache()
+    @test BRIDGED.model.model_cache isa MOI.Utilities.UniversalFallback{Clp.OptimizerCache}
+end
+
 function test_basicconstraint()
     return MOI.DeprecatedTest.basic_constraint_tests(CACHED, CONFIG)
 end
 
 function test_unittest()
+    # `CACHED` may be in `EMPTY_OPTIMIZER` state while `BRIDGED` was modified
+    # by some other test
+    MOI.empty!(BRIDGED)
     return MOI.DeprecatedTest.unittest(
-        BRIDGED,
+        CACHED,
         CONFIG,
         [
             # Not supported by upstream.
@@ -58,7 +65,10 @@ function test_unittest()
 end
 
 function test_contlinear()
-    return MOI.DeprecatedTest.contlineartest(BRIDGED, CONFIG, [
+    # `CACHED` may be in `EMPTY_OPTIMIZER` state while `BRIDGED` was modified
+    # by some other test
+    MOI.empty!(BRIDGED)
+    return MOI.DeprecatedTest.contlineartest(CACHED, CONFIG, [
         # MOI.VariablePrimalStart not supported.
         "partial_start",
     ])
