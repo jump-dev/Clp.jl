@@ -11,7 +11,7 @@ MOI.Utilities.@product_of_sets(
     MOI.Interval{T},
 )
 
-const OptimizerCache = MOI.Utilities.GenericOptimizer{
+const OptimizerCache = MOI.Utilities.GenericModel{
     Float64,
     MOI.Utilities.MatrixOfConstraints{
         Float64,
@@ -307,8 +307,8 @@ function _copy_to(dest::Optimizer, src::OptimizerCache)
         A.colptr,
         A.rowval,
         A.nzval,
-        src.lower_bound,
-        src.upper_bound,
+        src.variable_bounds.lower,
+        src.variable_bounds.upper,
         c,
         row_bounds.lower,
         row_bounds.upper,
@@ -721,14 +721,9 @@ end
 
 function MOI.get(
     model::Optimizer,
-    ::MOI.ConstraintBasisStatus,
-    c::MOI.ConstraintIndex{MOI.SingleVariable,S},
-) where {S}
-    code = Clp_getColumnStatus(model, c.value - 1)
-    status = _CLP_BASIS_STATUS[code]
-    if status == MOI.NONBASIC_AT_UPPER || status == MOI.NONBASIC_AT_LOWER
-        return _nonbasic_status(status, S)
-    else
-        return status
-    end
+    ::MOI.VariableBasisStatus,
+    vi::MOI.VariableIndex,
+)
+    code = Clp_getColumnStatus(model, vi.value - 1)
+    return _CLP_BASIS_STATUS[code]
 end
