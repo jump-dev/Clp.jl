@@ -17,7 +17,7 @@ const CACHED = MOI.Utilities.CachingOptimizer(
 
 const BRIDGED = MOI.Bridges.full_bridge_optimizer(CACHED, Float64)
 
-const CONFIG = MOI.Test.TestConfig(dual_objective_value = false, basis = true)
+const CONFIG = MOI.DeprecatedTest.Config(dual_objective_value = false, basis = true)
 
 function test_SolverName()
     @test MOI.get(OPTIMIZER, MOI.SolverName()) == "Clp"
@@ -31,11 +31,11 @@ function test_supports_default_copy_to()
 end
 
 function test_basicconstraint()
-    return MOI.Test.basic_constraint_tests(CACHED, CONFIG)
+    return MOI.DeprecatedTest.basic_constraint_tests(CACHED, CONFIG)
 end
 
 function test_unittest()
-    return MOI.Test.unittest(
+    return MOI.DeprecatedTest.unittest(
         BRIDGED,
         CONFIG,
         [
@@ -58,22 +58,22 @@ function test_unittest()
 end
 
 function test_contlinear()
-    return MOI.Test.contlineartest(BRIDGED, CONFIG, [
+    return MOI.DeprecatedTest.contlineartest(BRIDGED, CONFIG, [
         # MOI.VariablePrimalStart not supported.
         "partial_start",
     ])
 end
 
 function test_nametest()
-    return MOI.Test.nametest(BRIDGED)
+    return MOI.DeprecatedTest.nametest(BRIDGED, delete=false)
 end
 
 function test_validtest()
-    return MOI.Test.validtest(BRIDGED)
+    return MOI.DeprecatedTest.validtest(CACHED)
 end
 
 function test_emptytest()
-    return MOI.Test.emptytest(BRIDGED)
+    return MOI.DeprecatedTest.emptytest(BRIDGED)
 end
 
 function test_Nonexistant_unbounded_ray()
@@ -325,7 +325,6 @@ function test_farkas_dual_max_ii()
     @test MOI.get(model, MOI.DualStatus()) == MOI.INFEASIBILITY_CERTIFICATE
     clb_dual = MOI.get.(model, MOI.ConstraintDual(), clb)
     c_dual = MOI.get(model, MOI.ConstraintDual(), c)
-    @show clb_dual, c_dual
     @test clb_dual[1] < -1e-6
     @test clb_dual[2] < -1e-6
     @test c_dual[1] < -1e-6
