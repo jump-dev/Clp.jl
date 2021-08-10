@@ -20,7 +20,7 @@ const OptimizerCache = MOI.Utilities.GenericModel{
             Cint,
             MOI.Utilities.ZeroBasedIndexing,
         },
-        MOI.Utilities.Box{Float64},
+        MOI.Utilities.Hyperrectangle{Float64},
         _LPProductOfSets{Float64},
     },
 }
@@ -74,7 +74,8 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
         end
         finalizer(model) do m
             Clp_deleteModel(m)
-            return ClpSolve_delete(m.solver_options)
+            ClpSolve_delete(m.solver_options)
+            return
         end
         return model
     end
@@ -264,6 +265,32 @@ end
 #   `copy_to` function
 # =======================
 
+function _index_map(
+    src::OptimizerCache,
+    index_map,
+    ::Type{F},
+    ::Type{S},
+) where {F,S}
+    for ci in MOI.get(src, MOI.ListOfConstraintIndices{F,S}())
+        row = MOI.Utilities.rows(src.constraints, ci)::Int
+        index_map[ci] = MOI.ConstraintIndex{F,S}(row)
+    end
+    return
+end
+
+function _index_map(
+    src::OptimizerCache,
+    index_map,
+    F::Type{MOI.SingleVariable},
+    ::Type{S},
+) where {S}
+    for ci in MOI.get(src, MOI.ListOfConstraintIndices{F,S}())
+        col = index_map[MOI.VariableIndex(ci.value)].value
+        index_map[ci] = MOI.ConstraintIndex{F,S}(col)
+    end
+    return
+end
+
 """
     _index_map(src::OptimizerCache)
 
@@ -276,20 +303,16 @@ function _index_map(src::OptimizerCache)
         index_map[x] = MOI.VariableIndex(i)
     end
     for (F, S) in MOI.get(src, MOI.ListOfConstraintTypesPresent())
-        for ci in MOI.get(src, MOI.ListOfConstraintIndices{F,S}())
-            if F == MOI.SingleVariable
-                col = index_map[MOI.VariableIndex(ci.value)].value
-                index_map[ci] = MOI.ConstraintIndex{F,S}(col)
-            else
-                row = MOI.Utilities.rows(src.constraints, ci)
-                index_map[ci] = MOI.ConstraintIndex{F,S}(row)
-            end
-        end
+        _index_map(src, index_map, F, S)
     end
     return index_map
 end
 
-function _copy_to(dest::Optimizer, src::OptimizerCache)
+function MOI.copy_to(
+    dest::Optimizer,
+    src::OptimizerCache;
+    copy_names::Bool = false,
+)
     @assert MOI.is_empty(dest)
     A = src.constraints.coefficients
     row_bounds = src.constraints.constants
@@ -327,14 +350,6 @@ end
 
 function MOI.copy_to(
     dest::Optimizer,
-    src::OptimizerCache;
-    copy_names::Bool = false,
-)
-    return _copy_to(dest, src)
-end
-
-function MOI.copy_to(
-    dest::Optimizer,
     src::MOI.Utilities.UniversalFallback{OptimizerCache};
     copy_names::Bool = false,
 )
@@ -348,7 +363,7 @@ function MOI.copy_to(
 )
     cache = OptimizerCache()
     src_cache = MOI.copy_to(cache, src)
-    cache_dest = _copy_to(dest, cache)
+    cache_dest = MOI.copy_to(dest, cache)
     index_map = MOI.Utilities.IndexMap()
     for (src_x, cache_x) in src_cache.var_map
         index_map[src_x] = cache_dest[cache_x]

@@ -6,88 +6,71 @@ import Clp
 
 const MOI = MathOptInterface
 
-const OPTIMIZER = Clp.Optimizer()
-MOI.set(OPTIMIZER, MOI.Silent(), true)
-
-const CACHED = MOI.Utilities.CachingOptimizer(
-    MOI.Utilities.UniversalFallback(MOI.Utilities.Model{Float64}()),
-    # MOI.Utilities.UniversalFallback(Clp.ModelCache()),
-    OPTIMIZER,
-)
-
-const BRIDGED = MOI.Bridges.full_bridge_optimizer(CACHED, Float64)
-
-const CONFIG = MOI.DeprecatedTest.Config(dual_objective_value = false, basis = true)
+function runtests()
+    for name in names(@__MODULE__; all = true)
+        if startswith("$(name)", "test_")
+            @testset "$(name)" begin
+                getfield(@__MODULE__, name)()
+            end
+        end
+    end
+end
 
 function test_SolverName()
-    @test MOI.get(OPTIMIZER, MOI.SolverName()) == "Clp"
+    @test MOI.get(Clp.Optimizer(), MOI.SolverName()) == "Clp"
+    return
 end
 
 function test_supports_default_copy_to()
-    @test !MOI.Utilities.supports_allocate_load(OPTIMIZER, false)
-    @test !MOI.Utilities.supports_allocate_load(OPTIMIZER, true)
-    @test !MOI.supports_incremental_interface(OPTIMIZER, false)
-    @test !MOI.supports_incremental_interface(OPTIMIZER, true)
+    @test !MOI.supports_incremental_interface(Clp.Optimizer(), false)
+    @test !MOI.supports_incremental_interface(Clp.Optimizer(), true)
+    return
 end
 
-function test_basicconstraint()
-    return MOI.DeprecatedTest.basic_constraint_tests(CACHED, CONFIG)
-end
-
-function test_unittest()
-    return MOI.DeprecatedTest.unittest(
-        BRIDGED,
-        CONFIG,
-        [
-            # Not supported by upstream.
-            "number_threads",
-
-            # Tests that require integer variables
-            "solve_integer_edge_cases",
-            "solve_zero_one_with_bounds_1",
-            "solve_zero_one_with_bounds_2",
-            "solve_zero_one_with_bounds_3",
-            "solve_objbound_edge_cases",
-
-            # Tests that require quadratic objective / constraints
-            "solve_qcp_edge_cases",
-            "solve_qp_edge_cases",
-            "delete_soc_variables",
+function test_runtests()
+    model = MOI.Bridges.full_bridge_optimizer(
+        MOI.Utilities.CachingOptimizer(
+            MOI.Utilities.UniversalFallback(MOI.Utilities.Model{Float64}()),
+            Clp.Optimizer(),
+        ),
+        Float64,
+    )
+    MOI.set(model, MOI.Silent(), true)
+    MOI.Test.runtests(
+        model,
+        MOI.Test.Config(
+            exclude = Any[
+                MOI.DualObjectiveValue, MOI.ObjectiveBound,
+            ],
+        ),
+        exclude = [
+            # TODO(odow): bug in Clp.jl
+            "test_model_copy_to_UnsupportedAttribute",
+            # Unable to prove infeasibility
+            "test_conic_NormInfinityCone_INFEASIBLE",
+            "test_conic_NormOneCone_INFEASIBLE",
         ],
     )
-end
-
-function test_contlinear()
-    return MOI.DeprecatedTest.contlineartest(BRIDGED, CONFIG, [
-        # MOI.VariablePrimalStart not supported.
-        "partial_start",
-    ])
-end
-
-function test_nametest()
-    return MOI.DeprecatedTest.nametest(BRIDGED, delete=false)
-end
-
-function test_validtest()
-    return MOI.DeprecatedTest.validtest(CACHED)
-end
-
-function test_emptytest()
-    return MOI.DeprecatedTest.emptytest(BRIDGED)
+    return
 end
 
 function test_Nonexistant_unbounded_ray()
-    MOI.empty!(BRIDGED)
-    x = MOI.add_variables(BRIDGED, 5)
+    model = MOI.Utilities.CachingOptimizer(
+        MOI.Utilities.UniversalFallback(MOI.Utilities.Model{Float64}()),
+        Clp.Optimizer(),
+    )
+    MOI.set(model, MOI.Silent(), true)
+    x = MOI.add_variables(model, 5)
     MOI.set(
-        BRIDGED,
+        model,
         MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}(),
         MOI.ScalarAffineFunction(MOI.ScalarAffineTerm.(1.0, x), 0.0),
     )
-    MOI.set(BRIDGED, MOI.ObjectiveSense(), MOI.MAX_SENSE)
-    MOI.optimize!(BRIDGED)
-    status = MOI.get(BRIDGED, MOI.TerminationStatus())
+    MOI.set(model, MOI.ObjectiveSense(), MOI.MAX_SENSE)
+    MOI.optimize!(model)
+    status = MOI.get(model, MOI.TerminationStatus())
     @test status == MOI.DUAL_INFEASIBLE
+    return
 end
 
 function test_RawOptimizerAttribute()
@@ -146,192 +129,6 @@ function test_options_after_empty!()
     @test MOI.get(model, MOI.Silent()) == true
 end
 
-function test_farkas_dual_min()
-    MOI.empty!(BRIDGED)
-    model = BRIDGED
-    MOI.set(model, MOI.Silent(), true)
-    x = MOI.add_variables(model, 2)
-    MOI.set(model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
-    MOI.set(
-        model,
-        MOI.ObjectiveFunction{MOI.SingleVariable}(),
-        MOI.SingleVariable(x[1]),
-    )
-    clb =
-        MOI.add_constraint.(model, MOI.SingleVariable.(x), MOI.GreaterThan(0.0))
-    c = MOI.add_constraint(
-        model,
-        MOI.ScalarAffineFunction(MOI.ScalarAffineTerm.([2.0, 1.0], x), 0.0),
-        MOI.LessThan(-1.0),
-    )
-    MOI.optimize!(model)
-    @test MOI.get(model, MOI.TerminationStatus()) == MOI.INFEASIBLE
-    @test MOI.get(model, MOI.DualStatus()) == MOI.INFEASIBILITY_CERTIFICATE
-    clb_dual = MOI.get.(model, MOI.ConstraintDual(), clb)
-    c_dual = MOI.get(model, MOI.ConstraintDual(), c)
-    @show clb_dual, c_dual
-    @test clb_dual[1] > 1e-6
-    @test clb_dual[2] > 1e-6
-    @test c_dual[1] < -1e-6
-    @test clb_dual[1] ≈ -2 * c_dual atol = 1e-6
-    @test clb_dual[2] ≈ -c_dual atol = 1e-6
-end
-
-function test_farkas_dual_min_interval()
-    MOI.empty!(BRIDGED)
-    model = BRIDGED
-    MOI.set(model, MOI.Silent(), true)
-    x = MOI.add_variables(model, 2)
-    MOI.set(model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
-    MOI.set(
-        model,
-        MOI.ObjectiveFunction{MOI.SingleVariable}(),
-        MOI.SingleVariable(x[1]),
-    )
-    clb =
-        MOI.add_constraint.(
-            model,
-            MOI.SingleVariable.(x),
-            MOI.Interval(0.0, 10.0),
-        )
-    c = MOI.add_constraint(
-        model,
-        MOI.ScalarAffineFunction(MOI.ScalarAffineTerm.([2.0, 1.0], x), 0.0),
-        MOI.LessThan(-1.0),
-    )
-    MOI.optimize!(model)
-    @test MOI.get(model, MOI.TerminationStatus()) == MOI.INFEASIBLE
-    @test MOI.get(model, MOI.DualStatus()) == MOI.INFEASIBILITY_CERTIFICATE
-    clb_dual = MOI.get.(model, MOI.ConstraintDual(), clb)
-    c_dual = MOI.get(model, MOI.ConstraintDual(), c)
-    @show clb_dual, c_dual
-    @test clb_dual[1] > 1e-6
-    @test clb_dual[2] > 1e-6
-    @test c_dual[1] < -1e-6
-    @test clb_dual[1] ≈ -2 * c_dual atol = 1e-6
-    @test clb_dual[2] ≈ -c_dual atol = 1e-6
-end
-
-function test_farkas_dual_min_equalto()
-    MOI.empty!(BRIDGED)
-    model = BRIDGED
-    MOI.set(model, MOI.Silent(), true)
-    x = MOI.add_variables(model, 2)
-    MOI.set(model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
-    MOI.set(
-        model,
-        MOI.ObjectiveFunction{MOI.SingleVariable}(),
-        MOI.SingleVariable(x[1]),
-    )
-    clb = MOI.add_constraint.(model, MOI.SingleVariable.(x), MOI.EqualTo(0.0))
-    c = MOI.add_constraint(
-        model,
-        MOI.ScalarAffineFunction(MOI.ScalarAffineTerm.([2.0, 1.0], x), 0.0),
-        MOI.LessThan(-1.0),
-    )
-    MOI.optimize!(model)
-    @test MOI.get(model, MOI.TerminationStatus()) == MOI.INFEASIBLE
-    @test MOI.get(model, MOI.DualStatus()) == MOI.INFEASIBILITY_CERTIFICATE
-    clb_dual = MOI.get.(model, MOI.ConstraintDual(), clb)
-    c_dual = MOI.get(model, MOI.ConstraintDual(), c)
-    @show clb_dual, c_dual
-    @test clb_dual[1] > 1e-6
-    @test clb_dual[2] > 1e-6
-    @test c_dual[1] < -1e-6
-    @test clb_dual[1] ≈ -2 * c_dual atol = 1e-6
-    @test clb_dual[2] ≈ -c_dual atol = 1e-6
-end
-
-function test_farkas_dual_min_ii()
-    MOI.empty!(BRIDGED)
-    model = BRIDGED
-    MOI.set(model, MOI.Silent(), true)
-    x = MOI.add_variables(model, 2)
-    MOI.set(model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
-    MOI.set(
-        model,
-        MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}(),
-        MOI.ScalarAffineFunction([MOI.ScalarAffineTerm(-1.0, x[1])], 0.0),
-    )
-    clb = MOI.add_constraint.(model, MOI.SingleVariable.(x), MOI.LessThan(0.0))
-    c = MOI.add_constraint(
-        model,
-        MOI.ScalarAffineFunction(MOI.ScalarAffineTerm.([-2.0, -1.0], x), 0.0),
-        MOI.LessThan(-1.0),
-    )
-    MOI.optimize!(model)
-    @test MOI.get(model, MOI.TerminationStatus()) == MOI.INFEASIBLE
-    @test MOI.get(model, MOI.DualStatus()) == MOI.INFEASIBILITY_CERTIFICATE
-    clb_dual = MOI.get.(model, MOI.ConstraintDual(), clb)
-    c_dual = MOI.get(model, MOI.ConstraintDual(), c)
-    @show clb_dual, c_dual
-    @test clb_dual[1] < -1e-6
-    @test clb_dual[2] < -1e-6
-    @test c_dual[1] < -1e-6
-    @test clb_dual[1] ≈ 2 * c_dual atol = 1e-6
-    @test clb_dual[2] ≈ c_dual atol = 1e-6
-end
-
-function test_farkas_dual_max()
-    MOI.empty!(BRIDGED)
-    model = BRIDGED
-    MOI.set(model, MOI.Silent(), true)
-    x = MOI.add_variables(model, 2)
-    MOI.set(model, MOI.ObjectiveSense(), MOI.MAX_SENSE)
-    MOI.set(
-        model,
-        MOI.ObjectiveFunction{MOI.SingleVariable}(),
-        MOI.SingleVariable(x[1]),
-    )
-    clb =
-        MOI.add_constraint.(model, MOI.SingleVariable.(x), MOI.GreaterThan(0.0))
-    c = MOI.add_constraint(
-        model,
-        MOI.ScalarAffineFunction(MOI.ScalarAffineTerm.([2.0, 1.0], x), 0.0),
-        MOI.LessThan(-1.0),
-    )
-    MOI.optimize!(model)
-    @test MOI.get(model, MOI.TerminationStatus()) == MOI.INFEASIBLE
-    @test MOI.get(model, MOI.DualStatus()) == MOI.INFEASIBILITY_CERTIFICATE
-    clb_dual = MOI.get.(model, MOI.ConstraintDual(), clb)
-    c_dual = MOI.get(model, MOI.ConstraintDual(), c)
-    @show clb_dual, c_dual
-    @test clb_dual[1] > 1e-6
-    @test clb_dual[2] > 1e-6
-    @test c_dual[1] < -1e-6
-    @test clb_dual[1] ≈ -2 * c_dual atol = 1e-6
-    @test clb_dual[2] ≈ -c_dual atol = 1e-6
-end
-
-function test_farkas_dual_max_ii()
-    MOI.empty!(BRIDGED)
-    model = BRIDGED
-    MOI.set(model, MOI.Silent(), true)
-    x = MOI.add_variables(model, 2)
-    MOI.set(model, MOI.ObjectiveSense(), MOI.MAX_SENSE)
-    MOI.set(
-        model,
-        MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}(),
-        MOI.ScalarAffineFunction([MOI.ScalarAffineTerm(-1.0, x[1])], 0.0),
-    )
-    clb = MOI.add_constraint.(model, MOI.SingleVariable.(x), MOI.LessThan(0.0))
-    c = MOI.add_constraint(
-        model,
-        MOI.ScalarAffineFunction(MOI.ScalarAffineTerm.([-2.0, -1.0], x), 0.0),
-        MOI.LessThan(-1.0),
-    )
-    MOI.optimize!(model)
-    @test MOI.get(model, MOI.TerminationStatus()) == MOI.INFEASIBLE
-    @test MOI.get(model, MOI.DualStatus()) == MOI.INFEASIBILITY_CERTIFICATE
-    clb_dual = MOI.get.(model, MOI.ConstraintDual(), clb)
-    c_dual = MOI.get(model, MOI.ConstraintDual(), c)
-    @test clb_dual[1] < -1e-6
-    @test clb_dual[2] < -1e-6
-    @test c_dual[1] < -1e-6
-    @test clb_dual[1] ≈ 2 * c_dual atol = 1e-6
-    @test clb_dual[2] ≈ c_dual atol = 1e-6
-end
-
 end  # module TestMOIWrapper
 
-runtests(TestMOIWrapper)
+TestMOIWrapper.runtests()
