@@ -272,7 +272,7 @@ function _index_map(
     ::Type{S},
 ) where {F,S}
     for ci in MOI.get(src, MOI.ListOfConstraintIndices{F,S}())
-        row = MOI.Utilities.rows(src.constraints, ci)::Int
+        row = MOI.Utilities.rows(src.constraints, ci)
         index_map[ci] = MOI.ConstraintIndex{F,S}(row)
     end
     return
