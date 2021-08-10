@@ -39,9 +39,7 @@ function test_runtests()
     MOI.Test.runtests(
         model,
         MOI.Test.Config(
-            exclude = Any[
-                MOI.DualObjectiveValue, MOI.ObjectiveBound,
-            ],
+            exclude = Any[MOI.DualObjectiveValue, MOI.ObjectiveBound],
         ),
         exclude = [
             # TODO(odow): bug in Clp.jl
