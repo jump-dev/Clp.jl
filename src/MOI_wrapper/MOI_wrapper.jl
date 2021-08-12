@@ -13,6 +13,8 @@ MOI.Utilities.@product_of_sets(
 
 const OptimizerCache = MOI.Utilities.GenericModel{
     Float64,
+    MOI.Utilities.ObjectiveFunctionContainer{Float64},
+    MOI.Utilities.SingleVariableConstraints{Float64},
     MOI.Utilities.MatrixOfConstraints{
         Float64,
         MOI.Utilities.MutableSparseMatrixCSC{
@@ -330,8 +332,8 @@ function MOI.copy_to(
         A.colptr,
         A.rowval,
         A.nzval,
-        src.variable_bounds.lower,
-        src.variable_bounds.upper,
+        src.variables.lower,
+        src.variables.upper,
         c,
         row_bounds.lower,
         row_bounds.upper,
