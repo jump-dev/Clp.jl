@@ -13,9 +13,7 @@ end
 
 using CEnum
 
-include("gen/ctypes.jl")
-include("gen/libclp_common.jl")
-include("gen/libclp_api.jl")
+include("../lib/libClp.jl")
 
 const _CLP_VERSION =
     VersionNumber("$(Clp_VersionMajor()).$(Clp_VersionMinor()).$(Clp_VersionRelease())")
