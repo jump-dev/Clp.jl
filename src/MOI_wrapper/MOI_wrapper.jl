@@ -13,8 +13,8 @@ MOI.Utilities.@product_of_sets(
 
 const OptimizerCache = MOI.Utilities.GenericModel{
     Float64,
-    MOI.Utilities.ObjectiveFunctionContainer{Float64},
-    MOI.Utilities.SingleVariableConstraints{Float64},
+    MOI.Utilities.ObjectiveContainer{Float64},
+    MOI.Utilities.VariablesContainer{Float64},
     MOI.Utilities.MatrixOfConstraints{
         Float64,
         MOI.Utilities.MutableSparseMatrixCSC{
@@ -27,7 +27,6 @@ const OptimizerCache = MOI.Utilities.GenericModel{
     },
 }
 
-# Supported scalar sets
 const SCALAR_SETS = Union{
     MOI.GreaterThan{Float64},
     MOI.LessThan{Float64},
@@ -55,9 +54,11 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
 
     ## Example
 
-        using JuMP, Clp
-        model = JuMP.Model(Clp.Optimizer)
-        set_optimizer_attribute(model, "LogLevel", 0)
+    ```julia
+    using JuMP, Clp
+    model = JuMP.Model(Clp.Optimizer)
+    set_optimizer_attribute(model, "LogLevel", 0)
+    ```
     """
     function Optimizer(; kwargs...)
         model =
@@ -200,21 +201,19 @@ function MOI.get(model::Optimizer, param::MOI.RawOptimizerAttribute)
         return ClpSolve_getSolveType(model.solver_options)
     elseif name == "InfeasibleReturn"
         return ClpSolve_infeasibleReturn(model.solver_options)
-    else
-        throw(MOI.UnsupportedAttribute(param))
     end
+    return throw(MOI.UnsupportedAttribute(param))
 end
 
 MOI.supports(::Optimizer, ::MOI.Silent) = true
+
 function MOI.set(model::Optimizer, ::MOI.Silent, value::Bool)
     push!(model.options_set, "LogLevel")
     Clp_setLogLevel(model, value ? 0 : 1)
     return
 end
 
-function MOI.get(model::Optimizer, ::MOI.Silent)
-    return Clp_logLevel(model) == 0
-end
+MOI.get(model::Optimizer, ::MOI.Silent) = Clp_logLevel(model) == 0
 
 MOI.supports(::Optimizer, ::MOI.TimeLimitSec) = true
 
@@ -240,15 +239,7 @@ MOI.supports(::Optimizer, ::MOI.NumberOfThreads) = false
 
 function MOI.supports_constraint(
     ::Optimizer,
-    ::Type{MOI.ScalarAffineFunction{Float64}},
-    ::Type{<:SCALAR_SETS},
-)
-    return true
-end
-
-function MOI.supports_constraint(
-    ::Optimizer,
-    ::Type{MOI.SingleVariable},
+    ::Type{<:Union{MOI.VariableIndex,MOI.ScalarAffineFunction{Float64}}},
     ::Type{<:SCALAR_SETS},
 )
     return true
@@ -283,7 +274,7 @@ end
 function _index_map(
     src::OptimizerCache,
     index_map,
-    F::Type{MOI.SingleVariable},
+    F::Type{MOI.VariableIndex},
     ::Type{S},
 ) where {S}
     for ci in MOI.get(src, MOI.ListOfConstraintIndices{F,S}())
@@ -300,7 +291,7 @@ Create an `IndexMap` mapping the variables and constraints in `OptimizerCache`
 to their corresponding 1-based columns and rows.
 """
 function _index_map(src::OptimizerCache)
-    index_map = MOI.Utilities.IndexMap()
+    index_map = MOI.IndexMap()
     for (i, x) in enumerate(MOI.get(src, MOI.ListOfVariableIndices()))
         index_map[x] = MOI.VariableIndex(i)
     end
@@ -310,11 +301,7 @@ function _index_map(src::OptimizerCache)
     return index_map
 end
 
-function MOI.copy_to(
-    dest::Optimizer,
-    src::OptimizerCache;
-    copy_names::Bool = false,
-)
+function MOI.copy_to(dest::Optimizer, src::OptimizerCache)
     @assert MOI.is_empty(dest)
     A = src.constraints.coefficients
     row_bounds = src.constraints.constants
@@ -352,21 +339,19 @@ end
 
 function MOI.copy_to(
     dest::Optimizer,
-    src::MOI.Utilities.UniversalFallback{OptimizerCache};
-    copy_names::Bool = false,
+    src::MOI.Utilities.UniversalFallback{OptimizerCache},
 )
     return MOI.copy_to(dest, src.model)
 end
 
 function MOI.copy_to(
     dest::Optimizer,
-    src::MOI.ModelLike;
-    copy_names::Bool = false,
+    src::MOI.ModelLike,
 )
     cache = OptimizerCache()
     src_cache = MOI.copy_to(cache, src)
     cache_dest = MOI.copy_to(dest, cache)
-    index_map = MOI.Utilities.IndexMap()
+    index_map = MOI.IndexMap()
     for (src_x, cache_x) in src_cache.var_map
         index_map[src_x] = cache_dest[cache_x]
     end
@@ -388,13 +373,9 @@ function MOI.optimize!(model::Optimizer)
     return
 end
 
-function MOI.get(model::Optimizer, ::MOI.SolveTimeSec)
-    return model.solve_time
-end
+MOI.get(model::Optimizer, ::MOI.SolveTimeSec) = model.solve_time
 
-function MOI.get(model::Optimizer, ::MOI.NumberOfVariables)
-    return Clp_getNumCols(model)
-end
+MOI.get(model::Optimizer, ::MOI.NumberOfVariables) = Clp_getNumCols(model)
 
 function MOI.get(model::Optimizer, attr::MOI.ObjectiveValue)
     MOI.check_result_index_bounds(model, attr)
@@ -415,9 +396,8 @@ function MOI.get(model::Optimizer, ::MOI.TerminationStatus)
     elseif st == 3
         # No more granular information that "some limit is reached"
         return MOI.OTHER_LIMIT
-    else
-        return MOI.OTHER_ERROR
     end
+    return MOI.OTHER_ERROR
 end
 
 function MOI.get(model::Optimizer, ::MOI.RawStatusString)
@@ -433,10 +413,9 @@ function MOI.get(model::Optimizer, ::MOI.RawStatusString)
         return "2 - dual infeasible"
     elseif st == 3
         return "3 - stopped on iterations etc"
-    elseif st == 4
-        return "4 - stopped due to errors"
     else
-        error("Expected integer in [0, 4] but got $st")
+        @assert st == 4
+        return "4 - stopped due to errors"
     end
 end
 
@@ -460,9 +439,8 @@ function MOI.get(model::Optimizer, attr::MOI.PrimalStatus)
         return MOI.INFEASIBILITY_CERTIFICATE
     elseif Clp_primalFeasible(model) != 0
         return MOI.FEASIBLE_POINT
-    else
-        return MOI.UNKNOWN_RESULT_STATUS
     end
+    return MOI.UNKNOWN_RESULT_STATUS
 end
 
 function MOI.get(model::Optimizer, attr::MOI.DualStatus)
@@ -472,9 +450,8 @@ function MOI.get(model::Optimizer, attr::MOI.DualStatus)
         return MOI.INFEASIBILITY_CERTIFICATE
     elseif Clp_dualFeasible(model) != 0
         return MOI.FEASIBLE_POINT
-    else
-        return MOI.UNKNOWN_RESULT_STATUS
     end
+    return MOI.UNKNOWN_RESULT_STATUS
 end
 
 # ===================
@@ -519,9 +496,8 @@ function MOI.get(
             Clp_getNumCols(model),
             x.value,
         )
-    else
-        error("Primal solution not available")
     end
+    return error("Primal solution not available")
 end
 
 function MOI.get(
@@ -548,9 +524,8 @@ function MOI.get(
             Clp_getNumCols(model),
             col_indices,
         )
-    else
-        error("Primal solution not available")
     end
+    return error("Primal solution not available")
 end
 
 # TODO: What happens if model is unbounded / infeasible?
@@ -572,7 +547,7 @@ end
 function MOI.get(
     model::Optimizer,
     attr::MOI.ConstraintPrimal,
-    c::MOI.ConstraintIndex{MOI.SingleVariable,<:SCALAR_SETS},
+    c::MOI.ConstraintIndex{MOI.VariableIndex,<:SCALAR_SETS},
 )
     MOI.check_result_index_bounds(model, attr)
     return MOI.get(model, MOI.VariablePrimal(), MOI.VariableIndex(c.value))
@@ -631,15 +606,14 @@ function MOI.get(
             c.value;
             own = true,
         )
-    else
-        error("Dual solution not available")
     end
+    return error("Dual solution not available")
 end
 
 function MOI.get(
     model::Optimizer,
     attr::MOI.ConstraintDual,
-    c::MOI.ConstraintIndex{MOI.SingleVariable,MOI.LessThan{Float64}},
+    c::MOI.ConstraintIndex{MOI.VariableIndex,MOI.LessThan{Float64}},
 )
     MOI.check_result_index_bounds(model, attr)
     if MOI.get(model, MOI.DualStatus()) == MOI.INFEASIBILITY_CERTIFICATE
@@ -657,7 +631,7 @@ end
 function MOI.get(
     model::Optimizer,
     attr::MOI.ConstraintDual,
-    c::MOI.ConstraintIndex{MOI.SingleVariable,MOI.GreaterThan{Float64}},
+    c::MOI.ConstraintIndex{MOI.VariableIndex,MOI.GreaterThan{Float64}},
 )
     MOI.check_result_index_bounds(model, attr)
     if MOI.get(model, MOI.DualStatus()) == MOI.INFEASIBILITY_CERTIFICATE
@@ -676,7 +650,7 @@ function MOI.get(
     model::Optimizer,
     attr::MOI.ConstraintDual,
     c::MOI.ConstraintIndex{
-        MOI.SingleVariable,
+        MOI.VariableIndex,
         <:Union{MOI.Interval{Float64},MOI.EqualTo{Float64}},
     },
 )
@@ -731,9 +705,8 @@ function MOI.get(
     status = _CLP_BASIS_STATUS[code]
     if status == MOI.NONBASIC_AT_UPPER || status == MOI.NONBASIC_AT_LOWER
         return _nonbasic_status(status, S)
-    else
-        return status
     end
+    return status
 end
 
 function MOI.get(

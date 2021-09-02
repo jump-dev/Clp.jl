@@ -22,8 +22,7 @@ function test_SolverName()
 end
 
 function test_supports_default_copy_to()
-    @test !MOI.supports_incremental_interface(Clp.Optimizer(), false)
-    @test !MOI.supports_incremental_interface(Clp.Optimizer(), true)
+    @test !MOI.supports_incremental_interface(Clp.Optimizer())
     return
 end
 
@@ -44,6 +43,7 @@ function test_runtests()
         exclude = [
             # TODO(odow): bug in Clp.jl
             "test_model_copy_to_UnsupportedAttribute",
+            "test_model_ModelFilter_AbstractConstraintAttribute",
             # Unable to prove infeasibility
             "test_conic_NormInfinityCone_INFEASIBLE",
             "test_conic_NormOneCone_INFEASIBLE",
@@ -87,6 +87,7 @@ function test_RawOptimizerAttribute()
     @test MOI.get(model, MOI.RawOptimizerAttribute("PresolveType")) == 1
     MOI.set(model, MOI.RawOptimizerAttribute("PresolveType"), 0)
     @test MOI.get(model, MOI.RawOptimizerAttribute("PresolveType")) == 0
+    return
 end
 
 function test_All_parameters()
@@ -101,6 +102,7 @@ function test_All_parameters()
         MOI.set(model, MOI.RawOptimizerAttribute(key), value)
         @test MOI.get(model, MOI.RawOptimizerAttribute(key)) == value
     end
+    return
 end
 
 function test_copy_to_bug()
@@ -116,6 +118,7 @@ function test_copy_to_bug()
     clp = Clp.Optimizer()
     index_map = MOI.copy_to(clp, model)
     @test index_map[con[1]] != index_map[con[2]]
+    return
 end
 
 function test_options_after_empty!()
@@ -125,6 +128,7 @@ function test_options_after_empty!()
     @test MOI.get(model, MOI.Silent()) == true
     MOI.empty!(model)
     @test MOI.get(model, MOI.Silent()) == true
+    return
 end
 
 end  # module TestMOIWrapper
