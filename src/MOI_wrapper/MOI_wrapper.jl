@@ -344,10 +344,7 @@ function MOI.copy_to(
     return MOI.copy_to(dest, src.model)
 end
 
-function MOI.copy_to(
-    dest::Optimizer,
-    src::MOI.ModelLike,
-)
+function MOI.copy_to(dest::Optimizer, src::MOI.ModelLike)
     cache = OptimizerCache()
     src_cache = MOI.copy_to(cache, src)
     cache_dest = MOI.copy_to(dest, cache)
