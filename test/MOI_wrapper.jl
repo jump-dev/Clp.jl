@@ -41,9 +41,6 @@ function test_runtests()
             exclude = Any[MOI.DualObjectiveValue, MOI.ObjectiveBound],
         ),
         exclude = [
-            # TODO(odow): bug in Clp.jl
-            "test_model_copy_to_UnsupportedAttribute",
-            "test_model_ModelFilter_AbstractConstraintAttribute",
             # Unable to prove infeasibility
             "test_conic_NormInfinityCone_INFEASIBLE",
             "test_conic_NormOneCone_INFEASIBLE",
