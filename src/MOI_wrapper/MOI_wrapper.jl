@@ -119,6 +119,8 @@ end
 
 MOI.get(::Optimizer, ::MOI.SolverName) = "Clp"
 
+MOI.get(::Optimizer, ::MOI.SolverVersion) = string(_CLP_VERSION)
+
 # If you update this list, remember to update the README documentation!
 const SUPPORTED_PARAMETERS = (
     "PrimalTolerance",
@@ -376,7 +378,53 @@ MOI.get(model::Optimizer, ::MOI.NumberOfVariables) = Clp_getNumCols(model)
 
 function MOI.get(model::Optimizer, attr::MOI.ObjectiveValue)
     MOI.check_result_index_bounds(model, attr)
+    if MOI.get(model, MOI.PrimalStatus()) == MOI.INFEASIBILITY_CERTIFICATE
+        N = Clp_getNumCols(model)
+        x = _unsafe_wrap_clp_array(model, Clp_unboundedRay, N; own = true)
+        c = _unsafe_wrap_clp_array(model, Clp_getObjCoefficients, N)
+        return c' * x
+    end
     return Clp_getObjValue(model)
+end
+
+function MOI.get(model::Optimizer, attr::MOI.DualObjectiveValue)
+    MOI.check_result_index_bounds(model, attr)
+    if MOI.get(model, MOI.DualStatus()) != MOI.INFEASIBILITY_CERTIFICATE
+        error("Unsupported")
+    end
+    M = Clp_getNumRows(model)
+    ray = _unsafe_wrap_clp_array(model, Clp_infeasibilityRay, M; own = true)
+    l = _unsafe_wrap_clp_array(model, Clp_getRowLower, M)
+    u = _unsafe_wrap_clp_array(model, Clp_getRowUpper, M)
+    obj = 0.0
+    for i in 1:M
+        # For scalar constraints the ray needs to be negated.
+        if -ray[i] < 0
+            obj += ray[i] * u[i]
+        elseif -ray[i] > 0
+            obj += ray[i] * l[i]
+        end
+    end
+    N = Clp_getNumCols(model)
+    l = _unsafe_wrap_clp_array(model, Clp_getColLower, N)
+    u = _unsafe_wrap_clp_array(model, Clp_getColUpper, N)
+    nnz = Clp_getNumElements(model)
+    vbeg = _unsafe_wrap_clp_array(model, Clp_getVectorStarts, N)
+    vlen = _unsafe_wrap_clp_array(model, Clp_getVectorLengths, N)
+    vind = _unsafe_wrap_clp_array(model, Clp_getIndices, nnz)
+    vval = _unsafe_wrap_clp_array(model, Clp_getElements, nnz)
+    for col in 1:N
+        π = 0.0
+        for i in vbeg[col] .+ (1:vlen[col])
+            π += ray[vind[i]+1] * vval[i]
+        end
+        if π < 0
+            obj += π * -u[col]
+        elseif π > 0
+            obj += π * -l[col]
+        end
+    end
+    return -Clp_getObjSense(model) * obj
 end
 
 function MOI.get(model::Optimizer, ::MOI.TerminationStatus)
@@ -532,6 +580,9 @@ function MOI.get(
     c::MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},<:SCALAR_SETS},
 )
     MOI.check_result_index_bounds(model, attr)
+    if MOI.get(model, MOI.PrimalStatus()) == MOI.INFEASIBILITY_CERTIFICATE
+        return MOI.Utilities.get_fallback(model, attr)
+    end
     return _unsafe_wrap_clp_array(
         model,
         Clp_getRowActivity,
