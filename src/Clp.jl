@@ -29,6 +29,10 @@ end
 
 include("MOI_wrapper/MOI_wrapper.jl")
 
+if VERSION > v"1.4.2"
+    include("precompile.jl")
+end
+
 # TODO(odow): remove at Clp.jl v1.0.0.
 function ClpSolver(args...; kwargs...)
     error(
