@@ -266,9 +266,10 @@ function _index_map(
     ::Type{F},
     ::Type{S},
 ) where {F,S}
+    inner = index_map.con_map[F, S]
     for ci in MOI.get(src, MOI.ListOfConstraintIndices{F,S}())
         row = MOI.Utilities.rows(src.constraints, ci)
-        index_map[ci] = MOI.ConstraintIndex{F,S}(row)
+        inner[ci] = MOI.ConstraintIndex{F,S}(row)
     end
     return
 end
@@ -279,9 +280,10 @@ function _index_map(
     F::Type{MOI.VariableIndex},
     ::Type{S},
 ) where {S}
+    inner = index_map.con_map[F, S]
     for ci in MOI.get(src, MOI.ListOfConstraintIndices{F,S}())
         col = index_map[MOI.VariableIndex(ci.value)].value
-        index_map[ci] = MOI.ConstraintIndex{F,S}(col)
+        inner[ci] = MOI.ConstraintIndex{F,S}(col)
     end
     return
 end
