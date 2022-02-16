@@ -1,22 +1,16 @@
 name = "Clp"
 uuid = "e2554f3b-3117-50c0-817c-e040a3ddf72d"
 repo = "https://github.com/jump-dev/Clp.jl.git"
-version = "0.9.1"
+version = "1.0.0"
 
 [deps]
-BinaryProvider = "b99e7846-7c00-51b0-8f62-c81ae34c0232"
-CEnum = "fa961155-64e5-5f13-b03f-caf6b980ea82"
 Clp_jll = "06985876-5285-5a41-9fcb-8948a742cc53"
-Libdl = "8f399da3-3557-5675-b5ff-fb832c97cbdb"
 MathOptInterface = "b8f27783-ece8-5eb3-8dc8-9495eed66fee"
-SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 
 [compat]
-BinaryProvider = "0.5.9"
-CEnum = "0.3, 0.4"
 Clp_jll = "=1.17.6, ~100.1700.600"
 MathOptInterface = "0.10.6"
-julia = "1"
+julia = "1.6"
 
 [extras]
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
