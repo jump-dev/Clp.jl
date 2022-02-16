@@ -24,11 +24,8 @@ include("precompile.jl")
 # Clp exports all `Clp_xxx` symbols. If you don't want all of these symbols in
 # your environment, then use `import Clp` instead of `using Clp`.
 
-for sym in names(@__MODULE__, all = true)
-    sym_string = string(sym)
-    if startswith(sym_string, "Clp_")
-        @eval export $sym
-    end
+for sym in filter(s -> startswith("$s", "Clp_"), names(@__MODULE__, all = true))
+    @eval export $sym
 end
 
 end
