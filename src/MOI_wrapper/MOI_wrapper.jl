@@ -565,7 +565,6 @@ function MOI.get(
     return error("Primal solution not available")
 end
 
-# TODO: What happens if model is unbounded / infeasible?
 function MOI.get(
     model::Optimizer,
     attr::MOI.ConstraintPrimal,
@@ -573,7 +572,7 @@ function MOI.get(
 )
     MOI.check_result_index_bounds(model, attr)
     if MOI.get(model, MOI.PrimalStatus()) == MOI.INFEASIBILITY_CERTIFICATE
-        return MOI.Utilities.get_fallback(model, attr)
+        return MOI.Utilities.get_fallback(model, attr, c)
     end
     return _unsafe_wrap_clp_array(
         model,
