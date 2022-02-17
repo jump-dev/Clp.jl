@@ -1,5 +1,4 @@
 import MathOptInterface
-import SparseArrays
 
 const MOI = MathOptInterface
 
@@ -34,6 +33,24 @@ const SCALAR_SETS = Union{
     MOI.Interval{Float64},
 }
 
+"""
+    Optimizer()
+
+Create a new Optimizer object.
+
+Set optimizer attributes using `MOI.RawOptimizerAttribute` or
+`JuMP.set_optimizer_atttribute`.
+
+For a list of supported parameter names, see `Clp.SUPPORTED_PARAMETERS`.
+
+## Example
+
+```julia
+using JuMP, Clp
+model = JuMP.Model(Clp.Optimizer)
+set_optimizer_attribute(model, "LogLevel", 0)
+```
+"""
 mutable struct Optimizer <: MOI.AbstractOptimizer
     inner::Ptr{Cvoid}
     solver_options::Ptr{Cvoid}
@@ -43,38 +60,9 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
     # Work-around for upstream bug in Clp:
     maximumSeconds::Float64
 
-    """
-        Optimizer()
-
-    Create a new Optimizer object.
-
-    Set optimizer attributes using `MOI.RawOptimizerAttribute` or
-    `JuMP.set_optimizer_atttribute`. For a list of supported parameter names,
-    see `Clp.SUPPORTED_PARAMETERS`.
-
-    ## Example
-
-    ```julia
-    using JuMP, Clp
-    model = JuMP.Model(Clp.Optimizer)
-    set_optimizer_attribute(model, "LogLevel", 0)
-    ```
-    """
-    function Optimizer(; kwargs...)
+    function Optimizer()
         model =
             new(Clp_newModel(), ClpSolve_new(), Set{String}(), false, 0.0, -1.0)
-        if length(kwargs) > 0
-            @warn("""Passing optimizer attributes as keyword arguments to
-            Clp.Optimizer is deprecated. Use
-                MOI.set(model, MOI.RawOptimizerAttribute("key"), value)
-            or
-                JuMP.set_optimizer_attribute(model, "key", value)
-            instead.
-            """)
-        end
-        for (key, value) in kwargs
-            MOI.set(model, MOI.RawOptimizerAttribute(String(key)), value)
-        end
         finalizer(model) do m
             Clp_deleteModel(m)
             ClpSolve_delete(m.solver_options)
@@ -119,7 +107,9 @@ end
 
 MOI.get(::Optimizer, ::MOI.SolverName) = "Clp"
 
-MOI.get(::Optimizer, ::MOI.SolverVersion) = string(_CLP_VERSION)
+function MOI.get(::Optimizer, ::MOI.SolverVersion)
+    return "$(Clp_VersionMajor()).$(Clp_VersionMinor()).$(Clp_VersionRelease())"
+end
 
 # If you update this list, remember to update the README documentation!
 const SUPPORTED_PARAMETERS = (
@@ -575,7 +565,6 @@ function MOI.get(
     return error("Primal solution not available")
 end
 
-# TODO: What happens if model is unbounded / infeasible?
 function MOI.get(
     model::Optimizer,
     attr::MOI.ConstraintPrimal,
@@ -583,7 +572,7 @@ function MOI.get(
 )
     MOI.check_result_index_bounds(model, attr)
     if MOI.get(model, MOI.PrimalStatus()) == MOI.INFEASIBILITY_CERTIFICATE
-        return MOI.Utilities.get_fallback(model, attr)
+        return MOI.Utilities.get_fallback(model, attr, c)
     end
     return _unsafe_wrap_clp_array(
         model,
