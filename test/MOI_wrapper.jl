@@ -32,6 +32,7 @@ function test_runtests()
         MOI.Utilities.UniversalFallback(MOI.Utilities.Model{Float64}()),
         MOI.instantiate(Clp.Optimizer; with_bridge_type = Float64),
     )
+    @test model.optimizer.model.model_cache isa MOI.Utilities.UniversalFallback{Clp.OptimizerCache}
     # `Variable.ZerosBridge` makes dual needed by some tests fail.
     MOI.Bridges.remove_bridge(
         model.optimizer,
