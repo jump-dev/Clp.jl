@@ -341,6 +341,7 @@ function MOI.copy_to(
     dest::Optimizer,
     src::MOI.Utilities.UniversalFallback{OptimizerCache},
 )
+    MOI.Utilities.throw_unsupported(src)
     return MOI.copy_to(dest, src.model)
 end
 
