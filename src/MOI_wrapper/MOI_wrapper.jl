@@ -26,6 +26,8 @@ const OptimizerCache = MOI.Utilities.GenericModel{
     },
 }
 
+Base.show(io::IO, ::Type{OptimizerCache}) = print(io, "Clp.OptimizerCache")
+
 const SCALAR_SETS = Union{
     MOI.GreaterThan{Float64},
     MOI.LessThan{Float64},
@@ -70,6 +72,10 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
         end
         return model
     end
+end
+
+function MOI.default_cache(::Optimizer, ::Type{Float64})
+    return MOI.Utilities.UniversalFallback(OptimizerCache())
 end
 
 Base.cconvert(::Type{Ptr{Cvoid}}, model::Optimizer) = model
@@ -335,6 +341,7 @@ function MOI.copy_to(
     dest::Optimizer,
     src::MOI.Utilities.UniversalFallback{OptimizerCache},
 )
+    MOI.Utilities.throw_unsupported(src)
     return MOI.copy_to(dest, src.model)
 end
 

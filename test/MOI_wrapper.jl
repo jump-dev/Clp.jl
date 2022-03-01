@@ -27,12 +27,17 @@ function test_supports_default_copy_to()
 end
 
 function test_runtests()
-    model = MOI.Bridges.full_bridge_optimizer(
-        MOI.Utilities.CachingOptimizer(
-            MOI.Utilities.UniversalFallback(MOI.Utilities.Model{Float64}()),
-            Clp.Optimizer(),
-        ),
-        Float64,
+    # This is what JuMP would construct
+    model = MOI.Utilities.CachingOptimizer(
+        MOI.Utilities.UniversalFallback(MOI.Utilities.Model{Float64}()),
+        MOI.instantiate(Clp.Optimizer; with_bridge_type = Float64),
+    )
+    @test model.optimizer.model.model_cache isa
+          MOI.Utilities.UniversalFallback{Clp.OptimizerCache}
+    # `Variable.ZerosBridge` makes dual needed by some tests fail.
+    MOI.Bridges.remove_bridge(
+        model.optimizer,
+        MathOptInterface.Bridges.Variable.ZerosBridge{Float64},
     )
     MOI.set(model, MOI.Silent(), true)
     MOI.Test.runtests(
@@ -50,10 +55,9 @@ function test_runtests()
 end
 
 function test_Nonexistant_unbounded_ray()
-    model = MOI.Utilities.CachingOptimizer(
-        MOI.Utilities.UniversalFallback(MOI.Utilities.Model{Float64}()),
-        Clp.Optimizer(),
-    )
+    inner = Clp.Optimizer()
+    model =
+        MOI.Utilities.CachingOptimizer(MOI.default_cache(inner, Float64), inner)
     MOI.set(model, MOI.Silent(), true)
     x = MOI.add_variables(model, 5)
     MOI.set(
