@@ -35,11 +35,6 @@ jobs:
             ${{ runner.os }}-test-${{ env.cache-name }}-
             ${{ runner.os }}-test-
             ${{ runner.os }}-
-      - name: MOI#bl/throw_unsupported_uf
-        shell: julia --project=@. {0}
-        run: |
-          using Pkg
-          Pkg.add(PackageSpec(name="MathOptInterface", rev="bl/throw_unsupported_uf"))
       - uses: julia-actions/julia-buildpkg@v1
       - uses: julia-actions/julia-runtest@v1
       - uses: julia-actions/julia-processcoverage@v1
