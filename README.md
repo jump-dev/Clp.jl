@@ -29,6 +29,9 @@ import Pkg; Pkg.add("Clp")
 In addition to installing the Clp.jl package, this will also download and
 install the Clp binaries. (You do not need to isntall Clp separately.)
 
+To use a custom binary, read the [Custom solver binaries](https://jump.dev/JuMP.jl/stable/developers/custom_solver_binaries/)
+section of the JuMP documentation.
+
 ## Use with JuMP
 
 To use Clp with [JuMP](https://github.com/jump-dev/JuMP.jl), use `Clp.Optimizer`:
