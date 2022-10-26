@@ -1,14 +1,14 @@
 name = "Clp"
 uuid = "e2554f3b-3117-50c0-817c-e040a3ddf72d"
 repo = "https://github.com/jump-dev/Clp.jl.git"
-version = "1.0.1"
+version = "1.0.2"
 
 [deps]
 Clp_jll = "06985876-5285-5a41-9fcb-8948a742cc53"
 MathOptInterface = "b8f27783-ece8-5eb3-8dc8-9495eed66fee"
 
 [compat]
-Clp_jll = "~100.1700.601"
+Clp_jll = "=100.1700.601"
 MathOptInterface = "1.1"
 julia = "1.6"
 
