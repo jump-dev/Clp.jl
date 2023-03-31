@@ -50,6 +50,24 @@ set_optimizer_attribute(model, "LogLevel", 1)
 set_optimizer_attribute(model, "Algorithm", 4)
 ```
 
+## Supported problem types
+
+List of supported model attributes:
+
+ * `MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}`
+ * `MOI.ObjectiveSense`
+
+List of supported constraint types:
+
+ * `MOI.ScalarAffineFunction{Float64}` in `MOI.EqualTo{Float64}`
+ * `MOI.ScalarAffineFunction{Float64}` in `MOI.GreaterThan{Float64}`
+ * `MOI.ScalarAffineFunction{Float64}` in `MOI.Interval{Float64}`
+ * `MOI.ScalarAffineFunction{Float64}` in `MOI.LessThan{Float64}`
+ * `MOI.VariableIndex` in `MOI.EqualTo{Float64}`
+ * `MOI.VariableIndex` in `MOI.GreaterThan{Float64}`
+ * `MOI.VariableIndex` in `MOI.Interval{Float64}`
+ * `MOI.VariableIndex` in `MOI.LessThan{Float64}`
+
 ## Options
 
 The following options are available to get/set via [`JuMP.set_attribute`](@ref)
