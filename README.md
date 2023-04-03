@@ -46,27 +46,32 @@ To use Clp with [JuMP](https://github.com/jump-dev/JuMP.jl), use `Clp.Optimizer`
 ```julia
 using JuMP, Clp
 model = Model(Clp.Optimizer)
-set_optimizer_attribute(model, "LogLevel", 1)
-set_optimizer_attribute(model, "Algorithm", 4)
+set_attribute(model, "LogLevel", 1)
+set_attribute(model, "Algorithm", 4)
 ```
 
-## Supported problem types
+## MathOptInterface API
 
-List of supported model attributes:
+The Clp optimizer supports the following constraints and attributes.
 
- * `MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}`
- * `MOI.ObjectiveSense`
+List of supported objective functions:
+
+ * [`MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}`](@ref)
 
 List of supported constraint types:
 
- * `MOI.ScalarAffineFunction{Float64}` in `MOI.EqualTo{Float64}`
- * `MOI.ScalarAffineFunction{Float64}` in `MOI.GreaterThan{Float64}`
- * `MOI.ScalarAffineFunction{Float64}` in `MOI.Interval{Float64}`
- * `MOI.ScalarAffineFunction{Float64}` in `MOI.LessThan{Float64}`
- * `MOI.VariableIndex` in `MOI.EqualTo{Float64}`
- * `MOI.VariableIndex` in `MOI.GreaterThan{Float64}`
- * `MOI.VariableIndex` in `MOI.Interval{Float64}`
- * `MOI.VariableIndex` in `MOI.LessThan{Float64}`
+ * [`MOI.ScalarAffineFunction{Float64}`](@ref) in [`MOI.EqualTo{Float64}`](@ref)
+ * [`MOI.ScalarAffineFunction{Float64}`](@ref) in [`MOI.GreaterThan{Float64}`](@ref)
+ * [`MOI.ScalarAffineFunction{Float64}`](@ref) in [`MOI.Interval{Float64}`](@ref)
+ * [`MOI.ScalarAffineFunction{Float64}`](@ref) in [`MOI.LessThan{Float64}`](@ref)
+ * [`MOI.VariableIndex`](@ref) in [`MOI.EqualTo{Float64}`](@ref)
+ * [`MOI.VariableIndex`](@ref) in [`MOI.GreaterThan{Float64}`](@ref)
+ * [`MOI.VariableIndex`](@ref) in [`MOI.Interval{Float64}`](@ref)
+ * [`MOI.VariableIndex`](@ref) in [`MOI.LessThan{Float64}`](@ref)
+
+List of supported model attributes:
+
+ * [`MOI.ObjectiveSense()`](@ref)
 
 ## Options
 
