@@ -65,11 +65,17 @@ mutable struct Optimizer <: MOI.AbstractOptimizer
     optimize_called::Bool
     solve_time::Float64
     # Work-around for upstream bug in Clp:
-    maximumSeconds::Float64
+    maximumSeconds::Union{Float64,Nothing}
 
     function Optimizer()
-        model =
-            new(Clp_newModel(), ClpSolve_new(), Set{String}(), false, 0.0, -1.0)
+        model = new(
+            Clp_newModel(),
+            ClpSolve_new(),
+            Set{String}(),
+            false,
+            0.0,
+            nothing,
+        )
         finalizer(model) do m
             Clp_deleteModel(m)
             ClpSolve_delete(m.solver_options)
@@ -112,7 +118,7 @@ function MOI.empty!(model::Optimizer)
         MOI.set(model, MOI.RawOptimizerAttribute(key), value)
     end
     # Work-around for maximumSeconds
-    Clp_setMaximumSeconds(model, model.maximumSeconds)
+    Clp_setMaximumSeconds(model, something(model.maximumSeconds, -1.0))
     return
 end
 
@@ -220,11 +226,18 @@ MOI.get(model::Optimizer, ::MOI.Silent) = Clp_logLevel(model) == 0
 
 MOI.supports(::Optimizer, ::MOI.TimeLimitSec) = true
 
-function MOI.set(model::Optimizer, ::MOI.TimeLimitSec, value)
+function MOI.set(model::Optimizer, ::MOI.TimeLimitSec, value::Real)
     push!(model.options_set, "MaximumSeconds")
-    value = value === nothing ? -1.0 : value
-    Clp_setMaximumSeconds(model, value)
-    model.maximumSeconds = value
+    float_value = convert(Float64, value)
+    Clp_setMaximumSeconds(model, float_value)
+    model.maximumSeconds = float_value
+    return
+end
+
+function MOI.set(model::Optimizer, ::MOI.TimeLimitSec, ::Nothing)
+    delete!(model.options_set, "MaximumSeconds")
+    Clp_setMaximumSeconds(model, -1.0)
+    model.maximumSeconds = nothing
     return
 end
 
