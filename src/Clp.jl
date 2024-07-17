@@ -6,13 +6,14 @@
 module Clp
 
 import Clp_jll
+import MathOptInterface as MOI
 
 function __init__()
     global libClp = Clp_jll.libClp
     version = VersionNumber(
         "$(Clp_VersionMajor()).$(Clp_VersionMinor()).$(Clp_VersionRelease())",
     )
-    if !(v"1.17.2" <= version <= v"1.17.7")
+    if !(v"1.17.2" <= version <= v"1.17.9")
         error(
             "You have installed version $version of Clp, which is not " *
             "supported by Clp.jl. If the version change was breaking, changes " *
