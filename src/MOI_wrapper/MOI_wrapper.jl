@@ -3,10 +3,6 @@
 # Use of this source code is governed by an MIT-style license that can be found
 # in the LICENSE.md file or at https://opensource.org/licenses/MIT.
 
-import MathOptInterface
-
-const MOI = MathOptInterface
-
 MOI.Utilities.@product_of_sets(
     _LPProductOfSets,
     MOI.EqualTo{T},

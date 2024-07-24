@@ -6,13 +6,22 @@
 module Clp
 
 import Clp_jll
+import LinearAlgebra
+import MathOptInterface as MOI
+import OpenBLAS32_jll
 
 function __init__()
+    if VERSION >= v"1.9"
+        config = LinearAlgebra.BLAS.lbt_get_config()
+        if !any(lib -> lib.interface == :lp64, config.loaded_libs)
+            LinearAlgebra.BLAS.lbt_forward(OpenBLAS32_jll.libopenblas_path)
+        end
+    end
     global libClp = Clp_jll.libClp
     version = VersionNumber(
         "$(Clp_VersionMajor()).$(Clp_VersionMinor()).$(Clp_VersionRelease())",
     )
-    if !(v"1.17.2" <= version <= v"1.17.7")
+    if !(v"1.17.2" <= version <= v"1.17.9")
         error(
             "You have installed version $version of Clp, which is not " *
             "supported by Clp.jl. If the version change was breaking, changes " *
