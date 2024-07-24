@@ -6,10 +6,12 @@ version = "1.0.3"
 [deps]
 Clp_jll = "06985876-5285-5a41-9fcb-8948a742cc53"
 MathOptInterface = "b8f27783-ece8-5eb3-8dc8-9495eed66fee"
+OpenBLAS32_jll = "656ef2d0-ae68-5445-9ca0-591084a874a2"
 
 [compat]
 Clp_jll = "=100.1700.601, =100.1700.700, =100.1700.900"
 MathOptInterface = "1.1"
+OpenBLAS32_jll = "0.3.10"
 julia = "1.6"
 
 [extras]
