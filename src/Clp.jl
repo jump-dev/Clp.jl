@@ -7,6 +7,7 @@ module Clp
 
 import Clp_jll
 import MathOptInterface as MOI
+import LinearAlgebra
 import OpenBLAS32_jll
 
 function __init__()
