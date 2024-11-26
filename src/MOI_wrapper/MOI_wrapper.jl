@@ -400,44 +400,69 @@ function MOI.get(model::Optimizer, attr::MOI.ObjectiveValue)
     return Clp_getObjValue(model)
 end
 
+function _active_bound(sense, d, l, u)
+    if -1e100 < l && u < 1e100
+        return ifelse(sense * d >= 0, l, u)
+    elseif l > -1e100
+        return l
+    elseif u < 1e100
+        return u
+    else
+        return 0.0
+    end
+end
+
 function MOI.get(model::Optimizer, attr::MOI.DualObjectiveValue)
     MOI.check_result_index_bounds(model, attr)
-    if MOI.get(model, MOI.DualStatus()) != MOI.INFEASIBILITY_CERTIFICATE
-        error("Unsupported")
-    end
+    has_dual_ray =
+        MOI.get(model, MOI.DualStatus()) == MOI.INFEASIBILITY_CERTIFICATE
     M = Clp_getNumRows(model)
-    ray = _unsafe_wrap_clp_array(model, Clp_infeasibilityRay, M; own = true)
+    dual_objective_value = 0.0
+    if !has_dual_ray
+        dual_objective_value -= Clp_objectiveOffset(model)
+    end
+    row_dual = if has_dual_ray
+        _unsafe_wrap_clp_array(model, Clp_infeasibilityRay, M; own = true)
+    else
+        _unsafe_wrap_clp_array(model, Clp_getRowPrice, M)
+    end
     l = _unsafe_wrap_clp_array(model, Clp_getRowLower, M)
     u = _unsafe_wrap_clp_array(model, Clp_getRowUpper, M)
-    obj = 0.0
+    sense = Clp_getObjSense(model)
     for i in 1:M
-        # For scalar constraints the ray needs to be negated.
-        if -ray[i] < 0
-            obj += ray[i] * u[i]
-        elseif -ray[i] > 0
-            obj += ray[i] * l[i]
+        if has_dual_ray
+            b = _active_bound(sense, row_dual[i], l[i], u[i])
+            dual_objective_value += -sense * b * row_dual[i]
+        else
+            dual_objective_value +=
+                _active_bound(sense, row_dual[i], l[i], u[i]) * row_dual[i]
         end
     end
     N = Clp_getNumCols(model)
     l = _unsafe_wrap_clp_array(model, Clp_getColLower, N)
     u = _unsafe_wrap_clp_array(model, Clp_getColUpper, N)
-    nnz = Clp_getNumElements(model)
-    vbeg = _unsafe_wrap_clp_array(model, Clp_getVectorStarts, N)
-    vlen = _unsafe_wrap_clp_array(model, Clp_getVectorLengths, N)
-    vind = _unsafe_wrap_clp_array(model, Clp_getIndices, nnz)
-    vval = _unsafe_wrap_clp_array(model, Clp_getElements, nnz)
-    for col in 1:N
-        π = 0.0
-        for i in vbeg[col] .+ (1:vlen[col])
-            π += ray[vind[i]+1] * vval[i]
+    if has_dual_ray
+        nnz = Clp_getNumElements(model)
+        vbeg = _unsafe_wrap_clp_array(model, Clp_getVectorStarts, N)
+        vlen = _unsafe_wrap_clp_array(model, Clp_getVectorLengths, N)
+        vind = _unsafe_wrap_clp_array(model, Clp_getIndices, nnz)
+        vval = _unsafe_wrap_clp_array(model, Clp_getElements, nnz)
+        for col in 1:N
+            π = 0.0
+            for i in vbeg[col] .+ (1:vlen[col])
+                π += row_dual[vind[i]+1] * vval[i]
+            end
+            dual_objective_value +=
+                sense * _active_bound(sense, π, l[col], u[col]) * π
         end
-        if π < 0
-            obj += π * -u[col]
-        elseif π > 0
-            obj += π * -l[col]
+    else
+        π = _unsafe_wrap_clp_array(model, Clp_getReducedCost, N)
+        for col in 1:N
+            dual_objective_value +=
+                _active_bound(sense, π[col], l[col], u[col]) * π[col]
         end
     end
-    return -Clp_getObjSense(model) * obj
+    return dual_objective_value
 end
 
 function MOI.get(model::Optimizer, ::MOI.TerminationStatus)

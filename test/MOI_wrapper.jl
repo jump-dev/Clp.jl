@@ -6,10 +6,9 @@
 module TestMOIWrapper
 
 using Test
-using MathOptInterface
-import Clp
 
-const MOI = MathOptInterface
+import Clp
+import MathOptInterface as MOI
 
 function runtests()
     for name in names(@__MODULE__; all = true)
@@ -19,6 +18,7 @@ function runtests()
             end
         end
     end
+    return
 end
 
 function test_SolverName()
@@ -42,14 +42,12 @@ function test_runtests()
     # `Variable.ZerosBridge` makes dual needed by some tests fail.
     MOI.Bridges.remove_bridge(
         model.optimizer,
-        MathOptInterface.Bridges.Variable.ZerosBridge{Float64},
+        MOI.Bridges.Variable.ZerosBridge{Float64},
     )
     MOI.set(model, MOI.Silent(), true)
     MOI.Test.runtests(
         model,
-        MOI.Test.Config(
-            exclude = Any[MOI.DualObjectiveValue, MOI.ObjectiveBound],
-        ),
+        MOI.Test.Config(; exclude = Any[MOI.ObjectiveBound]),
         exclude = [
             # Unable to prove infeasibility
             "test_conic_NormInfinityCone_INFEASIBLE",
