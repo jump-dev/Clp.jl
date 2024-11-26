@@ -450,10 +450,10 @@ function MOI.get(model::Optimizer, attr::MOI.DualObjectiveValue)
         for col in 1:N
             π = 0.0
             for i in vbeg[col] .+ (1:vlen[col])
-                π[col] += row_dual[vind[i]+1] * vval[i]
+                π += row_dual[vind[i]+1] * vval[i]
             end
             dual_objective_value +=
-                sense * _active_bound(sense, π[col], l[col], u[col]) * π[col]
+                sense * _active_bound(sense, π, l[col], u[col]) * π
         end
     else
         π = _unsafe_wrap_clp_array(model, Clp_getReducedCost, N)
