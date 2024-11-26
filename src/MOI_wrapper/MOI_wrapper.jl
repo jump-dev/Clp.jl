@@ -465,51 +465,33 @@ function MOI.get(model::Optimizer, attr::MOI.DualObjectiveValue)
     return dual_objective_value
 end
 
+const _TerminationStatus = Dict{Int,Tuple{MOI.TerminationStatusCode,String}}(
+    0 => (MOI.OPTIMAL, "0 - optimal"),
+    1 => (MOI.INFEASIBLE, "1 - primal infeasible"),
+    2 => (MOI.DUAL_INFEASIBLE, "2 - dual infeasible"),
+    # No more granular information that "some limit is reached"
+    3 => (MOI.OTHER_LIMIT, "3 - stopped on iterations etc"),
+    4 => (MOI.OTHER_ERROR, "4 - stopped due to errors"),
+)
+
 function MOI.get(model::Optimizer, ::MOI.TerminationStatus)
     if !model.optimize_called
         return MOI.OPTIMIZE_NOT_CALLED
     end
-    st = Clp_status(model)
-    if st == 0
-        return MOI.OPTIMAL
-    elseif st == 1
-        return MOI.INFEASIBLE
-    elseif st == 2
-        return MOI.DUAL_INFEASIBLE
-    elseif st == 3
-        # No more granular information that "some limit is reached"
-        return MOI.OTHER_LIMIT
-    end
-    return MOI.OTHER_ERROR
+    return _TerminationStatus[Clp_status(model)][1]
 end
 
 function MOI.get(model::Optimizer, ::MOI.RawStatusString)
     if !model.optimize_called
         return "MOI.OPTIMIZE_NOT_CALLED"
     end
-    st = Clp_status(model)
-    if st == 0
-        return "0 - optimal"
-    elseif st == 1
-        return "1 - primal infeasible"
-    elseif st == 2
-        return "2 - dual infeasible"
-    elseif st == 3
-        return "3 - stopped on iterations etc"
-    else
-        @assert st == 4
-        return "4 - stopped due to errors"
-    end
+    return _TerminationStatus[Clp_status(model)][2]
 end
 
 function MOI.get(model::Optimizer, ::MOI.ResultCount)
-    if Clp_primalFeasible(model) != 0
+    if Clp_primalFeasible(model) + Clp_isProvenPrimalInfeasible(model) > 0
         return 1
-    elseif Clp_dualFeasible(model) != 0
-        return 1
-    elseif Clp_isProvenPrimalInfeasible(model) != 0
-        return 1
-    elseif Clp_isProvenDualInfeasible(model) != 0
+    elseif Clp_dualFeasible(model) + Clp_isProvenDualInfeasible(model) > 0
         return 1
     end
     return 0
@@ -572,15 +554,13 @@ function MOI.get(
             x.value;
             own = true,
         )
-    elseif primal_status == MOI.FEASIBLE_POINT
-        return _unsafe_wrap_clp_array(
-            model,
-            Clp_getColSolution,
-            Clp_getNumCols(model),
-            x.value,
-        )
     end
-    return error("Primal solution not available")
+    return _unsafe_wrap_clp_array(
+        model,
+        Clp_getColSolution,
+        Clp_getNumCols(model),
+        x.value,
+    )
 end
 
 function MOI.get(
@@ -600,15 +580,13 @@ function MOI.get(
             col_indices;
             own = true,
         )
-    elseif primal_status == MOI.FEASIBLE_POINT
-        return _unsafe_wrap_clp_array(
-            model,
-            Clp_getColSolution,
-            Clp_getNumCols(model),
-            col_indices,
-        )
     end
-    return error("Primal solution not available")
+    return _unsafe_wrap_clp_array(
+        model,
+        Clp_getColSolution,
+        Clp_getNumCols(model),
+        col_indices,
+    )
 end
 
 function MOI.get(
@@ -679,10 +657,7 @@ function MOI.get(
     n = Clp_getNumRows(model)
     dual_status = MOI.get(model, MOI.DualStatus())
     sense = Clp_getObjSense(model)
-    if dual_status == MOI.FEASIBLE_POINT
-        dsol = _unsafe_wrap_clp_array(model, Clp_getRowPrice, n, c.value)
-        return sense * dsol
-    elseif dual_status == MOI.INFEASIBILITY_CERTIFICATE
+    if dual_status == MOI.INFEASIBILITY_CERTIFICATE
         # We claim ownership of the pointer returned by Clp_infeasibilityRay.
         return -_unsafe_wrap_clp_array(
             model,
@@ -692,7 +667,8 @@ function MOI.get(
             own = true,
         )
     end
-    return error("Dual solution not available")
+    dsol = _unsafe_wrap_clp_array(model, Clp_getRowPrice, n, c.value)
+    return sense * dsol
 end
 
 function MOI.get(
