@@ -531,9 +531,7 @@ function _unsafe_wrap_clp_array(
     own::Bool = false,
 )
     p = f(model)
-    if p == C_NULL
-        return map(x -> NaN, indices)
-    end
+    @assert p != C_NULL
     x = unsafe_wrap(Array, p, (n,); own = own)
     return indices === nothing ? x : x[indices]
 end
@@ -645,7 +643,7 @@ function _farkas_variable_dual(model::Optimizer, col::Integer)
     vval = _unsafe_wrap_clp_array(model, Clp_getElements, nnz, indices)
     # We need to claim ownership of the pointer returned by Clp_infeasibilityRay.
     λ = _unsafe_wrap_clp_array(model, Clp_infeasibilityRay, m; own = true)
-    return sum(v * λ[i+1] for (i, v) in zip(vind, vval))
+    return sum(v * λ[i+1] for (i, v) in zip(vind, vval); init = 0.0)
 end
 
 function MOI.get(
@@ -753,9 +751,7 @@ function _nonbasic_status(status, ::Type{<:MOI.GreaterThan})
     return status == MOI.NONBASIC_AT_LOWER ? MOI.NONBASIC : MOI.BASIC
 end
 
-_nonbasic_status(::Any, ::Type{<:MOI.EqualTo}) = MOI.NONBASIC
-
-_nonbasic_status(status, ::Type{<:MOI.Interval}) = status
+_nonbasic_status(status, ::Type{S}) where {S} = status
 
 function MOI.get(
     model::Optimizer,
