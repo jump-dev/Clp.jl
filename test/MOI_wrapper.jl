@@ -149,6 +149,96 @@ function test_attribute_TimeLimitSec()
     return
 end
 
+function test_isProvenPrimalInfeasible()
+    inner = MOI.Utilities.UniversalFallback(MOI.Utilities.Model{Float64}())
+    MOI.Utilities.loadfromstring!(
+        inner,
+        """
+        variables: x, y
+        minobjective: -1.0 * x + -1.0 * y
+        -1.0 * x >= 1.0
+        1.0 * y >= 1.0
+        x >= 0.0
+        y >= 0.0
+        """,
+    )
+    model = Clp.Optimizer()
+    MOI.optimize!(model, inner)
+    @test MOI.get(model, MOI.RawStatusString()) == "1 - primal infeasible"
+    @test MOI.get(model, MOI.ResultCount()) == 1
+    @test Clp.Clp_primalFeasible(model) == 0
+    @test Clp.Clp_dualFeasible(model) == 0
+    @test Clp.Clp_isProvenPrimalInfeasible(model) == 1
+    return
+end
+
+function test_isProvenDualInfeasible()
+    inner = MOI.Utilities.UniversalFallback(MOI.Utilities.Model{Float64}())
+    MOI.Utilities.loadfromstring!(
+        inner,
+        """
+        variables: x
+        maxobjective: 1.0 * x
+        x >= 0.0
+        """,
+    )
+    model = Clp.Optimizer()
+    MOI.optimize!(model, inner)
+    @test MOI.get(model, MOI.RawStatusString()) == "2 - dual infeasible"
+    @test MOI.get(model, MOI.ResultCount()) == 1
+    @test Clp.Clp_primalFeasible(model) == 1
+    @test Clp.Clp_dualFeasible(model) == 0
+    @test Clp.Clp_isProvenDualInfeasible(model) == 1
+    return
+end
+
+function test_stopped_on_iterations()
+    inner = MOI.Utilities.UniversalFallback(MOI.Utilities.Model{Float64}())
+    MOI.Utilities.loadfromstring!(
+        inner,
+        """
+        variables: x1, x2, x3
+        maxobjective: x1 + x2
+        x1 + x2 + x3 <= 1.0
+        x1 >= 0.0
+        x2 >= 0.0
+        x3 >= 0.0
+        """,
+    )
+    model = Clp.Optimizer()
+    @test MOI.get(model, MOI.RawStatusString()) == "MOI.OPTIMIZE_NOT_CALLED"
+    MOI.set(model, MOI.RawOptimizerAttribute("MaximumIterations"), 1)
+    MOI.set(model, MOI.RawOptimizerAttribute("PresolveType"), 1)
+    MOI.optimize!(model, inner)
+    @test MOI.get(model, MOI.RawStatusString()) ==
+          "3 - stopped on iterations etc"
+    @test MOI.get(model, MOI.ResultCount()) == 0
+    @test MOI.get(model, MOI.PrimalStatus()) == MOI.UNKNOWN_RESULT_STATUS
+    @test MOI.get(model, MOI.DualStatus()) == MOI.UNKNOWN_RESULT_STATUS
+    return
+end
+
+function test_dual_infeasibility_certificate_fixed_bound()
+    inner = MOI.Utilities.UniversalFallback(MOI.Utilities.Model{Float64}())
+    MOI.Utilities.loadfromstring!(
+        inner,
+        """
+        variables: x, y
+        maxobjective: 1.0 * x + y
+        x >= 0.0
+        1.0 * x <= -1.0
+        y == 1.0
+        """,
+    )
+    y = MOI.get(inner, MOI.VariableIndex, "y")
+    model = Clp.Optimizer()
+    index_map, _ = MOI.optimize!(model, inner)
+    @test MOI.get(model, MOI.DualStatus()) == MOI.INFEASIBILITY_CERTIFICATE
+    ci = MOI.ConstraintIndex{MOI.VariableIndex,MOI.EqualTo{Float64}}(y.value)
+    @test MOI.get(model, MOI.ConstraintDual(), index_map[ci]) == 0.0
+    return
+end
+
 end  # module TestMOIWrapper
 
 TestMOIWrapper.runtests()
