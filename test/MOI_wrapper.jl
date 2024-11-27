@@ -180,7 +180,7 @@ function test_isProvenDualInfeasible()
         variables: x
         maxobjective: 1.0 * x
         x >= 0.0
-        """
+        """,
     )
     model = Clp.Optimizer()
     MOI.optimize!(model, inner)
@@ -228,7 +228,7 @@ function test_dual_infeasibility_certificate_fixed_bound()
         x >= 0.0
         1.0 * x <= -1.0
         y == 1.0
-        """
+        """,
     )
     y = MOI.get(inner, MOI.VariableIndex, "y")
     model = Clp.Optimizer()
