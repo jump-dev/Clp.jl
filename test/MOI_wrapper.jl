@@ -160,7 +160,7 @@ function test_stopped_on_iterations()
         x1 >= 0.0
         x2 >= 0.0
         x3 >= 0.0
-        """
+        """,
     )
     model = Clp.Optimizer()
     MOI.set(model, MOI.RawOptimizerAttribute("MaximumIterations"), 1)
@@ -185,7 +185,7 @@ function test_isProvenPrimalInfeasible()
         1.0 * y >= 1.0
         x >= 0.0
         y >= 0.0
-        """
+        """,
     )
     model = Clp.Optimizer()
     MOI.optimize!(model, inner)
