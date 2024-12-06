@@ -11,6 +11,11 @@ import MathOptInterface as MOI
 import OpenBLAS32_jll
 
 function __init__()
+    @static if Sys.isapple() && Sys.ARCH == :aarch64
+        error(
+            "Clp.jl does not support Apple M-series processors. Please use HiGHS.jl instead.",
+        )
+    end
     if VERSION >= v"1.9"
         config = LinearAlgebra.BLAS.lbt_get_config()
         if !any(lib -> lib.interface == :lp64, config.loaded_libs)
