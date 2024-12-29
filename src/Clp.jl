@@ -50,29 +50,34 @@ end
 
 import PrecompileTools
 
-PrecompileTools.@setup_workload begin
-    PrecompileTools.@compile_workload begin
-        let
-            model = MOI.Utilities.CachingOptimizer(
-                MOI.Utilities.UniversalFallback(MOI.Utilities.Model{Float64}()),
-                MOI.instantiate(Clp.Optimizer; with_bridge_type = Float64),
-            )
-            MOI.set(model, MOI.Silent(), true)
-            x = MOI.add_variables(model, 3)
-            sets = (MOI.GreaterThan(0.0), MOI.LessThan(2.0), MOI.EqualTo(1.0))
-            for i in 1:3, f in (x[i], 1.0 * x[1] + 2.0 * x[2])
-                MOI.supports_constraint(model, typeof(f), typeof(sets[i]))
-                MOI.add_constraint(model, f, sets[i])
+@static if !(Sys.isapple() && Sys.ARCH == :aarch64)
+    PrecompileTools.@setup_workload begin
+        PrecompileTools.@compile_workload begin
+            let
+                model = MOI.Utilities.CachingOptimizer(
+                    MOI.Utilities.UniversalFallback(
+                        MOI.Utilities.Model{Float64}(),
+                    ),
+                    MOI.instantiate(Clp.Optimizer; with_bridge_type = Float64),
+                )
+                MOI.set(model, MOI.Silent(), true)
+                x = MOI.add_variables(model, 3)
+                sets =
+                    (MOI.GreaterThan(0.0), MOI.LessThan(2.0), MOI.EqualTo(1.0))
+                for i in 1:3, f in (x[i], 1.0 * x[1] + 2.0 * x[2])
+                    MOI.supports_constraint(model, typeof(f), typeof(sets[i]))
+                    MOI.add_constraint(model, f, sets[i])
+                end
+                f = 1.0 * x[1] + x[2] + x[3]
+                MOI.set(model, MOI.ObjectiveSense(), MOI.MAX_SENSE)
+                MOI.supports(model, MOI.ObjectiveFunction{typeof(f)}())
+                MOI.set(model, MOI.ObjectiveFunction{typeof(f)}(), f)
+                MOI.optimize!(model)
+                MOI.get(model, MOI.TerminationStatus())
+                MOI.get(model, MOI.PrimalStatus())
+                MOI.get(model, MOI.DualStatus())
+                MOI.get(model, MOI.VariablePrimal(), x)
             end
-            f = 1.0 * x[1] + x[2] + x[3]
-            MOI.set(model, MOI.ObjectiveSense(), MOI.MAX_SENSE)
-            MOI.supports(model, MOI.ObjectiveFunction{typeof(f)}())
-            MOI.set(model, MOI.ObjectiveFunction{typeof(f)}(), f)
-            MOI.optimize!(model)
-            MOI.get(model, MOI.TerminationStatus())
-            MOI.get(model, MOI.PrimalStatus())
-            MOI.get(model, MOI.DualStatus())
-            MOI.get(model, MOI.VariablePrimal(), x)
         end
     end
 end
