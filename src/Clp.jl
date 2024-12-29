@@ -62,11 +62,8 @@ import PrecompileTools
                 )
                 MOI.set(model, MOI.Silent(), true)
                 x = MOI.add_variables(model, 3)
-                sets = (
-                    MOI.GreaterThan(0.0),
-                    MOI.LessThan(2.0),
-                    MOI.EqualTo(1.0),
-                )
+                sets =
+                    (MOI.GreaterThan(0.0), MOI.LessThan(2.0), MOI.EqualTo(1.0))
                 for i in 1:3, f in (x[i], 1.0 * x[1] + 2.0 * x[2])
                     MOI.supports_constraint(model, typeof(f), typeof(sets[i]))
                     MOI.add_constraint(model, f, sets[i])
