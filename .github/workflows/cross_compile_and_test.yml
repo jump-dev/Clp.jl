@@ -1,0 +1,63 @@
+name: Build on Linux, Run on macOS
+on:
+  push:
+    branches: [master]
+  pull_request:
+    types: [opened, synchronize, reopened]
+# needed to allow julia-actions/cache to delete old caches that it has created
+permissions:
+  actions: write
+  contents: read
+jobs:
+  # The purpose of this job is to install Julia, run binary builder, and store
+  # the solver artifact for the next job.
+  build-jll:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: "1.7"
+          arch: x64
+      - uses: julia-actions/cache@v2
+      - run: |
+          PACKAGE=Clp_jll
+          PLATFORM=aarch64-apple-darwin
+          julia --color=yes -e 'using Pkg; Pkg.add("BinaryBuilder")'
+          julia --color=yes .github/julia/build_tarballs.jl ${PLATFORM} --verbose --deploy=local
+        env:
+          BINARYBUILDER_RUNNER: privileged
+          BINARYBUILDER_AUTOMATIC_APPLE: true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: override
+          path: '/home/runner/work/Clp.jl/Clp.jl/products/Clp.v100.1700.901.aarch64-apple-darwin.tar.gz'
+  # The purpose of this job is to install Julia, download the artifact from
+  # build-linux, and use it to run the solver's tests.
+  test-jll:
+    runs-on: macos-14
+    needs: build-jll
+    steps:
+      - uses: actions/checkout@v4
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: "1"
+          arch: aarch64
+      - uses: julia-actions/cache@v2
+      - uses: julia-actions/julia-buildpkg@v1
+      - uses: actions/download-artifact@v4
+      - run: |
+          cd ${GITHUB_WORKSPACE}
+          cd override
+          tar -xzf Clp.v100.1700.901.aarch64-apple-darwin.tar.gz
+          ls ${GITHUB_WORKSPACE}/override
+          ls ${GITHUB_WORKSPACE}/override/lib
+      - shell: julia --color=yes --project=. {0}
+        run: |
+          import Clp_jll
+          artifact_dir = Clp_jll.artifact_dir
+          sha = last(splitpath(artifact_dir))
+          dir = escape_string(joinpath(ENV["GITHUB_WORKSPACE"], "override"))
+          content = "$sha = \"$(dir)\"\n"
+          write(replace(artifact_dir, sha => "Overrides.toml"), content)
+      - uses: julia-actions/julia-runtest@v1
