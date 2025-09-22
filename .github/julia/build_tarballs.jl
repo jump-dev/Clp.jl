@@ -63,8 +63,6 @@ fi
 
 make -j${nproc}
 make install
-
-mv ${prefix}/share/coin/doc/* ${prefix}/share/licenses
 """
 
 platforms = expand_cxxstring_abis(supported_platforms())
