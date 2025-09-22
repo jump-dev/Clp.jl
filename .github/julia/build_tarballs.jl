@@ -16,34 +16,24 @@ sources = [
 ]
 
 script = raw"""
-cd $WORKSPACE/srcdir/CoinUtils*
-
-# Remove misleading libtool files
-rm -f ${prefix}/lib/*.la
-update_configure_scripts
-
-# Without fixing this configure reports that we can't build shared
-# libraries. We use `elf64lppc` for LE support. This seems to be
-# fixed on master, but using `update_configure_scripts -reconf` breaks.
-sed -i s/elf64ppc/elf64lppc/ configure
-
-mkdir build
-cd build/
-
-export CPPFLAGS="${CPPFLAGS} -I${includedir} -I${includedir}/coin"
+export CPPFLAGS="${CPPFLAGS} -DNDEBUG -I${includedir} -I${includedir}/coin"
 if [[ ${target} == *mingw* ]]; then
     export LDFLAGS="-L${libdir}"
 elif [[ ${target} == *linux* ]]; then
     export LDFLAGS="-ldl -lrt"
 fi
-
-# BLAS and LAPACK
 if [[ "${target}" == *mingw* ]]; then
   LBT="-lblastrampoline-5"
 else
   LBT="-lblastrampoline"
 fi
 
+cd $WORKSPACE/srcdir/CoinUtils*
+rm -f ${prefix}/lib/*.la
+update_configure_scripts
+sed -i s/elf64ppc/elf64lppc/ configure
+mkdir build
+cd build/
 ../configure \
     --prefix=${prefix} \
     --build=${MACHTYPE} \
@@ -57,36 +47,15 @@ fi
     --with-blas-lib="-L${libdir} ${LBT}" \
     --with-lapack \
     --with-lapack-lib="-L${libdir} ${LBT}"
-
 make -j${nproc}
 make install
 
 cd $WORKSPACE/srcdir/Osi*
-
-# Remove misleading libtool files
 rm -f ${prefix}/lib/*.la
 update_configure_scripts
-
-# old and custom autoconf
 sed -i s/elf64ppc/elf64lppc/ configure
-
 mkdir build
 cd build/
-
-export CPPFLAGS="${CPPFLAGS} -I${includedir} -I${includedir}/coin"
-if [[ "${target}" == *mingw* ]]; then
-    export LDFLAGS="-L${bindir}"
-elif [[ "${target}" == *linux* ]]; then
-    export LDFLAGS="-ldl -lrt"
-fi
-
-# BLAS and LAPACK
-if [[ "${target}" == *mingw* ]]; then
-  LBT="-lblastrampoline-5"
-else
-  LBT="-lblastrampoline"
-fi
-
 ../configure \
     --prefix=${prefix} \
     --build=${MACHTYPE} \
@@ -101,40 +70,15 @@ fi
     --with-blas-lib="-L${libdir} ${LBT}" \
     --with-lapack \
     --with-lapack-lib="-L${libdir} ${LBT}"
-
 make -j${nproc}
 make install
 
 cd $WORKSPACE/srcdir/Clp*
-
-# Remove misleading libtool files
 rm -f ${prefix}/lib/*.la
 update_configure_scripts
-
-# old and custom autoconf
 sed -i s/elf64ppc/elf64lppc/ configure
-
 mkdir build
 cd build/
-
-export CPPFLAGS="${CPPFLAGS} -DNDEBUG -I${includedir} -I${includedir}/coin"
-if [[ ${target} == *mingw* ]]; then
-    export LDFLAGS="-L${libdir}"
-elif [[ ${target} == *linux* ]]; then
-    export LDFLAGS="-ldl -lrt"
-fi
-
-if [[ ${target} == *aarch64* ]] || [[ ${target} == *arm* ]]; then
-   export CPPFLAGS="${CPPFLAGS} -D__arm__"
-fi
-
-# BLAS and LAPACK
-if [[ "${target}" == *mingw* ]]; then
-  LBT="-lblastrampoline-5"
-else
-  LBT="-lblastrampoline"
-fi
-
 ../configure \
     --prefix=$prefix \
     --build=${MACHTYPE} \
@@ -155,7 +99,6 @@ fi
     --with-mumps-incdir="${includedir}/libseq" \
     --with-metis-lib="-L${libdir} -lmetis" \
     --with-metis-incdir="${includedir}"
-
 make -j${nproc}
 make install
 

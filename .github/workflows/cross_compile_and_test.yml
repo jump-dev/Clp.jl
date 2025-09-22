@@ -21,10 +21,8 @@ jobs:
           arch: x64
       - uses: julia-actions/cache@v2
       - run: |
-          PACKAGE=Clp_jll
-          PLATFORM=aarch64-apple-darwin
           julia --color=yes -e 'using Pkg; Pkg.add("BinaryBuilder")'
-          julia --color=yes .github/julia/build_tarballs.jl ${PLATFORM} --verbose --deploy=local
+          julia --color=yes .github/julia/build_tarballs.jl aarch64-apple-darwin --verbose --deploy=local
         env:
           BINARYBUILDER_RUNNER: privileged
           BINARYBUILDER_AUTOMATIC_APPLE: true
@@ -47,11 +45,8 @@ jobs:
       - uses: julia-actions/julia-buildpkg@v1
       - uses: actions/download-artifact@v4
       - run: |
-          cd ${GITHUB_WORKSPACE}
-          cd override
+          cd ${GITHUB_WORKSPACE}/override
           tar -xzf Clp.v100.1700.901.aarch64-apple-darwin.tar.gz
-          ls ${GITHUB_WORKSPACE}/override
-          ls ${GITHUB_WORKSPACE}/override/lib
       - shell: julia --color=yes --project=. {0}
         run: |
           import Clp_jll
