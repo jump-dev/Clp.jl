@@ -20,7 +20,7 @@ function __init__()
         Clp_VersionMinor(),
         Clp_VersionRelease(),
     )
-    if !(v"1.17.2" <= version <= v"1.17.10")
+    if !(v"1.17.2" <= version <= v"1.17.11")
         error(
             "You have installed version $version of Clp, which is not " *
             "supported by Clp.jl. If the version change was breaking, changes " *

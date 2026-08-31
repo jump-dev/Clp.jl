@@ -11,7 +11,7 @@ OpenBLAS32_jll = "656ef2d0-ae68-5445-9ca0-591084a874a2"
 PrecompileTools = "aea7be01-6a6a-4083-8856-8a6e6704d82a"
 
 [compat]
-Clp_jll = "=100.1700.1000"
+Clp_jll = "=100.1700.1000, =100.1700.1100"
 LinearAlgebra = "1"
 MathOptInterface = "1.1"
 OpenBLAS32_jll = "0.3.10"
